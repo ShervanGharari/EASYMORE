@@ -60,7 +60,7 @@ def NetCDF_SHP_lat_lon(name_of_nc, name_of_variable, name_of_lat_var, name_of_lo
 
     # creating/saving the shapefile
     lat_lon_SHP(name_of_shp, lat, lon, box_values, correct_360)
-    
+
     # return mapped lat lon (2D lat, lon)
     return lat, lon
 
@@ -145,43 +145,35 @@ def lat_lon_SHP(name_of_shp, lat, lon, box_values, correct_360):
                         center_lon = lon[i,j]      # lon vaue of data point in source .nc file is within [-180,180]
 
                     # Creating the lat of the shapefile
-                    Lat_Up = (lat[i - 1, j] + lat[i, j]) / 2
-                    Lat_UpRright = (lat[i - 1, j] + lat[i - 1, j + 1] +
-                                    lat[i, j + 1] + lat[i, j]) / 4
-                    Lat_Right = (lat[i, j + 1] + lat[i, j]) / 2
-                    Lat_LowRight = (lat[i, j + 1] + lat[i + 1, j + 1] +
-                                    lat[i + 1, j] + lat[i, j]) / 4
-                    Lat_Low = (lat[i + 1, j] + lat[i, j]) / 2
-                    Lat_LowLeft = (lat[i, j - 1] + lat[i + 1, j - 1] +
-                                   lat[i + 1, j] + lat[i, j]) / 4
-                    Lat_Left = (lat[i, j - 1] + lat[i, j]) / 2
-                    Lat_UpLeft = (lat[i - 1, j - 1] + lat[i - 1, j] + lat[i, j - 1]
-                                  + lat[i, j]) / 4
+                    Lat_Up       = (lat[i - 1, j] + lat[i, j]) / 2
+                    Lat_UpRright = (lat[i - 1, j] + lat[i - 1, j + 1] + lat[i, j + 1] + lat[i, j]) / 4
+                    Lat_Right    = (lat[i, j + 1] + lat[i, j]) / 2
+                    Lat_LowRight = (lat[i, j + 1] + lat[i + 1, j + 1] + lat[i + 1, j] + lat[i, j]) / 4
+                    Lat_Low      = (lat[i + 1, j] + lat[i, j]) / 2
+                    Lat_LowLeft  = (lat[i, j - 1] + lat[i + 1, j - 1] + lat[i + 1, j] + lat[i, j]) / 4
+                    Lat_Left     = (lat[i, j - 1] + lat[i, j]) / 2
+                    Lat_UpLeft   = (lat[i - 1, j - 1] + lat[i - 1, j] + lat[i, j - 1] + lat[i, j]) / 4
 
                     # Creating the lon of the shapefile
-                    Lon_Up = (lon[i - 1, j] + lon[i, j]) / 2
-                    Lon_UpRright = (lon[i - 1, j] + lon[i - 1, j + 1] +
-                                    lon[i, j + 1] + lon[i, j]) / 4
-                    Lon_Right = (lon[i, j + 1] + lon[i, j]) / 2
-                    Lon_LowRight = (lon[i, j + 1] + lon[i + 1, j + 1] +
-                                    lon[i + 1, j] + lon[i, j]) / 4
-                    Lon_Low = (lon[i + 1, j] + lon[i, j]) / 2
-                    Lon_LowLeft = (lon[i, j - 1] + lon[i + 1, j - 1] +
-                                   lon[i + 1, j] + lon[i, j]) / 4
-                    Lon_Left = (lon[i, j - 1] + lon[i, j]) / 2
-                    Lon_UpLeft = (lon[i - 1, j - 1] + lon[i - 1, j] + lon[i, j - 1]
-                                  + lon[i, j]) / 4
+                    Lon_Up       = (lon[i - 1, j] + lon[i, j]) / 2
+                    Lon_UpRright = (lon[i - 1, j] + lon[i - 1, j + 1] + lon[i, j + 1] + lon[i, j]) / 4
+                    Lon_Right    = (lon[i, j + 1] + lon[i, j]) / 2
+                    Lon_LowRight = (lon[i, j + 1] + lon[i + 1, j + 1] + lon[i + 1, j] + lon[i, j]) / 4
+                    Lon_Low      = (lon[i + 1, j] + lon[i, j]) / 2
+                    Lon_LowLeft  = (lon[i, j - 1] + lon[i + 1, j - 1] + lon[i + 1, j] + lon[i, j]) / 4
+                    Lon_Left     = (lon[i, j - 1] + lon[i, j]) / 2
+                    Lon_UpLeft   = (lon[i - 1, j - 1] + lon[i - 1, j] + lon[i, j - 1] + lon[i, j]) / 4
 
                     # creating the polygon given the lat and lon
-                    parts.append([ (Lon_Up,Lat_Up),\
-                                   (Lon_UpRright,Lat_UpLeft), \
-                                   (Lon_Right,Lat_Left), \
-                                   (Lon_LowRight,Lat_LowLeft), \
-                                   (Lon_Low,Lat_Low), \
-                                   (Lon_LowLeft,Lat_LowRight), \
-                                   (Lon_Left,Lat_Right), \
-                                   (Lon_UpLeft,Lat_UpRright), \
-                                   (Lon_Up,Lat_Up)])
+                    parts.append([ (Lon_Up,        Lat_Up),\
+                                   (Lon_UpRright,  Lat_UpRright), \
+                                   (Lon_Right,     Lat_Right), \
+                                   (Lon_LowRight,  Lat_LowRight), \
+                                   (Lon_Low,       Lat_Low), \
+                                   (Lon_LowLeft,   Lat_LowLeft), \
+                                   (Lon_Left,      Lat_Left), \
+                                   (Lon_UpLeft,    Lat_UpLeft), \
+                                   (Lon_Up,        Lat_Up)])
 
                     # store polygon
                     w.poly(parts)
@@ -466,37 +458,37 @@ def weighted_average(nc_name,
     -------
     weighted_value: a numpy array that has the remapped values from the nc file
     """
-    
-    
+
+
     # read from mapping data frame and pass to int data array
     rows = np.array(mapping_df['rows'])
     cols = np.array(mapping_df['cols'])
     rows = rows.astype(int) # make sure the indices are int
     cols = cols.astype(int) # make sure the indices are int
-    
+
     # open dataset
     ds = xr.open_dataset(nc_name)
-    
+
     # prepared the numpy array for ouptut
     weighted_value = np.zeros([len(target_time),number_of_target_elements])
     m = 0 # couter
-    
-    for date in target_time: # loop over time 
-        
-        ds_temp = ds.sel(time=date.strftime("%Y/%m/%d %H-%M-%S"),method="nearest")
+
+    for date in target_time: # loop over time
+
+        ds_temp = ds.sel(time=date.strftime("%Y-%m-%d %H:%M:%S"),method="nearest")
         data = np.array(ds_temp[varibale_name])
-    
+
         # get values from the rows and cols and pass to np data array
         values = data [rows,cols]
         values = np.array(values)
-    
+
         # add values to data frame, weighted average and pass to data frame again
         mapping_df['values'] = values
         mapping_df['values_w'] = mapping_df['weight']*mapping_df['values']
         df_temp = mapping_df.groupby(['ID_t'],as_index=False).agg({'values_w': 'sum'})
         df_temp = df_temp.sort_values(by=['ID_t'])
         weighted_value [m,:] = np.array(df_temp['values_w'])
-        
+
         m = m+1
 
     return weighted_value
@@ -540,7 +532,7 @@ def target_nc_creation(nc_names,
     -------
     weighted_value: a numpy array that has the remapped values from the nc file
     """
-    
+
     # creating the target_ID_lat_lon
     target_ID_lat_lon = pd.DataFrame()
     target_ID_lat_lon ['ID_t']  = remap ['ID_t']
@@ -548,40 +540,40 @@ def target_nc_creation(nc_names,
     target_ID_lat_lon ['lon_t'] = remap ['lon_t']
     target_ID_lat_lon = target_ID_lat_lon.drop_duplicates()
     target_ID_lat_lon = target_ID_lat_lon.sort_values(by=['ID_t'])
-    
+
     # prepare the hru_id (here COMID), lat, lon
     hruID_var = np.array(target_ID_lat_lon['ID_t'])
     hruID_lat = np.array(target_ID_lat_lon['lat_t'])
     hruID_lon = np.array(target_ID_lat_lon['lon_t'])
-    
-    # 
+
+    #
     nc_names = glob.glob(nc_names)
     nc_names = sorted(nc_names)
-    
+
     for nc_name in nc_names:
-    
+
         # get the time unit and time var from source
         ncids = nc4.Dataset(nc_name)
         if 'units' in ncids.variables[name_of_var_time].ncattrs():
             time_unit = ncids.variables[name_of_var_time].units
         if 'calendar' in ncids.variables[name_of_var_time].ncattrs():
-            time_cal = ncids.variables[name_of_var_time].calendar        
+            time_cal = ncids.variables[name_of_var_time].calendar
         time_var = ncids[name_of_var_time][:]
         target_date_times = nc4.num2date(time_var,units = time_unit,calendar = time_cal)
         target_name = output_path+target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.nc'
         if os.path.exists(target_name): # remove file if exists
             os.remove(target_name)
-            
+
         # reporting
         print('Remapping '+nc_name+' to '+target_name)
         print('Started at date and time '+str(datetime.now()))
-        
+
         with nc4.Dataset(target_name, "w", format="NETCDF4") as ncid: # creating the NetCDF file
-    
+
             # define the dimensions
             dimid_N = ncid.createDimension('ID', len(hruID_var))  # limited dimensiton equal the number of hruID
-            dimid_T = ncid.createDimension('time', len(target_date_times))   # limited dimensiton, 17544 hr (2 years of 1980 and 1981)
-        
+            dimid_T = ncid.createDimension('time', None)   # limited dimensiton, 17544 hr (2 years of 1980 and 1981)
+
             # Variable time
             time_varid = ncid.createVariable('time', 'i4', ('time', ))
             # Attributes
@@ -591,7 +583,7 @@ def target_nc_creation(nc_names,
             time_varid.standard_name = name_of_var_time
             time_varid.axis = 'T'
             time_varid[:] = time_var
-        
+
             # Variables lat, lon, subbasin_ID
             lat_varid = ncid.createVariable('latitude', 'f8', ('ID', ))
             lon_varid = ncid.createVariable('longitude', 'f8', ('ID', ))
@@ -608,25 +600,25 @@ def target_nc_creation(nc_names,
             lat_varid[:] = hruID_lat
             lon_varid[:] = hruID_lon
             hruId_varid[:] = hruID_var
-            
-            
+
+
             # general attributes for NetCDF file
             ncid.Conventions = 'CF-1.6'
             ncid.License = 'The data were written by ' + authour_name
             ncid.history = 'Created ' + time.ctime(time.time())
             ncid.source = 'Written by script from library of Shervan Gharari (https://github.com/ShervanGharari/candex).'
-            
-            
+
+
             # write varibales
             for i in np.arange(len(varibale_name_list)):
-                
+
                 var_value  = weighted_average(nc_name,
                                             target_date_times,
                                             name_of_var_time,
                                             varibale_name_list[i],
                                             remap,
                                             len(hruID_var))
-            
+
                 # Variables tp, total precipitation
                 varid = ncid.createVariable(varibale_name_list[i], format_list[i], ('time','ID' ), fill_value = fill_value_list[i])
                 varid [:] = var_value
@@ -635,6 +627,6 @@ def target_nc_creation(nc_names,
                     varid.long_name = ncids.variables[varibale_name_list[i]].long_name
                 if 'units' in ncids.variables[varibale_name_list[i]].ncattrs():
                     varid.units = ncids.variables[varibale_name_list[i]].units
-            
+
             # reporting
             print('Ended   at date and time '+str(datetime.now()))
