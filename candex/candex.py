@@ -46,7 +46,29 @@ def NetCDF_SHP_lat_lon(name_of_nc, name_of_variable, name_of_lat_var, name_of_lo
     if (len(ncid.variables[name_of_lat_var].dimensions)==1) and (len(ncid.variables[name_of_lon_var].dimensions)==1) and\
        (len(ncid.variables[name_of_variable].dimensions)==3):
         print('case 1 - regular lat/lon')
-        lat, lon = np.meshgrid(ncid.variables[name_of_lat_var][:], ncid.variables[name_of_lon_var][:])
+        # get the list of dimensions for the ncid sample varibale
+        list_dim_name = list(ncid.variables[name_of_variable].dimensions)
+        # get the location of lat dimensions
+        location_of_lat = list_dim_name.index(list(ncid.variables[name_of_lat_var].dimensions)[0])
+        locaiton_of_lon = list_dim_name.index(list(ncid.variables[name_of_lon_var].dimensions)[0])
+        # det the dimensions of lat and lon
+        len_of_lat = len(ncid.variables[name_of_lat_var][:])
+        len_of_lon = len(ncid.variables[name_of_lon_var][:])
+        print(len_of_lat, len_of_lon)
+        if locaiton_of_lon > location_of_lat:
+            lat = np.zeros([len_of_lat, len_of_lon])
+            lon = np.zeros([len_of_lat, len_of_lon])
+            for i in np.arange(len(ncid.variables[name_of_lon_var][:])):
+                lat [:,i] = ncid.variables[name_of_lat_var][:]
+            for i in np.arange(len(ncid.variables[name_of_lat_var][:])):
+                lon [i,:] = ncid.variables[name_of_lon_var][:]
+        else:
+            lat = np.zeros([len_of_lon, len_of_lat])
+            lon = np.zeros([len_of_lon, len_of_lat])
+            for i in np.arange(len(ncid.variables[name_of_lon_var][:])):
+                lat [i,:] = ncid.variables[name_of_lat_var][:]
+            for i in np.arange(len(ncid.variables[name_of_lat_var][:])):
+                lon [:,i] = ncid.variables[name_of_lon_var][:]
     # case #2 rotated lat/lon
     if (len(ncid.variables[name_of_lat_var].dimensions)==2) and (len(ncid.variables[name_of_lon_var].dimensions)==2):
         print('case 2 - rotated lat/lon')
