@@ -21,16 +21,18 @@ class candex:
         self.name_of_target_shp        =  '' # name_of_target_shp
         self.name_of_field_target_shp  =  [] # name_of_field_target_shp
         self.name_of_nc_files          =  '' # name_of_nc_files
+        self.name_of_shp_for_nc_files  =  '' # name_of_nc_files
         self.name_of_var_name          =  '' # name_of_var_name
         self.name_of_var_lon           =  '' # name_of_var_lon
         self.name_of_var_lat           =  '' #name_of_var_lat
         self.name_of_var_time          =  '' #name_of_var_time
+        self.name_of_var_ID            =  '' # name_of_nc_files
         self.name_of_nc_output_folder  =  '' # name_of_nc_files
         self.format_list               =  []
         self.fill_value_list           =  []
         self.name_of_remap_file        =  '' # name_of_nc_files
         self.box_flag                  =  True #box_flag
-        self.keep_file_flag            =  True #keep_file_flag
+        self.map_on_ID                 =  False # for the third case if the mapping is based on ID only
         self.authour_name              =  'default author'
 
 
@@ -39,18 +41,26 @@ class candex:
         if self.name_of_remap_file == '':
             self.__check_candex_input()
             self.__check_target_shp() # check the target shapefile
-            self.__check_target_nc() # check the netCDF file and their dimensions
+            self.__check_source_nc() # check the netCDF file and their dimensions
             self.__NetCDF_SHP_lat_lon()
             self.__intersection_shp()
             self.__create_remap()
         else:
             print('remap file is provided; candex will use this file and skip calculation of remapping')
+            self.__check_source_nc() # check the netCDF file and their dimensions
         self.__target_nc_creation()
 
     def __check_candex_input (self):
         if self.temporary_candex_folder != '':
             if self.temporary_candex_folder[-1] != '/':
                 sys.exit('the provided temporary folder for candex should end with (/)')
+            if not os.path.isdir(self.temporary_candex_folder):
+                os.mkdir(self.temporary_candex_folder)
+        if self.name_of_nc_output_folder != '':
+            if self.name_of_nc_output_folder[-1] != '/':
+                sys.exit('the provided output folder for candex should end with (/)')
+            if not os.path.isdir(self.name_of_nc_output_folder):
+                os.mkdir(self.name_of_nc_output_folder)
         if self.temporary_candex_folder == '':
             print("No temporary folder is provided for candex; this will result in candex saving the files in the same directory as python script")
         if self.authour_name == '':
@@ -67,9 +77,9 @@ class candex:
 
         # target shapefile is what we want the varibales to be remapped to; South Saskachewan River at Medicine Hat
         shp = gpd.read_file(self.name_of_target_shp)
-        if (shp.crs != 'epsg:4326') or (shp.crs != 'EPSG:4326'): # check if the projection is WGS84 (or epsg:4326)
+        if (str(shp.crs).lower() != 'epsg:4326'):
             sys.exit('please project your shapefile to WGS84 (epsg:4326)')
-        if (shp.crs == 'epsg:4326') or (shp.crs == 'EPSG:4326'): # check if the projection is WGS84 (or epsg:4326)
+        if (str(shp.crs).lower() == 'epsg:4326'): # check if the projection is WGS84 (or epsg:4326)
             print('candex detects that target shapefile is in WGS84 (epsg:4326)')
 
         if self.name_of_field_target_shp:
@@ -102,18 +112,39 @@ class candex:
             shp['lat_t'] = shp.centroid.y # centroid lat from target
             shp['lon_t'] = shp.centroid.x # centroid lon from target
 
+
+        detendted_points = False
+        detendted_multipoints = False
+        for index, _ in shp.iterrows():
+            polys = shp.geometry.iloc[index] # get the shape
+            if polys.geom_type.lower() == "point" or polys.geom_type.lower() == "points":
+                detendted_points = True
+                polys = polys.buffer(10**-5).simplify(10**-5)
+                shp.geometry.iloc[index] = polys
+            if polys.geom_type.lower() == "multipoint" or polys.geom_type.lower() == "multipoints":
+                detendted_multipoints = True
+                polys = polys.buffer(10**-5).simplify(10**-5)
+                shp.geometry.iloc[index] = polys
+
+        if detendted_points:
+            print('candex detects point(s) as geometry of target shapefile and will apply small buffer to them')
+        if detendted_multipoints:
+            print('candex detected multipoint as geometry of target shapefile and will considere it as multipolygone')
+            print('hence candex will provide the average of all the point in each multipoint')
+            print('if you mistakenly have given poitns as multipoints please correct the target shapefile')
+
         # save the standard target shapefile
         print('candex will save standard shapefile for candex claculation as:')
         print(self.temporary_candex_folder+self.name_of_case+'_target_shapefile.shp')
         shp.to_file(self.temporary_candex_folder+self.name_of_case+'_target_shapefile.shp') # save
 
-    def __check_target_nc (self):
+    def __check_source_nc (self):
 
         flag_do_not_match = False
 
         nc_names = glob.glob (self.name_of_nc_files)
         if not nc_names:
-            print('candex detects no netCDF file; check the path to the soure netCDF files')
+            sys.exit('candex detects no netCDF file; check the path to the soure netCDF files')
         else:
             ncid = nc4.Dataset(nc_names[0])
             var_dim = list(ncid.variables[self.name_of_var_name[0]].dimensions)
@@ -136,7 +167,6 @@ class candex:
                 temp = np.array(ncid.variables[self.name_of_var_lat])
                 if np.sum(abs(lat_value-temp))>10**-3:
                     flag_do_not_match = True
-
 
             # for varibale lon
             for nc_name in nc_names:
@@ -219,6 +249,7 @@ in dimensions of the varibales and latitude and longitude')
         if (len(ncid.variables[self.name_of_var_lon].dimensions)==1) and (len(ncid.variables[self.name_of_var_lon].dimensions)==1) and\
            (len(ncid.variables[self.name_of_var_name[0]].dimensions)==3):
             print('candex detects case 1 - regular lat/lon')
+            self.case = 1
             # get the list of dimensions for the ncid sample varibale
             list_dim_name = list(ncid.variables[self.name_of_var_name[0]].dimensions)
             # get the location of lat dimensions
@@ -242,20 +273,29 @@ in dimensions of the varibales and latitude and longitude')
                 for i in np.arange(len(ncid.variables[self.name_of_var_lat][:])):
                     lon [:,i] = ncid.variables[self.name_of_var_lon][:]
             # creating/saving the shapefile
-            self.lat_2D = lat; self.lon_2D = lon
+            self.lat = lat; self.lon = lon
             self.__lat_lon_SHP(lat, lon)
         # case #2 rotated lat/lon
         if (len(ncid.variables[self.name_of_var_lat].dimensions)==2) and (len(ncid.variables[self.name_of_var_lon].dimensions)==2):
             print('candex detects case 2 - rotated lat/lon')
+            self.case = 2
             lat = ncid.variables[self.name_of_var_lat][:,:]
             lon = ncid.variables[self.name_of_var_lon][:,:]
             # creating/saving the shapefile
-            self.lat_2D = lat; self.lon_2D = lon
+            self.lat = lat; self.lon = lon
             self.__lat_lon_SHP(lat, lon)
         # case #3 1-D lat/lon and 2 data for irregulat shapes
         if (len(ncid.variables[self.name_of_var_lat].dimensions)==1) and (len(ncid.variables[self.name_of_var_lon].dimensions)==1) and\
            (len(ncid.variables[self.name_of_var_name[0]].dimensions)==2):
-            print('candex detects case 3 - regular lat/lon; shapefile should be provided')
+            print('candex detects case 3 - irregular lat/lon; shapefile should be provided')
+            self.case = 3
+            if self.name_of_var_ID  == '':
+                sys.exit('candex detects that no varibale for ID of the source netCDF file is provided')
+            lat = ncid.variables[self.name_of_var_lat][:]
+            lon = ncid.variables[self.name_of_var_lon][:]
+            ID  = ncid.variables[self.name_of_var_ID][:]
+            # creating/saving the shapefile
+            self.lat = lat; self.lon = lon; self.ID = ID
             sys.exit("no shapfile is created, please provide the associated shapefile to the netCDF file")
 
 
@@ -699,8 +739,8 @@ in dimensions of the varibales and latitude and longitude')
 
         # loop to find the rows and colomns
         for i in np.arange(len(lat_source)):
-            lat_lon_value_diff = abs(self.lat_2D - lat_source[i])+abs(self.lon_2D - lon_source[i])
-            row, col = np.where(lat_lon_value_diff == lat_lon_value_diff.min())
+            lat_lon_value_diff = abs(self.lat - lat_source[i])+abs(self.lon - lon_source[i])
+            row, col = np.where(lat_lon_value_diff == np.min(lat_lon_value_diff))
             rows [i] = row[0]
             cols [i] = col[0]
 
@@ -778,7 +818,7 @@ in dimensions of the varibales and latitude and longitude')
             time_var = ncids[self.name_of_var_time][:]
             self.length_of_time = len(time_var)
             target_date_times = nc4.num2date(time_var,units = time_unit,calendar = time_cal)
-            target_name = self.name_of_nc_output_folder + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.nc'
+            target_name = self.name_of_nc_output_folder + self.name_of_case + '_remapped_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.nc'
             if os.path.exists(target_name): # remove file if exists
                 os.remove(target_name)
 
@@ -790,7 +830,7 @@ in dimensions of the varibales and latitude and longitude')
 
                 # define the dimensions
                 dimid_N = ncid.createDimension('ID', len(hruID_var))  # limited dimensiton equal the number of hruID
-                dimid_T = ncid.createDimension('time', None)   # limited dimensiton, 17544 hr (2 years of 1980 and 1981)
+                dimid_T = ncid.createDimension('time', None)   # unlimited dimensiton
 
                 # Variable time
                 time_varid = ncid.createVariable('time', 'i4', ('time', ))
