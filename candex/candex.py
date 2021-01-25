@@ -17,21 +17,21 @@ class candex:
     def __init__(self):
 
         self.name_of_case              =  '' # name_of_case
-        self.temporary_candex_folder   =  '' #temporary_candex_folder
+        self.temporary_candex_folder   =  '' # temporary_candex_folder
         self.name_of_target_shp        =  '' # name_of_target_shp
         self.name_of_field_target_shp  =  [] # name_of_field_target_shp
         self.name_of_nc_files          =  '' # name_of_nc_files
         self.name_of_shp_for_nc_files  =  '' # name_of_nc_files
         self.name_of_var_name          =  '' # name_of_var_name
         self.name_of_var_lon           =  '' # name_of_var_lon
-        self.name_of_var_lat           =  '' #name_of_var_lat
-        self.name_of_var_time          =  '' #name_of_var_time
+        self.name_of_var_lat           =  '' # name_of_var_lat
+        self.name_of_var_time          =  '' # name_of_var_time
         self.name_of_var_ID            =  '' # name_of_nc_files
         self.name_of_nc_output_folder  =  '' # name_of_nc_files
         self.format_list               =  []
         self.fill_value_list           =  []
         self.name_of_remap_file        =  '' # name_of_nc_files
-        self.box_flag                  =  True #box_flag
+        self.box_flag                  =  True # box_flag; may not be used...
         self.map_on_ID                 =  False # for the third case if the mapping is based on ID only
         self.authour_name              =  'default author'
 
