@@ -269,14 +269,12 @@ in dimensions of the varibales and latitude and longitude')
             # check the length of the lat/lon from shapfile and nc file
             if len (lat_nc) <= len (lat_shp):
                 for i in np.arange (len (lat_nc)):
-                    print(i)
                     distance = ((lat_shp - lat_nc[i])**2 + (lon_shp - lon_nc[i])**2)**0.5
                     distance_smaller = np.array((distance < self.tolerance))
                     if sum (distance_smaller) > 1: # only one value
                         sys.exit('there is discripancies between the source nc and shapefile lat/lon; please check')
             else:
                 for i in np.arange (len (lat_shp)):
-                    print(i)
                     distance = ((lat_nc - lat_shp[i])**2 + (lon_nc - lon_shp[i])**2)**0.5
                     distance_smaller = np.array((distance < self.tolerance))
                     if sum (distance_smaller) > 1: # only one value
