@@ -22,6 +22,8 @@ class candex:
         self.name_of_field_target_shp  =  [] # name_of_field_target_shp
         self.name_of_nc_files          =  '' # name_of_nc_files
         self.name_of_shp_for_nc_files  =  '' # name_of_nc_files
+        self.name_of_field_target_lat_shp_for_nc_files  =  '' # name_of_nc_files
+        self.name_of_field_target_lon_shp_for_nc_files  =  '' # name_of_nc_files
         self.name_of_var_name          =  '' # name_of_var_name
         self.name_of_var_lon           =  '' # name_of_var_lon
         self.name_of_var_lat           =  '' # name_of_var_lat
@@ -31,9 +33,11 @@ class candex:
         self.format_list               =  []
         self.fill_value_list           =  []
         self.name_of_remap_file        =  '' # name_of_nc_files
-        self.box_flag                  =  True # box_flag; may not be used...
-        self.map_on_ID                 =  False # for the third case if the mapping is based on ID only
-        self.authour_name              =  'default author'
+        self.authour_name              =  ''
+        self.tolerance                 =  10**-5 # tolerance
+        # self.box_flag                  =  True # box_flag; may not be used...
+        # self.map_on_ID                 =  False # for future development for remapping on IDs only not supported and not recommended
+
 
 
     def run_candex(self):
@@ -43,6 +47,7 @@ class candex:
             self.__check_target_shp() # check the target shapefile
             self.__check_source_nc() # check the netCDF file and their dimensions
             self.__NetCDF_SHP_lat_lon()
+            self.__check_source_nc_shp()
             self.__intersection_shp()
             self.__create_remap()
         else:
@@ -67,6 +72,17 @@ class candex:
             print("no  author name is provide and the author name is changes to (author name)")
         if self.name_of_nc_output_folder == '':
             sys.exit('the provided folder for candex remapped netCDF output is missing; please provide that')
+        if (len(self.name_of_var_name) != 1) and (len(self.format_list) != 1) and (len(self.fill_value_list) !=1):
+            if (len(self.name_of_var_name) != len(self.fill_value_list)) and \
+            (len(self.name_of_var_name) != len(self.format_list)) and \
+            (len(self.format_list) == 1) and (len(self.fill_value_list) ==1):
+                print('candex is given multiple varibales to be remapped but only on format and fill value'+\
+                    'candex repeat the format and fill value for all the variables in output files')
+                self.format_list     = self.format_list     * len(self.name_of_var_name)
+                self.fill_value_list = self.fill_value_list * len(self.name_of_var_name)
+            else:
+                sys.exit('number of varibales and fill values and formats do not match')
+
 
     def __check_target_shp (self):
         # load the needed packages
@@ -143,6 +159,7 @@ class candex:
         flag_do_not_match = False
 
         nc_names = glob.glob (self.name_of_nc_files)
+
         if not nc_names:
             sys.exit('candex detects no netCDF file; check the path to the soure netCDF files')
         else:
@@ -152,6 +169,19 @@ class candex:
             lon_dim = list(ncid.variables[self.name_of_var_lon].dimensions)
             lat_value = np.array(ncid.variables[self.name_of_var_lat])
             lon_value = np.array(ncid.variables[self.name_of_var_lon])
+
+
+            # dimension checks based on the first netcdf file
+            if not (set(lat_dim) <= set(var_dim)):
+                flag_do_not_match = True
+            if not (set(lon_dim) <= set(var_dim)):
+                flag_do_not_match = True
+            if (len(lat_dim) == 2) and (len(lon_dim) == 2) and (len(var_dim) == 3): # case 2
+                if not (set(lat_dim) == set(lon_dim)):
+                    flag_do_not_match = True
+            if (len(lat_dim) == 1) and (len(lon_dim) == 1) and (len(var_dim) == 2): # case 3
+                if not (set(lat_dim) == set(lon_dim)):
+                    flag_do_not_match = True
 
             # for varibale lat
             for nc_name in nc_names:
@@ -165,7 +195,7 @@ class candex:
                         if temp[i] != lat_dim[i]:
                             flag_do_not_match = True
                 temp = np.array(ncid.variables[self.name_of_var_lat])
-                if np.sum(abs(lat_value-temp))>10**-3:
+                if np.sum(abs(lat_value-temp))>self.tolerance:
                     flag_do_not_match = True
 
             # for varibale lon
@@ -180,7 +210,7 @@ class candex:
                         if temp[i] != lon_dim[i]:
                             flag_do_not_match = True
                 temp = np.array(ncid.variables[self.name_of_var_lon])
-                if np.sum(abs(lon_value-temp))>10**-3:
+                if np.sum(abs(lon_value-temp))>self.tolerance:
                     flag_do_not_match = True
 
             for var_name in self.name_of_var_name:
@@ -208,6 +238,50 @@ in dimensions of the varibales and latitude and longitude')
             print(lon_dim)
             print('candex detects that the latitude varibales has dimensions of:')
             print(lat_dim)
+
+    def __check_source_nc_shp (self):
+
+
+        if self.case == 3:
+
+            # load the needed packages
+            import geopandas as gpd
+            from shapely.geometry import Polygon
+            import shapefile # pyshed library
+            import shapely
+
+            nc_names = glob.glob (self.name_of_nc_files)
+            ncid = nc4.Dataset(nc_names[0])
+
+            # target shapefile is what we want the varibales to be remapped to; South Saskachewan River at Medicine Hat
+            shp = gpd.read_file(self.name_of_shp_for_nc_files)
+            if (str(shp.crs).lower() != 'epsg:4326'):
+                sys.exit('please project your source shapefile and varibales in source nc files to WGS84 (epsg:4326)')
+            if (str(shp.crs).lower() == 'epsg:4326'): # check if the projection is WGS84 (or epsg:4326)
+                print('candex detects that source shapefile is in WGS84 (epsg:4326)')
+
+            # get the lat/lon from source shapfile and nc files
+            lat_shp = np.array(shp[self.name_of_field_target_lat_shp_for_nc_files]); lat_shp = lat_shp.astype(float)
+            lon_shp = np.array(shp[self.name_of_field_target_lon_shp_for_nc_files]); lon_shp = lon_shp.astype(float)
+            lat_nc  = np.array(ncid.variables[self.name_of_var_lat][:]);             lat_nc  = lat_nc.astype(float)
+            lon_nc  = np.array(ncid.variables[self.name_of_var_lat][:]);             lon_nc  = lon_nc.astype(float)
+
+            # check the length of the lat/lon from shapfile and nc file
+            if len (lat_nc) <= len (lat_shp):
+                for i in np.arange (len (lat_nc)):
+                    print(i)
+                    distance = ((lat_shp - lat_nc[i])**2 + (lon_shp - lon_nc[i])**2)**0.5
+                    distance_smaller = np.array((distance < self.tolerance))
+                    if sum (distance_smaller) > 1: # only one value
+                        sys.exit('there is discripancies between the source nc and shapefile lat/lon; please check')
+            else:
+                for i in np.arange (len (lat_shp)):
+                    print(i)
+                    distance = ((lat_nc - lat_shp[i])**2 + (lon_nc - lon_shp[i])**2)**0.5
+                    distance_smaller = np.array((distance < self.tolerance))
+                    if sum (distance_smaller) > 1: # only one value
+                        sys.exit('there is discripancies between the source nc and shapefile lat/lon; please check')
+            print('all the point in the source and ')
 
 
     def __NetCDF_SHP_lat_lon(self):
@@ -273,6 +347,7 @@ in dimensions of the varibales and latitude and longitude')
                 for i in np.arange(len(ncid.variables[self.name_of_var_lat][:])):
                     lon [:,i] = ncid.variables[self.name_of_var_lon][:]
             # creating/saving the shapefile
+            lat = np.array(lat).astype(float); lon = np.array(lon).astype(float)
             self.lat = lat; self.lon = lon
             self.__lat_lon_SHP(lat, lon)
         # case #2 rotated lat/lon
@@ -282,6 +357,7 @@ in dimensions of the varibales and latitude and longitude')
             lat = ncid.variables[self.name_of_var_lat][:,:]
             lon = ncid.variables[self.name_of_var_lon][:,:]
             # creating/saving the shapefile
+            lat = np.array(lat).astype(float); lon = np.array(lon).astype(float)
             self.lat = lat; self.lon = lon
             self.__lat_lon_SHP(lat, lon)
         # case #3 1-D lat/lon and 2 data for irregulat shapes
@@ -289,14 +365,20 @@ in dimensions of the varibales and latitude and longitude')
            (len(ncid.variables[self.name_of_var_name[0]].dimensions)==2):
             print('candex detects case 3 - irregular lat/lon; shapefile should be provided')
             self.case = 3
-            if self.name_of_var_ID  == '':
-                sys.exit('candex detects that no varibale for ID of the source netCDF file is provided')
             lat = ncid.variables[self.name_of_var_lat][:]
             lon = ncid.variables[self.name_of_var_lon][:]
-            ID  = ncid.variables[self.name_of_var_ID][:]
+            print(lat, lon)
+            if self.name_of_var_ID  == '':
+                print('candex detects that no varibale for ID of the source netCDF file; an arbitatiry ID will be provided')
+                ID  =  np.arange(len(lat))+1 # pass arbitarary values
+            else:
+                ID = ncid.variables[self.name_of_var_ID][:]
             # creating/saving the shapefile
+            lat = np.array(lat).astype(float); lon = np.array(lon).astype(float)
             self.lat = lat; self.lon = lon; self.ID = ID
-            sys.exit("no shapfile is created, please provide the associated shapefile to the netCDF file")
+            if self.name_of_shp_for_nc_files == '':
+                sys.exit("no shapfile is provided for the source netCDF file, please provide the associated shapefile to the netCDF file")
+            self.__lat_lon_SHP(lat, lon)
 
 
     def __lat_lon_SHP(self, lat, lon):
@@ -328,77 +410,91 @@ in dimensions of the varibales and latitude and longitude')
         result: a shapefile with (n-2)*(m-2) elements depicting the provided 2-D lat and lon values
         """
         # check if lat/lon that are taken in has the same dimnesion
-        if ((lat.shape[0] != lon.shape[0]) or (lat.shape[1] != lon.shape[1])):
-            sys.exit("no shapfile is created, please provide the associated shapefile to the netCDF file")
-        lat_lon_shape = lat.shape
+        if self.case == 1 or self.case == 2:
+            if ((lat.shape[0] != lon.shape[0]) or (lat.shape[1] != lon.shape[1])):
+                sys.exit("no shapfile is created, please provide the associated shapefile to the netCDF file")
+        else:
+            if (lat.shape[0] != lon.shape[0]):
+                sys.exit("no shapfile is created, please provide the associated shapefile to the netCDF file")
 
-        # name of the shapefile
-        print('candex is creating the shapefile from the netCDF file and saving it here:')
-        print(self.temporary_candex_folder+self.name_of_case+'_source_shapefile.shp')
-        name_of_shp = self.temporary_candex_folder+self.name_of_case+'_source_shapefile.shp'
+        if self.case == 1 or self.case ==2:
 
-        # write the shapefile
-        with shapefile.Writer(name_of_shp) as w:
-            w.autoBalance = 1 # turn on function that keeps file stable if number of shapes and records don't line up
-            w.field("ID_s",'N') # create (N)umerical attribute fields, integer
-            w.field("lat_s",'F',decimal=4) # float with 4 decimals
-            w.field("lon_s",'F',decimal=4) # float with 4 decimals
+            lat_lon_shape = lat.shape
 
-            # preparing the m whcih is a couter for the shapefile arbitrary ID
-            m = 0.00
+            # name of the shapefile
+            print('candex is creating the shapefile from the netCDF file and saving it here:')
+            print(self.temporary_candex_folder+self.name_of_case+'_source_shapefile.shp')
+            name_of_shp = self.temporary_candex_folder+self.name_of_case+'_source_shapefile.shp'
 
-            # itterating to create the shapes of the result shapefile ignoring the first and last rows and columns
-            for i in range(1, lat_lon_shape[0] - 1):
-                for j in range(1, lat_lon_shape[1] - 1):
-                    # checking is lat and lon is located inside the provided bo
+            # write the shapefile
+            with shapefile.Writer(name_of_shp) as w:
+                w.autoBalance = 1 # turn on function that keeps file stable if number of shapes and records don't line up
+                w.field("ID_s",'N') # create (N)umerical attribute fields, integer
+                w.field("lat_s",'F',decimal=4) # float with 4 decimals
+                w.field("lon_s",'F',decimal=4) # float with 4 decimals
 
-                    # empty the polygon variable
-                    parts = []
+                # preparing the m whcih is a couter for the shapefile arbitrary ID
+                m = 0.00
 
-                    # update records
-                    m += 1 # ID
-                    center_lat = lat[i,j] # lat value of data point in source .nc file
-                    center_lon = lon[i,j] # lon value of data point in source .nc file should be within [0,360]
+                # itterating to create the shapes of the result shapefile ignoring the first and last rows and columns
+                for i in range(1, lat_lon_shape[0] - 1):
+                    for j in range(1, lat_lon_shape[1] - 1):
+                        # checking is lat and lon is located inside the provided bo
 
-                    # Creating the lat of the shapefile
-                    Lat_Up       = (lat[i - 1, j] + lat[i, j]) / 2
-                    Lat_UpRright = (lat[i - 1, j] + lat[i - 1, j + 1] + lat[i, j + 1] + lat[i, j]) / 4
-                    Lat_Right    = (lat[i, j + 1] + lat[i, j]) / 2
-                    Lat_LowRight = (lat[i, j + 1] + lat[i + 1, j + 1] + lat[i + 1, j] + lat[i, j]) / 4
-                    Lat_Low      = (lat[i + 1, j] + lat[i, j]) / 2
-                    Lat_LowLeft  = (lat[i, j - 1] + lat[i + 1, j - 1] + lat[i + 1, j] + lat[i, j]) / 4
-                    Lat_Left     = (lat[i, j - 1] + lat[i, j]) / 2
-                    Lat_UpLeft   = (lat[i - 1, j - 1] + lat[i - 1, j] + lat[i, j - 1] + lat[i, j]) / 4
+                        # empty the polygon variable
+                        parts = []
 
-                    # Creating the lon of the shapefile
-                    Lon_Up       = (lon[i - 1, j] + lon[i, j]) / 2
-                    Lon_UpRright = (lon[i - 1, j] + lon[i - 1, j + 1] + lon[i, j + 1] + lon[i, j]) / 4
-                    Lon_Right    = (lon[i, j + 1] + lon[i, j]) / 2
-                    Lon_LowRight = (lon[i, j + 1] + lon[i + 1, j + 1] + lon[i + 1, j] + lon[i, j]) / 4
-                    Lon_Low      = (lon[i + 1, j] + lon[i, j]) / 2
-                    Lon_LowLeft  = (lon[i, j - 1] + lon[i + 1, j - 1] + lon[i + 1, j] + lon[i, j]) / 4
-                    Lon_Left     = (lon[i, j - 1] + lon[i, j]) / 2
-                    Lon_UpLeft   = (lon[i - 1, j - 1] + lon[i - 1, j] + lon[i, j - 1] + lon[i, j]) / 4
+                        # update records
+                        m += 1 # ID
+                        center_lat = lat[i,j] # lat value of data point in source .nc file
+                        center_lon = lon[i,j] # lon value of data point in source .nc file should be within [0,360]
 
-                    # creating the polygon given the lat and lon
-                    parts.append([ (Lon_Up,        Lat_Up),\
-                                   (Lon_UpRright,  Lat_UpRright), \
-                                   (Lon_Right,     Lat_Right), \
-                                   (Lon_LowRight,  Lat_LowRight), \
-                                   (Lon_Low,       Lat_Low), \
-                                   (Lon_LowLeft,   Lat_LowLeft), \
-                                   (Lon_Left,      Lat_Left), \
-                                   (Lon_UpLeft,    Lat_UpLeft), \
-                                   (Lon_Up,        Lat_Up)])
+                        # Creating the lat of the shapefile
+                        Lat_Up       = (lat[i - 1, j] + lat[i, j]) / 2
+                        Lat_UpRright = (lat[i - 1, j] + lat[i - 1, j + 1] + lat[i, j + 1] + lat[i, j]) / 4
+                        Lat_Right    = (lat[i, j + 1] + lat[i, j]) / 2
+                        Lat_LowRight = (lat[i, j + 1] + lat[i + 1, j + 1] + lat[i + 1, j] + lat[i, j]) / 4
+                        Lat_Low      = (lat[i + 1, j] + lat[i, j]) / 2
+                        Lat_LowLeft  = (lat[i, j - 1] + lat[i + 1, j - 1] + lat[i + 1, j] + lat[i, j]) / 4
+                        Lat_Left     = (lat[i, j - 1] + lat[i, j]) / 2
+                        Lat_UpLeft   = (lat[i - 1, j - 1] + lat[i - 1, j] + lat[i, j - 1] + lat[i, j]) / 4
 
-                    # store polygon
-                    w.poly(parts)
+                        # Creating the lon of the shapefile
+                        Lon_Up       = (lon[i - 1, j] + lon[i, j]) / 2
+                        Lon_UpRright = (lon[i - 1, j] + lon[i - 1, j + 1] + lon[i, j + 1] + lon[i, j]) / 4
+                        Lon_Right    = (lon[i, j + 1] + lon[i, j]) / 2
+                        Lon_LowRight = (lon[i, j + 1] + lon[i + 1, j + 1] + lon[i + 1, j] + lon[i, j]) / 4
+                        Lon_Low      = (lon[i + 1, j] + lon[i, j]) / 2
+                        Lon_LowLeft  = (lon[i, j - 1] + lon[i + 1, j - 1] + lon[i + 1, j] + lon[i, j]) / 4
+                        Lon_Left     = (lon[i, j - 1] + lon[i, j]) / 2
+                        Lon_UpLeft   = (lon[i - 1, j - 1] + lon[i - 1, j] + lon[i, j - 1] + lon[i, j]) / 4
 
-                    # update records/fields for the polygon
-                    w.record(m, center_lat, center_lon)
+                        # creating the polygon given the lat and lon
+                        parts.append([ (Lon_Up,        Lat_Up),\
+                                       (Lon_UpRright,  Lat_UpRright), \
+                                       (Lon_Right,     Lat_Right), \
+                                       (Lon_LowRight,  Lat_LowRight), \
+                                       (Lon_Low,       Lat_Low), \
+                                       (Lon_LowLeft,   Lat_LowLeft), \
+                                       (Lon_Left,      Lat_Left), \
+                                       (Lon_UpLeft,    Lat_UpLeft), \
+                                       (Lon_Up,        Lat_Up)])
 
-        shp_source = gpd.read_file(name_of_shp)
-        shp_source = shp_source.set_crs("EPSG:4326") # set the projection to WGS84
+                        # store polygon
+                        w.poly(parts)
+
+                        # update records/fields for the polygon
+                        w.record(m, center_lat, center_lon)
+
+            shp_source = gpd.read_file(name_of_shp)
+            shp_source = shp_source.set_crs("EPSG:4326") # set the projection to WGS84
+
+        else:
+            name_of_shp = self.name_of_shp_for_nc_files
+            shp_source = gpd.read_file(name_of_shp)
+            shp_source ['lat_s'] = shp_source [self.name_of_field_target_lat_shp_for_nc_files].astype(float)
+            shp_source ['lon_s'] = shp_source [self.name_of_field_target_lon_shp_for_nc_files].astype(float)
+            shp_source ['ID_s']  = np.arange(len(shp_source))
 
         if max (shp_source['lon_s']) > 180 and min (shp_source['lon_s']) > 0 and max (shp_source['lon_s']) < 360:
 
@@ -467,6 +563,7 @@ in dimensions of the varibales and latitude and longitude')
 
         else:
             print('candex cannot decide about the lat and lon of the shapefiles')
+
 
 
     def __intersection_shp(self):
@@ -740,7 +837,11 @@ in dimensions of the varibales and latitude and longitude')
         # loop to find the rows and colomns
         for i in np.arange(len(lat_source)):
             lat_lon_value_diff = abs(self.lat - lat_source[i])+abs(self.lon - lon_source[i])
-            row, col = np.where(lat_lon_value_diff == np.min(lat_lon_value_diff))
+            if self.case == 1 or self.case == 2:
+                row, col = np.where(lat_lon_value_diff == np.min(lat_lon_value_diff))
+            if self.case == 3:
+                row = np.where(lat_lon_value_diff == np.min(lat_lon_value_diff))
+                col = row
             rows [i] = row[0]
             cols [i] = col[0]
 
@@ -938,7 +1039,10 @@ in dimensions of the varibales and latitude and longitude')
             data = np.array(ds_temp[varibale_name])
 
             # get values from the rows and cols and pass to np data array
-            values = data [self.rows,self.cols]
+            if self.case ==1 or self.case ==2:
+                values = data [self.rows,self.cols]
+            if self.case ==3:
+                values = data [self.rows]
             values = np.array(values)
 
             # add values to data frame, weighted average and pass to data frame again
@@ -951,6 +1055,3 @@ in dimensions of the varibales and latitude and longitude')
             m = m+1
 
         return weighted_value
-
-
-
