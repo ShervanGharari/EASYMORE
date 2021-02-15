@@ -267,14 +267,22 @@ in dimensions of the varibales and latitude and longitude')
             lon_nc  = np.array(ncid.variables[self.name_of_var_lat][:]);             lon_nc  = lon_nc.astype(float)
 
             # check the length of the lat/lon from shapfile and nc file
+            print('checking latitude and longitude values from source shapefile and nc file')
+            print('this may take a while')
             if len (lat_nc) <= len (lat_shp):
+                temp = list(np.floor(np.linspace(1, len (lat_nc), num=21)))
                 for i in np.arange (len (lat_nc)):
+                    if i in temp:
+                        print('progress: ', i/temp[-1])
                     distance = ((lat_shp - lat_nc[i])**2 + (lon_shp - lon_nc[i])**2)**0.5
                     distance_smaller = np.array((distance < self.tolerance))
                     if sum (distance_smaller) > 1: # only one value
                         sys.exit('there is discripancies between the source nc and shapefile lat/lon; please check')
             else:
+                temp = list(np.floor(np.linspace(1, len (lat_shp), num=21)))
                 for i in np.arange (len (lat_shp)):
+                    if i in temp:
+                        print('progress: ', i/temp[-1])
                     distance = ((lat_nc - lat_shp[i])**2 + (lon_nc - lon_shp[i])**2)**0.5
                     distance_smaller = np.array((distance < self.tolerance))
                     if sum (distance_smaller) > 1: # only one value
