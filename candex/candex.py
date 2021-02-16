@@ -273,7 +273,7 @@ in dimensions of the varibales and latitude and longitude')
                 temp = list(np.floor(np.linspace(1, len (lat_nc), num=21)))
                 for i in np.arange (len (lat_nc)):
                     if i in temp:
-                        print('progress: ', i/temp[-1])
+                        print('progress: ', round(i/temp[-1],2))
                     distance = ((lat_shp - lat_nc[i])**2 + (lon_shp - lon_nc[i])**2)**0.5
                     distance_smaller = np.array((distance < self.tolerance))
                     if sum (distance_smaller) > 1: # only one value
@@ -282,7 +282,7 @@ in dimensions of the varibales and latitude and longitude')
                 temp = list(np.floor(np.linspace(1, len (lat_shp), num=21)))
                 for i in np.arange (len (lat_shp)):
                     if i in temp:
-                        print('progress: ', i/temp[-1])
+                        print('progress: ', round(i/temp[-1],2))
                     distance = ((lat_nc - lat_shp[i])**2 + (lon_nc - lon_shp[i])**2)**0.5
                     distance_smaller = np.array((distance < self.tolerance))
                     if sum (distance_smaller) > 1: # only one value
