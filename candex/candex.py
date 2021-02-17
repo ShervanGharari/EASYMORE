@@ -35,15 +35,16 @@ class candex:
         self.name_of_remap_file        =  '' # name_of_nc_files
         self.authour_name              =  ''
         self.tolerance                 =  10**-5 # tolerance
+        self.get_col_row_flag          =  False
         # self.box_flag                  =  True # box_flag; may not be used...
         # self.map_on_ID                 =  False # for future development for remapping on IDs only not supported and not recommended
 
 
-
     def run_candex(self):
 
+
+        self.__check_candex_input()
         if self.name_of_remap_file == '':
-            self.__check_candex_input()
             self.__check_target_shp() # check the target shapefile
             self.__check_source_nc() # check the netCDF file and their dimensions
             self.__NetCDF_SHP_lat_lon()
@@ -51,9 +52,16 @@ class candex:
             self.__intersection_shp()
             self.__create_remap()
         else:
-            print('remap file is provided; candex will use this file and skip calculation of remapping')
+            self.__check_candex_remap() # check if there is candex_case in the remapping file
             self.__check_source_nc() # check the netCDF file and their dimensions
         self.__target_nc_creation()
+
+    def get_col_row(self):
+
+        self.get_col_row_flag = True
+        self.__check_candex_input()
+        self.__NetCDF_SHP_lat_lon()
+
 
     def __check_candex_input (self):
         if self.temporary_candex_folder != '':
@@ -61,6 +69,8 @@ class candex:
                 sys.exit('the provided temporary folder for candex should end with (/)')
             if not os.path.isdir(self.temporary_candex_folder):
                 os.mkdir(self.temporary_candex_folder)
+        if self.name_of_nc_output_folder == '':
+            sys.exit('the provided folder for candex remapped netCDF output is missing; please provide that')
         if self.name_of_nc_output_folder != '':
             if self.name_of_nc_output_folder[-1] != '/':
                 sys.exit('the provided output folder for candex should end with (/)')
@@ -69,10 +79,9 @@ class candex:
         if self.temporary_candex_folder == '':
             print("No temporary folder is provided for candex; this will result in candex saving the files in the same directory as python script")
         if self.authour_name == '':
-            print("no  author name is provide and the author name is changes to (author name)")
-        if self.name_of_nc_output_folder == '':
-            sys.exit('the provided folder for candex remapped netCDF output is missing; please provide that')
-        if (len(self.name_of_var_name) != 1) and (len(self.format_list) != 1) and (len(self.fill_value_list) !=1):
+            print("no  author name is provide and the author name is changes to (author name)!")
+            self.authour_name = "author name"
+        if (len(self.name_of_var_name) != 1) and (len(self.format_list) == 1) and (len(self.fill_value_list) ==1):
             if (len(self.name_of_var_name) != len(self.fill_value_list)) and \
             (len(self.name_of_var_name) != len(self.format_list)) and \
             (len(self.format_list) == 1) and (len(self.fill_value_list) ==1):
@@ -82,6 +91,8 @@ class candex:
                 self.fill_value_list = self.fill_value_list * len(self.name_of_var_name)
             else:
                 sys.exit('number of varibales and fill values and formats do not match')
+        if self.name_of_remap_file != '':
+            print('remap file is provided; candex will use this file and skip calculation of remapping')
 
 
     def __check_target_shp (self):
@@ -352,10 +363,52 @@ in dimensions of the varibales and latitude and longitude')
                     lat [i,:] = ncid.variables[self.name_of_var_lat][:]
                 for i in np.arange(len(ncid.variables[self.name_of_var_lat][:])):
                     lon [:,i] = ncid.variables[self.name_of_var_lon][:]
-            # creating/saving the shapefile
+
+            # check if lat and lon are spaced equally
+            lat_temp = np.array(ncid.variables[self.name_of_var_lat][:])
+            lat_temp_diff = np.diff(lat_temp)
+            lat_temp_diff_unique = np.unique(lat_temp_diff)
+            print(lat_temp_diff_unique)
+            print(lat_temp_diff_unique.shape)
+
+            lon_temp = np.array(ncid.variables[self.name_of_var_lon][:])
+            lon_temp_diff = np.diff(lon_temp)
+            lon_temp_diff_unique = np.unique(lon_temp_diff)
+            print(lon_temp_diff_unique)
+            print(lon_temp_diff_unique.shape)
+
+
             lat = np.array(lat).astype(float); lon = np.array(lon).astype(float)
             self.lat = lat; self.lon = lon
+
+            if self.get_col_row_flag: # create the row col and save
+                self.__create_row_col_file (lat, lon, lat.flatten(), lon.flatten())
+                sys.exit('The row and column file is saved here: '+ self.name_of_row_col_file)
+
+
+            # expanding just for the the creation of shapefile with first last rows and columns
+            if (len(lat_temp_diff_unique)==1) and (len(lon_temp_diff_unique)==1): # then lat lon are spaced equal
+                # create expanded lat
+                lat_expanded = np.zeros(np.array(lat.shape)+2)
+                lat_expanded [1:-1,1:-1] = lat
+                lat_expanded [:, 0]  = lat_expanded [:, 1] + (lat_expanded [:, 1] - lat_expanded [:, 2]) # populate left column
+                lat_expanded [:,-1]  = lat_expanded [:,-2] + (lat_expanded [:,-2] - lat_expanded [:,-3]) # populate right column
+                lat_expanded [0, :]  = lat_expanded [1, :] + (lat_expanded [1, :] - lat_expanded [2, :]) # populate top row
+                lat_expanded [-1,:]  = lat_expanded [-2,:] + (lat_expanded [-2,:] - lat_expanded [-3,:]) # populate bottom row
+                lat = lat_expanded
+
+                # create expanded lat
+                lon_expanded = np.zeros(np.array(lon.shape)+2)
+                lon_expanded [1:-1,1:-1] = lon
+                lon_expanded [:, 0]  = lon_expanded [:, 1] + (lon_expanded [:, 1] - lon_expanded [:, 2]) # populate left column
+                lon_expanded [:,-1]  = lon_expanded [:,-2] + (lon_expanded [:,-2] - lon_expanded [:,-3]) # populate right column
+                lon_expanded [0, :]  = lon_expanded [1, :] + (lon_expanded [1, :] - lon_expanded [2, :]) # populate top row
+                lon_expanded [-1,:]  = lon_expanded [-2,:] + (lon_expanded [-2,:] - lon_expanded [-3,:]) # populate bottom row
+                lon = lon_expanded
+
+            # create the shapefile
             self.__lat_lon_SHP(lat, lon)
+
         # case #2 rotated lat/lon
         if (len(ncid.variables[self.name_of_var_lat].dimensions)==2) and (len(ncid.variables[self.name_of_var_lon].dimensions)==2):
             print('candex detects case 2 - rotated lat/lon')
@@ -365,6 +418,9 @@ in dimensions of the varibales and latitude and longitude')
             # creating/saving the shapefile
             lat = np.array(lat).astype(float); lon = np.array(lon).astype(float)
             self.lat = lat; self.lon = lon
+            if self.get_col_row_flag: # create the row col and save
+                self.__create_row_col_file (lat, lon, lat.flatten(), lon.flatten())
+                sys.exit('The row and column file is saved here: '+ self.name_of_row_col_file)
             self.__lat_lon_SHP(lat, lon)
         # case #3 1-D lat/lon and 2 data for irregulat shapes
         if (len(ncid.variables[self.name_of_var_lat].dimensions)==1) and (len(ncid.variables[self.name_of_var_lon].dimensions)==1) and\
@@ -382,6 +438,9 @@ in dimensions of the varibales and latitude and longitude')
             # creating/saving the shapefile
             lat = np.array(lat).astype(float); lon = np.array(lon).astype(float)
             self.lat = lat; self.lon = lon; self.ID = ID
+            if self.get_col_row_flag: # create the row col and save
+                self.__create_row_col_file (lat, lon, lat.flatten(), lon.flatten())
+                sys.exit('The row and column file is saved here: '+ self.name_of_row_col_file)
             if self.name_of_shp_for_nc_files == '':
                 sys.exit("no shapfile is provided for the source netCDF file, please provide the associated shapefile to the netCDF file")
             self.__lat_lon_SHP(lat, lon)
@@ -610,10 +669,13 @@ in dimensions of the varibales and latitude and longitude')
 
         # get the maximume and minumue of the shp1 for the
         min_lon, min_lat, max_lon, max_lat = shp_1.total_bounds
-        shp_2 = shp_2 [shp_2['lon_s'] < max_lon+2]
-        shp_2 = shp_2 [shp_2['lon_s'] > min_lon-2]
-        shp_2 = shp_2 [shp_2['lat_s'] < max_lat+2]
-        shp_2 = shp_2 [shp_2['lat_s'] > min_lat-2]
+        shp_2['temp_lat'] = shp_2.centroid.y
+        shp_2['temp_lon'] = shp_2.centroid.x
+        shp_2 = shp_2 [shp_2['temp_lon'] < max_lon+2] # 2 degree buffer
+        shp_2 = shp_2 [shp_2['temp_lon'] > min_lon-2] # 2 degree buffer
+        shp_2 = shp_2 [shp_2['temp_lat'] < max_lat+2] # 2 degree buffer
+        shp_2 = shp_2 [shp_2['temp_lat'] > min_lat-2] # 2 degree buffer
+        shp_2 = shp_2.drop(columns=['temp_lon', 'temp_lat'])
         if shp_2.empty:
             sys.exit("somthing is wrong! candex cannot find the ovrlap between the target bounding box and source (netCDF) shapefiles")
         shp_2.to_file(self.temporary_candex_folder+self.name_of_case+'_bounded_source.shp') # save the intersected files
@@ -692,6 +754,9 @@ in dimensions of the varibales and latitude and longitude')
         result = result.rename(columns=dict_rename) # rename fields
         result = result.sort_values(by=['ID_t']) # sort based on ID_t
         result.to_file(self.temporary_candex_folder+self.name_of_case+'_intersected_shapefile.shp') # save the intersected files
+        result = result.drop(columns=['geometry']) # remove the geometry
+        result = pd.DataFrame(result) # move to data set and save as a csv
+        result.to_csv(self.temporary_candex_folder+self.name_of_case+'_intersected_shapefile.csv') # save the intersected files
 
 
     def __spatial_overlays(self, df1, df2, how='intersection', reproject=True):
@@ -813,36 +878,44 @@ in dimensions of the varibales and latitude and longitude')
         @ Github:                  https://github.com/ShervanGharari/candex
         @ author's email id:       sh.gharari@gmail.com
         @license:                  Apache2
-
-        This function get the mapped lat and lon from data created by mapped_lat_lon function and find
-        the index for the remap dataframe to that
-
-        Arguments
-        ---------
-        lat_source: 1D numpy array of lat_source from remap data frame
-        lon_source: 1D numpy array of lon_source from remap data frame
-        lat_mapped: 2D or 1D numpy array of data lat values
-        lon_mapped: 2D or 1D numpy array of data lon values
-
-        Returns
-        -------
-        rows: a 1D numpy array indexing the row of data to be read
-        cols: a 1D numpy array indexing the col of data to be read
         """
 
         # cell 2: indexing of the source lat/lon to row and colomns in nc file
-        remap_df = Dbf5(self.temporary_candex_folder+self.name_of_case+'_intersected_shapefile.dbf') # load dbf
-        remap_df = remap_df.to_dataframe()
+        # remap_df = Dbf5(self.temporary_candex_folder+self.name_of_case+'_intersected_shapefile.dbf') # load dbf
+        # remap_df = remap_df.to_dataframe()
 
-        # create the np arrays
-        rows = np.zeros(len(remap_df['lat_s']))
-        cols = np.zeros(len(remap_df['lon_s']))
-        lat_source = np.array(remap_df['lat_s'])
-        lon_source = np.array(remap_df['lon_s'])
+        # cell 2: indexing of the source lat/lon to row and colomns in nc file
+        remap_df   = pd.read_csv(self.temporary_candex_folder+self.name_of_case+'_intersected_shapefile.csv') # load dbf
+
+        # the lat lon from the intersection/remap
+        lat_source_int = np.array(remap_df['lat_s'])
+        lon_source_int = np.array(remap_df['lon_s'])
+
+        # call get row and col function
+        rows, cols     = self.__get_row_col (self.lat, self.lon, lat_source_int, lon_source_int)
+
+        # add rows and columns
+        remap_df['rows'] = rows
+        remap_df['cols'] = cols
+
+        # pass the case to the remap_df
+        remap_df['candex_case'] = self.case
+
+        # save remap_df as csv for future use
+        self.name_of_remap_file = self.temporary_candex_folder+self.name_of_case+'_remapping.csv'
+        remap_df.to_csv(self.name_of_remap_file)
+
+
+
+    def __get_row_col (self, lat, lon, lat_source, lon_source):
+
+        # create the rows and cols
+        rows = np.zeros(len(lat_source))
+        cols = np.zeros(len(lon_source))
 
         # loop to find the rows and colomns
         for i in np.arange(len(lat_source)):
-            lat_lon_value_diff = abs(self.lat - lat_source[i])+abs(self.lon - lon_source[i])
+            lat_lon_value_diff = abs(lat - lat_source[i])+abs(lon - lon_source[i])
             if self.case == 1 or self.case == 2:
                 row, col = np.where(lat_lon_value_diff == np.min(lat_lon_value_diff))
             if self.case == 3:
@@ -851,12 +924,47 @@ in dimensions of the varibales and latitude and longitude')
             rows [i] = row[0]
             cols [i] = col[0]
 
-        remap_df['rows'] = rows
-        remap_df['cols'] = cols
+        return rows, cols
+
+
+    def __create_row_col_file (self, lat, lon, lat_source, lon_source):
+
+        #
+        rows, cols = self.__get_row_col (lat, lon, lat_source, lon_source)
+
+        # create the data frame
+        lat_lon_row_col = pd.DataFrame()
+        lat_lon_row_col ['lat_s'] = lat_source
+        lat_lon_row_col ['lon_s'] = lon_source
+        lat_lon_row_col ['rows']  = rows
+        lat_lon_row_col ['cols']  = cols
 
         # save remap_df as csv for future use
-        remap_df.to_csv(self.temporary_candex_folder+self.name_of_case+'_remapping.csv')
-        self.name_of_remap_file = self.temporary_candex_folder+self.name_of_case+'_remapping.csv'
+        self.name_of_row_col_file = self.temporary_candex_folder+self.name_of_case+'_row_col.csv'
+        lat_lon_row_col.to_csv(self.name_of_row_col_file)
+
+
+
+    def __check_candex_remap(self):
+
+        # load the remap
+        remap = pd.read_csv(self.name_of_remap_file)
+
+        # check if there is candex_case in the columns
+        if 'candex_case' in remap.columns:
+            print('candex case exists in the remap file')
+        else:
+            sys.exit('candex case field do not esits in the remap file; make sure to include this and take care if your do it manually!')
+
+        # check if all the candex_case is unique for the data set
+        if not (len(np.unique(np.array(remap['candex_case'])))==1):
+            sys.exit('the candex_case is not unique in the remapping file')
+        if not (np.unique(np.array(remap['candex_case'])) == 1 or\
+        np.unique(np.array(remap['candex_case'])) == 2 or\
+        np.unique(np.array(remap['candex_case'])) == 3):
+            sys.exit('candex case should be one of 1, 2 or 3; please refer to the documentation')
+
+        self.case = np.unique(np.array(remap['candex_case']))
 
 
     def __target_nc_creation(self):
