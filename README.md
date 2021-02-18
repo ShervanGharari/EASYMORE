@@ -16,6 +16,20 @@ Candex is very efficient as it uses pandas `groupby` functionality. Remapping of
 3. Extraction of single or multiple points from the gridded or irregular data for comparison with gauges data, for example.
 4. Interpolation to caorser or finer resolutions with full controllability in creating the interpolation rules.
 
+## How to use:
+
+clone the code on your perosnal computer by
+
+```
+git clone https://github.com/ShervanGharari/candex_newgen.git
+```
+
+go to the candex folder, where `setup.py` is located and install candex locally:
+
+```
+pip install .
+```
+
 ## Examples:
 
 1. [Remapping a regular lat/lon gridded data or model output to irregular shapes.](./examples/Example_1.ipynb)
