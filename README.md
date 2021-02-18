@@ -1,17 +1,20 @@
  [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2628350.svg)](https://doi.org/10.5281/zenodo.2628350)
 
 # CANDEX: CAtchment NetcDf EXtractor:
+
 This package allows you to extract and aggregate the relevant values from a
 cfconventions compliant netcdf files given shapefiles.
 
 CANDEX is a collection of functions that allows extraction of the data from a NetCDF file for a given shapefile such as a basin, catchment. It can map gridded data or model output to any given shapefile and provide area average for a target variable.
+
+Candex is very efficient as it uses pandas `groupby` functionality. Remapping of the entire north American domain from ERA5 with resolution of 0.25 degree to 500,000 subbasins of MERIT-Hydro watershed for 7 variables in 1.2 seconds for one time step (the time varying from device to device and depending on the source netCDF files sizes and their temporal aggregation).
 
 ## The code can be used for the following purposes:
 
 1. Remapping the relevant forcing variables, such as precipitation or temperature and other variables for the effortless model set up. This transfer can be from Thiessen polygon or gridded data, for example, to computational units, hydrological model for example.
 2. Remapping the output of a hydrological or land surface model to force another model, such as providing the gridded model output in sub-basin for routing.
 3. Extraction of single or multiple points from the gridded or irregular data for comparison with gauges data, for example.
-4. Interpolation to caorser or finer resolutions.
+4. Interpolation to caorser or finer resolutions with full controllability in creating the interpolation rules.
 
 ## Examples:
 
@@ -21,10 +24,6 @@ CANDEX is a collection of functions that allows extraction of the data from a Ne
 4. [Extract the data for points (such as location of stations, cities, etc) from the grided or irregular shapefiles; temprature example](./examples/Example_4.ipynb)
 5. [Extract the data for points (such as location of stations, cities, etc) from the grided or irregular shapefiles; GRACE example](./examples/Example_5.ipynb)
 6. [Resampling of regular, rotated or irregular data and model output to any resolution density of the points](./examples/Example_6.ipynb)
-
-## Speed and Efficiency:
-
-Candex is very efficient as it uses pandas `groupby` functionality. Remapping of the entire north American domain from ERA5 with resolution of 0.25 degree to 500,000 subbasins of MERIT-Hydro watershed for 7 variables in 1.2 seconds for one time step (the time varying from device to device and depending on the source netCDF files sizes and their temporal aggregation).
 
 
 The two figures show remapping of the gridded temperature from ERA5 data set to subbasin of South Saskatchewan River at Medicine Hat.
