@@ -20,15 +20,11 @@ Candex is very efficient as it uses pandas `groupby` functionality. Remapping of
 
 clone the code on your perosnal computer by
 
-```
-git clone https://github.com/ShervanGharari/candex_newgen.git
-```
+`git clone https://github.com/ShervanGharari/candex_newgen.git`
 
 go to the candex folder, where `setup.py` is located and install candex locally:
 
-```
-pip install .
-```
+`pip install .`
 
 ## Examples:
 
