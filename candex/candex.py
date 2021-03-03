@@ -76,7 +76,13 @@ class candex:
                         self.temp_dir+self.case_name+'_source_shapefile.shp')
                 print('candex is creating the shapefile from the netCDF file and saving it here:')
                 print(self.temp_dir+self.case_name+'_source_shapefile.shp')
-                self.source_shp = self.temp_dir+self.case_name+'_source_shapefile.shp'
+            if (self.case == 1 or self.case == 2)  and (self.source_shp != ''):
+                source_shp_gpd = gpd.read_file(self.source_shp)
+                source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
+                    self.source_shp_lon, self.source_shp_ID)
+                source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
+                print('candex detect the shapefile is provided and will resave it here:')
+                print(self.temp_dir+self.case_name+'_source_shapefile.shp')
             # if case 3 or source shapefile is provided
             if (self.case == 3) and (self.source_shp != ''):
                 self.check_source_nc_shp() # check the lat lon in soure shapefile and nc file
@@ -84,10 +90,10 @@ class candex:
                 source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
                     self.source_shp_lon, self.source_shp_ID)
                 source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
+                print('candex is creating the shapefile from the netCDF file and saving it here:')
+                print(self.temp_dir+self.case_name+'_source_shapefile.shp')
 
-            # add the ID_s, lat_s, and lon_s
-
-            # expand shpefile
+            # expand source shapefile
             source_shp_gpd = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
             expanded_source = self.expand_source_SHP(source_shp_gpd, self.temp_dir, self.case_name)
             expanded_source = expanded_source.set_crs("EPSG:4326")
@@ -121,72 +127,25 @@ class candex:
 
         self.__target_nc_creation()
 
-        # # create the data frame
-        # lat_lon_row_col = pd.DataFrame()
-        # lat_lon_row_col ['lat_s'] = lat_target
-        # lat_lon_row_col ['lon_s'] = lon_target
-        # lat_lon_row_col ['rows']  = rows
-        # lat_lon_row_col ['cols']  = cols
+    def get_col_row(self):
 
+        # find the case
+        self.NetCDF_SHP_lat_lon()
+        #
+        lat_target_int = np.array(self.lat); lat_target_int = lat_target_int.flatten()
+        lon_target_int = np.array(self.lon); lon_target_int = lon_target_int.flatten()
+        rows, cols = self.create_row_col_df (self.lat, self.lon, lat_target_int, lon_target_int)
 
+        # create the data frame
+        lat_lon_row_col = pd.DataFrame()
+        lat_lon_row_col ['lat_s'] = lat_target_int
+        lat_lon_row_col ['lon_s'] = lon_target_int
+        lat_lon_row_col ['rows']  = rows
+        lat_lon_row_col ['cols']  = cols
 
-        #     if (self.case == 1 or self.case == 2) and self.source_shp == '':
-        #     if ((lat.shape[0] != lon.shape[0]) or (lat.shape[1] != lon.shape[1])):
-        #         sys.exit("no shapfile is created, please provide the associated shapefile to the netCDF file")
-        # else:
-        #     if (lat.shape[0] != lon.shape[0]):
-        #         sys.exit("no shapfile is created, please provide the associated shapefile to the netCDF file")
-
-        # if (self.case == 1 or self.case ==2) and self.source_shp == '':
-
-
-#             if (self.case == 3) or (self.source_shp != ''):
-
-#                 if self.source_shp == '':
-#                 sys.exit("no shapfile is provided for the source netCDF file, please provide the associated shapefile to the netCDF file")
-
-
-# if self.get_col_row_flag: # create the row col and save
-#                 self.__create_row_col_file (lat, lon, lat.flatten(), lon.flatten())
-#                 sys.exit('The row and column file is saved here: '+ self.name_of_row_col_file)
-#             if self.source_shp == '':
-#                 sys.exit("no shapfile is provided for the source netCDF file, please provide the associated shapefile to the netCDF file")
-#             self.__lat_lon_SHP(lat, lon)
-
-# # shp sink/target
-#         shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_sink_shapefile.shp')
-#         # shp source
-#         shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile_expanded.shp')
-
-#             self.__check_source_shp()
-#             self.__intersection_shp()
-
-# result.to_file(self.temp_dir+self.case_name+'_intersected_shapefile.shp') # save the intersected files
-#         result = result.drop(columns=['geometry']) # remove the geometry
-#         result = pd.DataFrame(result) # move to data set and save as a csv
-#         result.to_csv(self.temp_dir+self.case_name+'_intersected_shapefile.csv') # save the intersected files
-
-
-#             self.__create_remap()
-
-#             shp_2.to_file(self.temp_dir+self.case_name+'_bounded_source.shp') # save the intersected files
-#         shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_bounded_source.shp') # save the intersected files
-
-# # save remap_df as csv for future use
-#         self.name_of_row_col_file = self.temp_dir+self.case_name+'_row_col.csv'
-#         lat_lon_row_col.to_csv(self.name_of_row_col_file)
-
-#         else:
-#             self.__check_candex_remap() # check if there is candex_case in the remapping file
-#             self.__check_source_nc() # check the netCDF file and their dimensions
-#         self.__target_nc_creation()
-
-#     def get_col_row(self):
-
-#         self.get_col_row_flag = True
-#         self.__check_candex_input()
-#         self.__NetCDF_SHP_lat_lon()
-
+        # saving
+        lat_lon_row_col.to_csv(self.temp_dir+self.case_name+'_row_col_lat_lon.csv')
+        self.col_row_name = self.temp_dir+self.case_name+'_row_col_lat_lon.csv'
 
     def check_candex_input (self):
         if self.temp_dir != '':
@@ -672,7 +631,8 @@ in dimensions of the varibales and latitude and longitude')
             sys.exit('the source shapefile does not have column of lon_s lat_s and ID_s')
         # check if the shapefile is already expanded
         min_lon, min_lat, max_lon, max_lat = shp.total_bounds
-        if max_lon > 180 and min_lon < 0:
+        print(min_lon, min_lat, max_lon, max_lat)
+        if (180 < max_lon) and (min_lon < 0):
             print('it seems the source shapefile is already expanded between -180 to 360 longitude')
         else:
             if max (shp['lon_s']) > 180 and min (shp['lon_s']) > 0 and max (shp['lon_s']) < 360:
