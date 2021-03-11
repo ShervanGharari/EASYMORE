@@ -102,7 +102,11 @@ class candex:
             # intersection of the source and sink/target shapefile
             shp_1   = gpd.read_file(self.temp_dir+self.case_name+'_sink_shapefile.shp')
             shp_2   = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile_expanded.shp')
+            if (str(shp_1.crs).lower() == str(shp_2.crs).lower()) and (str(shp_1.crs).lower() == 'epsg:4326'):
+                shp_1 = shp_1.to_crs ("EPSG:6933") # project to equal area
+                shp_2 = shp_2.to_crs ("EPSG:6933") # project to equal area
             shp_int = self.intersection_shp(shp_1, shp_2)
+            shp_int = shp_int.to_crs ("EPSG:4326") # project back to WGS84
             shp_int.to_file(self.temp_dir+self.case_name+'_intersected_shapefile.shp') # save the intersected files
             shp_int = shp_int.drop(columns=['geometry']) # remove the geometry
             shp_int = pd.DataFrame(shp_int) # move to data set and save as a csv
@@ -848,7 +852,7 @@ in dimensions of the varibales and latitude and longitude')
         elif how=='difference':
             spatial_index = df2.sindex
             df1['bbox'] = df1.geometry.apply(lambda x: x.bounds)
-            df1['sidx']=df1.bbox.apply(lambda x:list(spatial_index.intersection(x)))
+            df1['sidx'] = df1.bbox.apply(lambda x:list(spatial_index.intersection(x)))
             df1['new_g'] = df1.apply(lambda x: reduce(lambda x, y: x.difference(y).buffer(0),
                                      [x.geometry]+list(df2.iloc[x.sidx].geometry)) , axis=1)
             df1.geometry = df1.new_g
