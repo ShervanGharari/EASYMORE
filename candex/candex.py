@@ -38,6 +38,7 @@ class candex:
         self.authour_name              =  ''
         self.tolerance                 =  10**-5 # tolerance
         self.get_col_row_flag          =  False
+        self.save_csv                  =  False
         # self.box_flag                  =  True # box_flag; may not be used...
         # self.map_on_ID                 =  False # for future development for remapping on IDs only not supported and not recommended
 
@@ -987,6 +988,8 @@ in dimensions of the varibales and latitude and longitude')
         weighted_value: a numpy array that has the remapped values from the nc file
         """
 
+        print('------REMAPPING------')
+
         remap = pd.read_csv(self.remap_csv)
         # creating the target_ID_lat_lon
         target_ID_lat_lon = pd.DataFrame()
@@ -1089,6 +1092,37 @@ in dimensions of the varibales and latitude and longitude')
 
                 # reporting
                 print('Ended   at date and time '+str(datetime.now()))
+                print('------')
+
+            if self.save_csv:
+                ds = xr.open_dataset(target_name)
+                for i in np.arange(len(self.var_names)):
+                    new_list = list(self.var_names) # new lists
+                    del new_list[i] # remove one value
+                    ds_temp = ds.drop(new_list) # drop all the other varibales excpet target varibale, lat, lon and time
+                    if 'units' in ds[self.var_names[i]].attrs.keys():
+                        dictionary = {self.var_names[i]:self.var_names[i]+' ['+ds[self.var_names[i]].attrs['units']+']'}
+                        ds_temp = ds_temp.rename_vars(dictionary)
+                    target_name_csv = self.output_dir + self.case_name + '_remapped_'+ self.var_names[i] +\
+                     '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.csv'
+                    if os.path.exists(target_name_csv): # remove file if exists
+                        os.remove(target_name_csv)
+                    ds_temp = ds_temp.set_coords([self.var_lat,self.var_lon])
+                    df = ds_temp.to_dataframe()
+                    df['ID'] = df.index.get_level_values(level=0)
+                    df['time'] = df.index.get_level_values(level=1)
+                    df = df.set_index(['ID','time',self.var_lat, self.var_lon])
+                    df = df.unstack(level=-3)
+                    df = df.transpose()
+                    if 'units' in ds[self.var_names[i]].attrs.keys():
+                        print('in')
+                        df = df.replace(self.var_names[i], self.var_names[i]+' '+ds[self.var_names[i]].attrs['units'])
+                    df.to_csv(target_name_csv)
+                    print('Converting variable '+ self.var_names[i] +' from remapped file of '+target_name+\
+                        ' to '+target_name_csv)
+                print('------')
+
+
 
 
 
