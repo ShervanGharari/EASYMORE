@@ -101,9 +101,9 @@ class candex:
             expanded_source.to_file(self.temp_dir+self.case_name+'_source_shapefile_expanded.shp')
 
             # intersection of the source and sink/target shapefile
-            shp_1   = gpd.read_file(self.temp_dir+self.case_name+'_sink_shapefile.shp')
-            shp_2   = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile_expanded.shp')
-            if (str(shp_1.crs).lower() == str(shp_2.crs).lower()) and (str(shp_1.crs).lower() == 'epsg:4326'):
+            shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_sink_shapefile.shp')
+            shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile_expanded.shp')
+            if (str(shp_1.crs).lower() == str(shp_2.crs).lower()) and ('epsg:4326' in str(shp_1.crs).lower()):
                 shp_1 = shp_1.to_crs ("EPSG:6933") # project to equal area
                 shp_2 = shp_2.to_crs ("EPSG:6933") # project to equal area
             shp_int = self.intersection_shp(shp_1, shp_2)
@@ -114,10 +114,10 @@ class candex:
             shp_int.to_csv(self.temp_dir+self.case_name+'_intersected_shapefile.csv') # save the intersected files
 
             # create the remap file if remap file
-            int_df  = pd.read_csv (self.temp_dir+self.case_name+'_intersected_shapefile.csv')
+            int_df = pd.read_csv (self.temp_dir+self.case_name+'_intersected_shapefile.csv')
             lat_source = self.lat
             lon_source = self.lon
-            int_df  = self.create_remap(int_df, lat_source, lon_source)
+            int_df = self.create_remap(int_df, lat_source, lon_source)
             int_df.to_csv(self.temp_dir+self.case_name+'_remapping.csv')
             self.remap_csv = self.temp_dir+self.case_name+'_remapping.csv'
 
@@ -192,9 +192,9 @@ class candex:
         import shapefile # pyshed library
         import shapely
         # sink/target shapefile check the projection
-        if (str(shp.crs).lower() != 'epsg:4326'):
+        if 'epsg:4326' not in str(shp.crs).lower():
             sys.exit('please project your shapefile to WGS84 (epsg:4326)')
-        if (str(shp.crs).lower() == 'epsg:4326'): # check if the projection is WGS84 (or epsg:4326)
+        else: # check if the projection is WGS84 (or epsg:4326)
             print('candex detects that target shapefile is in WGS84 (epsg:4326)')
         # check if the ID, latitude, longitude are provided
         if self.sink_shp_ID == '':
@@ -347,9 +347,9 @@ in dimensions of the varibales and latitude and longitude')
         ncid = nc4.Dataset(nc_names[0])
         # sink/target shapefile is what we want the varibales to be remapped to
         shp = gpd.read_file(self.source_shp)
-        if (str(shp.crs).lower() != 'epsg:4326'):
+        if 'epsg:4326' not in str(shp.crs).lower():
             sys.exit('please project your source shapefile and varibales in source nc files to WGS84 (epsg:4326)')
-        if (str(shp.crs).lower() == 'epsg:4326'): # check if the projection is WGS84 (or epsg:4326)
+        else: # check if the projection is WGS84 (or epsg:4326)
             print('candex detects that source shapefile is in WGS84 (epsg:4326)')
         # get the lat/lon from source shapfile and nc files
         lat_shp = np.array(shp[self.source_shp_lat]); lat_shp = lat_shp.astype(float)
