@@ -107,12 +107,21 @@ class candex:
                 shp_1 = shp_1.to_crs ("EPSG:6933") # project to equal area
                 shp_2 = shp_2.to_crs ("EPSG:6933") # project to equal area
             shp_int = self.intersection_shp(shp_1, shp_2)
+            shp_int = shp_int.sort_values(by=['S_1_ID_t']) # sort based on ID_t
             shp_int = shp_int.to_crs ("EPSG:4326") # project back to WGS84
             shp_int.to_file(self.temp_dir+self.case_name+'_intersected_shapefile.shp') # save the intersected files
             shp_int = shp_int.drop(columns=['geometry']) # remove the geometry
+            # rename dictionary
+            dict_rename = {'S_1_ID_t' : 'ID_t',
+                           'S_1_lat_t': 'lat_t',
+                           'S_1_lon_t': 'lon_t',
+                           'S_2_ID_s' : 'ID_s',
+                           'S_2_lat_s': 'lat_s',
+                           'S_2_lon_s': 'lon_s',
+                           'AP1N'     : 'weight'}
+            shp_int = shp_int.rename(columns=dict_rename) # rename fields for remapping file
             shp_int = pd.DataFrame(shp_int) # move to data set and save as a csv
             shp_int.to_csv(self.temp_dir+self.case_name+'_intersected_shapefile.csv') # save the intersected files
-
             # create the remap file if remap file
             int_df = pd.read_csv (self.temp_dir+self.case_name+'_intersected_shapefile.csv')
             lat_source = self.lat
@@ -320,6 +329,15 @@ class candex:
                         for i in np.arange(len(temp)):
                             if temp[i] != var_dim[i]:
                                 flag_do_not_match = True
+            # check varibale time and dimension time are the same name so time is coordinate
+            for nc_name in nc_names:
+                ncid = nc4.Dataset(nc_name)
+                temp = ncid.variables[self.var_time].dimensions
+                if len(temp) != 1:
+                    sys.exit('candex expects 1D time varibale, it seems time varibales has more than 1 dimension')
+                if str(temp[0]) != self.var_time:
+                    sys.exit('candex expects time varibale and dimension to be different, they should be the same\
+                    for xarray to consider time dimension as coordinates')
         if flag_do_not_match:
             sys.exit('candex detects that all the provided netCDF files and varibale \
 has different dimensions for the varibales or latitude and longitude')
@@ -773,16 +791,6 @@ in dimensions of the varibales and latitude and longitude')
             AP2N[INDX] = AP2[INDX] / AP2[INDX].sum() # normalizing for that sum
         result ['AP1N'] = AP1N
         result ['AP2N'] = AP2N
-        # rename dictionary
-        dict_rename = {'S_1_ID_t' : 'ID_t',
-                       'S_1_lat_t': 'lat_t',
-                       'S_1_lon_t': 'lon_t',
-                       'S_2_ID_s' : 'ID_s',
-                       'S_2_lat_s': 'lat_s',
-                       'S_2_lon_s': 'lon_s',
-                       'AP1N'     : 'weight'}
-        result = result.rename(columns=dict_rename) # rename fields
-        result = result.sort_values(by=['ID_t']) # sort based on ID_t
         return result
 
     def spatial_overlays(self, df1, df2, how='intersection', reproject=True):
@@ -954,6 +962,10 @@ in dimensions of the varibales and latitude and longitude')
         np.unique(np.array(remap_df['candex_case'])) == 3):
             sys.exit('candex case should be one of 1, 2 or 3; please refer to the documentation')
         self.case = np.unique(np.array(remap_df['candex_case']))
+        # check if the needed columns are existing
+        if not set(['ID_t','lat_t','lon_t','ID_s','lat_s','lon_s','weight']) <= set(remap_df.columns):
+            sys.exit('provided remapping file does not have one of the needed fields: \n'+\
+                'ID_t, lat_t, lon_t, ID_2, lat_s, lon_s, weight')
 
 
     def __target_nc_creation(self):
@@ -1164,6 +1176,9 @@ in dimensions of the varibales and latitude and longitude')
 
         # open dataset
         ds = xr.open_dataset(nc_name)
+
+        # rename time varibale to time
+        ds = ds.rename({self.var_time:'time'})
 
         # prepared the numpy array for ouptut
         weighted_value = np.zeros([self.length_of_time,self.number_of_target_elements])
