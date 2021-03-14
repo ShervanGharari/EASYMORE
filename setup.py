@@ -8,7 +8,7 @@ setup(
         'Martyn P. Clark', 'Berend Weel'),
     install_requires=[
         'numpy',
-        'geopandas',
+        'geopandas >= 0.8.1',
         'xarray',
         'pandas',
         'shapely',
