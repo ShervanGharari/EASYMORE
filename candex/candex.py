@@ -121,7 +121,7 @@ class candex:
                 shp_2 = shp_2.to_crs ("EPSG:6933") # project to equal area
                 shp_2.to_file(self.temp_dir+self.case_name+'test.shp')
                 shp_2 = gpd.read_file(self.temp_dir+self.case_name+'test.shp')
-                os.remove(self.temp_dir+self.case_name+'test.shp')
+                os.remove(self.temp_dir+self.case_name+'test.*')
             shp_int = self.intersection_shp(shp_1, shp_2)
             shp_int = shp_int.sort_values(by=['S_1_ID_t']) # sort based on ID_t
             shp_int = shp_int.to_crs ("EPSG:4326") # project back to WGS84
