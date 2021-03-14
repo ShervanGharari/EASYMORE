@@ -93,19 +93,35 @@ class candex:
                 source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
                 print('candex is creating the shapefile from the netCDF file and saving it here:')
                 print(self.temp_dir+self.case_name+'_source_shapefile.shp')
-
             # expand source shapefile
             source_shp_gpd = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
+            source_shp_gpd = source_shp_gpd.set_crs("EPSG:4326")
             expanded_source = self.expand_source_SHP(source_shp_gpd, self.temp_dir, self.case_name)
-            expanded_source = expanded_source.set_crs("EPSG:4326")
             expanded_source.to_file(self.temp_dir+self.case_name+'_source_shapefile_expanded.shp')
-
             # intersection of the source and sink/target shapefile
             shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_sink_shapefile.shp')
             shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile_expanded.shp')
+            # subset the extended shapefile based on the sink/target shapefile
+            min_lon, min_lat, max_lon, max_lat = shp_1.total_bounds
+            shp_2 ['lat_temp'] = shp_2.centroid.y
+            shp_2 ['lon_temp'] = shp_2.centroid.x
+            if (-180<min_lon) and max_lon<180:
+                shp_2 = shp_2 [shp_2['lon_temp'] <=  180]
+                shp_2 = shp_2 [-180 <= shp_2['lon_temp']]
+            if (0<min_lon) and max_lon<360:
+                shp_2 = shp_2 [shp_2['lon_temp'] <=  360]
+                shp_2 = shp_2 [0    <= shp_2['lon_temp']]
+            shp_2.drop(columns=['lat_temp', 'lon_temp'])
+            # shp_2 = shp_2.reset_index(inplace=True, drop=True)
+            # reprojections
             if (str(shp_1.crs).lower() == str(shp_2.crs).lower()) and ('epsg:4326' in str(shp_1.crs).lower()):
                 shp_1 = shp_1.to_crs ("EPSG:6933") # project to equal area
+                shp_1.to_file(self.temp_dir+self.case_name+'test.shp')
+                shp_1 = gpd.read_file(self.temp_dir+self.case_name+'test.shp')
                 shp_2 = shp_2.to_crs ("EPSG:6933") # project to equal area
+                shp_2.to_file(self.temp_dir+self.case_name+'test.shp')
+                shp_2 = gpd.read_file(self.temp_dir+self.case_name+'test.shp')
+                os.remove(self.temp_dir+self.case_name+'test.shp')
             shp_int = self.intersection_shp(shp_1, shp_2)
             shp_int = shp_int.sort_values(by=['S_1_ID_t']) # sort based on ID_t
             shp_int = shp_int.to_crs ("EPSG:4326") # project back to WGS84
@@ -763,14 +779,14 @@ in dimensions of the varibales and latitude and longitude')
             shp_2 = shp_2.rename(
                 columns={column_names[i]: 'S_2_' + column_names[i]})
         # Caclulating the area for shp2
-        shp_2['AS2']  = shp_2.area
+        shp_2['AS2'] = shp_2.area
         shp_2['IDS2'] = np.arange(shp_2.shape[0])+1
         # making intesection
         result = self.spatial_overlays (shp_1, shp_2, how='intersection')
         # Caclulating the area for shp2
         result['AINT'] = result['geometry'].area
-        result['AP1']  = result['AINT']/result['AS1']
-        result['AP2']  = result['AINT']/result['AS2']
+        result['AP1'] = result['AINT']/result['AS1']
+        result['AP2'] = result['AINT']/result['AS2']
         # taking the part of data frame as the numpy to incread the spead
         # finding the IDs from shapefile one
         ID_S1 = np.array (result['IDS1'])
