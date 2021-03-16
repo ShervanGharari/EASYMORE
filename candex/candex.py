@@ -200,7 +200,7 @@ class candex:
         if self.temp_dir == '':
             print("No temporary folder is provided for candex; this will result in candex saving the files in the same directory as python script")
         if self.author_name == '':
-            print("no author name is provide and the author name is changes to (author name)!")
+            print("no author name is provide and the author name is changed to (author name)!")
             self.author_name = "author name"
         if (len(self.var_names) != 1) and (len(self.format_list) == 1) and (len(self.fill_value_list) ==1):
             if (len(self.var_names) != len(self.fill_value_list)) and \
