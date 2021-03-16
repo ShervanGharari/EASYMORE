@@ -30,12 +30,15 @@ class candex:
         self.source_shp_lat            =  '' # source_nc
         self.source_shp_lon            =  '' # source_nc
         self.source_shp_ID             =  '' # source_nc
+        self.remapped_var_id           =  '' # name of the ID variable in the new nc file; default 'ID'
+        self.remapped_dim_id           =  '' # name of the ID dimension in the new nc file; default 'ID'
         self.temp_dir                  =  './temp/' # temp_dir
         self.output_dir                =  '' # source_nc
         self.format_list               =  []
         self.fill_value_list           =  []
         self.remap_csv                 =  '' # source_nc
-        self.authour_name              =  ''
+        self.author_name               =  '' 
+        self.license                   =  '' # data license
         self.tolerance                 =  10**-5 # tolerance
         self.get_col_row_flag          =  False
         self.save_csv                  =  False
@@ -121,7 +124,11 @@ class candex:
                 shp_2 = shp_2.to_crs ("EPSG:6933") # project to equal area
                 shp_2.to_file(self.temp_dir+self.case_name+'test.shp')
                 shp_2 = gpd.read_file(self.temp_dir+self.case_name+'test.shp')
-                os.remove(self.temp_dir+self.case_name+'test.*')
+                
+                # remove test files
+                removeThese = glob.glob(self.temp_dir+self.case_name+'test.*')
+                for file in removeThese:
+                    os.remove(file)
             shp_int = self.intersection_shp(shp_1, shp_2)
             shp_int = shp_int.sort_values(by=['S_1_ID_t']) # sort based on ID_t
             shp_int = shp_int.to_crs ("EPSG:4326") # project back to WGS84
@@ -192,9 +199,9 @@ class candex:
                 os.mkdir(self.output_dir)
         if self.temp_dir == '':
             print("No temporary folder is provided for candex; this will result in candex saving the files in the same directory as python script")
-        if self.authour_name == '':
-            print("no  author name is provide and the author name is changes to (author name)!")
-            self.authour_name = "author name"
+        if self.author_name == '':
+            print("no author name is provide and the author name is changes to (author name)!")
+            self.author_name = "author name"
         if (len(self.var_names) != 1) and (len(self.format_list) == 1) and (len(self.fill_value_list) ==1):
             if (len(self.var_names) != len(self.fill_value_list)) and \
             (len(self.var_names) != len(self.format_list)) and \
@@ -1040,6 +1047,16 @@ in dimensions of the varibales and latitude and longitude')
         #
         nc_names = glob.glob(self.source_nc)
         nc_names = sorted(nc_names)
+        
+        # Check if we need to rename the ID variable or dimension
+        if self.remapped_var_id == '':
+            self.remapped_var_id = 'ID'
+        if self.remapped_dim_id == '':
+            self.remapped_dim_id = 'ID'
+            
+        # Check data license
+        if self.license == '':
+            self.license = 'not specified'
 
         for nc_name in nc_names:
 
@@ -1063,7 +1080,7 @@ in dimensions of the varibales and latitude and longitude')
             with nc4.Dataset(target_name, "w", format="NETCDF4") as ncid: # creating the NetCDF file
 
                 # define the dimensions
-                dimid_N = ncid.createDimension('ID', len(hruID_var))  # limited dimensiton equal the number of hruID
+                dimid_N = ncid.createDimension(self.remapped_dim_id, len(hruID_var))  # limited dimensiton equal the number of hruID
                 dimid_T = ncid.createDimension('time', None)   # unlimited dimensiton
 
                 # Variable time
@@ -1077,9 +1094,9 @@ in dimensions of the varibales and latitude and longitude')
                 time_varid[:] = time_var
 
                 # Variables lat, lon, subbasin_ID
-                lat_varid = ncid.createVariable('latitude', 'f8', ('ID', ))
-                lon_varid = ncid.createVariable('longitude', 'f8', ('ID', ))
-                hruId_varid = ncid.createVariable('ID', 'f8', ('ID', ))
+                lat_varid = ncid.createVariable('latitude', 'f8', (self.remapped_dim_id, ))
+                lon_varid = ncid.createVariable('longitude', 'f8', (self.remapped_dim_id, ))
+                hruId_varid = ncid.createVariable(self.remapped_var_id, 'f8', (self.remapped_dim_id, ))
                 # Attributes
                 lat_varid.long_name = 'latitude'
                 lon_varid.long_name = 'longitude'
@@ -1096,9 +1113,10 @@ in dimensions of the varibales and latitude and longitude')
 
                 # general attributes for NetCDF file
                 ncid.Conventions = 'CF-1.6'
-                ncid.License = 'The data were written by ' + self.authour_name
-                ncid.history = 'Created ' + time.ctime(time.time())
-                ncid.source = 'Case: ' +self.case_name + '; remapped by script from library of Shervan Gharari (https://github.com/ShervanGharari/candex).'
+                ncid.Author = 'The data were written by ' + self.author_name
+                ncid.License = self.license
+                ncid.History = 'Created ' + time.ctime(time.time())
+                ncid.Source = 'Case: ' +self.case_name + '; remapped by script from library of Shervan Gharari (https://github.com/ShervanGharari/candex).'
 
 
                 # write varibales
@@ -1110,7 +1128,7 @@ in dimensions of the varibales and latitude and longitude')
                                                           remap)
 
                     # Variables writing
-                    varid = ncid.createVariable(self.var_names[i], self.format_list[i], ('time','ID' ), fill_value = self.fill_value_list[i])
+                    varid = ncid.createVariable(self.var_names[i], self.format_list[i], ('time',self.remapped_dim_id ), fill_value = self.fill_value_list[i])
                     varid [:] = var_value
                     # Pass attributes
                     if 'long_name' in ncids.variables[self.var_names[i]].ncattrs():
