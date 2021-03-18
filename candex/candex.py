@@ -25,11 +25,11 @@ class candex:
         self.var_lon                   =  '' # name of varibale longitude
         self.var_lat                   =  '' # name of varibale latitude
         self.var_time                  =  '' # name of varibale time
-        self.var_ID                    =  '' # source_nc
-        self.source_shp                =  '' # source_nc
-        self.source_shp_lat            =  '' # source_nc
-        self.source_shp_lon            =  '' # source_nc
-        self.source_shp_ID             =  '' # source_nc
+        self.var_ID                    =  '' # name of varibale ID
+        self.source_shp                =  '' # name of source shapefile
+        self.source_shp_lat            =  '' # name of latitude field in source shapefile
+        self.source_shp_lon            =  '' # name of longitude field in source shapefile
+        self.source_shp_ID             =  '' # name of ID filed in source shapefile
         self.temp_dir                  =  './temp/' # temp_dir
         self.output_dir                =  '' # source_nc
         self.format_list               =  []
