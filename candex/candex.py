@@ -24,7 +24,7 @@ class candex:
         self.var_names                 =  [] # list of varibale names to be remapped
         self.var_lon                   =  '' # name of varibale longitude
         self.var_lat                   =  '' # name of varibale latitude
-        self.var_time                  =  '' # name of varibale time
+        self.var_time                  =  'time' # name of varibale time
         self.var_ID                    =  '' # source_nc
         self.source_shp                =  '' # source_nc
         self.source_shp_lat            =  '' # source_nc
@@ -34,8 +34,8 @@ class candex:
         self.remapped_dim_id           =  'ID' # name of the ID dimension in the new nc file; default 'ID'
         self.temp_dir                  =  './temp/' # temp_dir
         self.output_dir                =  '' # source_nc
-        self.format_list               =  []
-        self.fill_value_list           =  []
+        self.format_list               =  ['f8']
+        self.fill_value_list           =  ['-9999']
         self.remap_csv                 =  '' # source_nc
         self.author_name               =  ''
         self.license                   =  '' # data license
@@ -47,15 +47,19 @@ class candex:
 
 
     def run_candex(self):
-
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function runs a set of candex function which can remap from a srouce shapefile
+        with regular, roated, irregular to a target shapefile
+        """
         # check candex input
         self.check_candex_input()
-
         # if remap is not provided then create the remapping file
         if self.remap_csv == '':
-
             import geopandas as gpd
-
             # check the target shapefile
             sink_shp_gpd = gpd.read_file(self.sink_shp)
             sink_shp_gpd = self.check_target_shp(sink_shp_gpd)
@@ -63,13 +67,10 @@ class candex:
             print('candex will save standard shapefile for candex claculation as:')
             print(self.temp_dir+self.case_name+'_sink_shapefile.shp')
             sink_shp_gpd.to_file(self.temp_dir+self.case_name+'_sink_shapefile.shp') # save
-
             # check the source NetCDF files
             self.check_source_nc()
-
             # find the case
             self.NetCDF_SHP_lat_lon()
-
             # create the source shapefile for case 1 and 2 if shapefile is not provided
             if (self.case == 1 or self.case == 2)  and (self.source_shp == ''):
                 if self.case == 1:
@@ -124,7 +125,6 @@ class candex:
                 shp_2 = shp_2.to_crs ("EPSG:6933") # project to equal area
                 shp_2.to_file(self.temp_dir+self.case_name+'test.shp')
                 shp_2 = gpd.read_file(self.temp_dir+self.case_name+'test.shp')
-
                 # remove test files
                 removeThese = glob.glob(self.temp_dir+self.case_name+'test.*')
                 for file in removeThese:
@@ -152,39 +152,47 @@ class candex:
             int_df = self.create_remap(int_df, lat_source, lon_source)
             int_df.to_csv(self.temp_dir+self.case_name+'_remapping.csv')
             self.remap_csv = self.temp_dir+self.case_name+'_remapping.csv'
-
         else:
             # check the remap file if provided
             int_df  = pd.read_csv(self.remap_csv)
             self.check_candex_remap(int_df)
-
             # check the source nc file
             self.check_source_nc()
-
-
         self.__target_nc_creation()
 
     def get_col_row(self):
-
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function creates the dataframe with assosiated latitude and longitude or source file and
+        its location of data by column and row for candex to extract/remap data
+        """
         # find the case
         self.NetCDF_SHP_lat_lon()
         #
         lat_target_int = np.array(self.lat); lat_target_int = lat_target_int.flatten()
         lon_target_int = np.array(self.lon); lon_target_int = lon_target_int.flatten()
         rows, cols = self.create_row_col_df (self.lat, self.lon, lat_target_int, lon_target_int)
-
         # create the data frame
         lat_lon_row_col = pd.DataFrame()
         lat_lon_row_col ['lat_s'] = lat_target_int
         lat_lon_row_col ['lon_s'] = lon_target_int
         lat_lon_row_col ['rows']  = rows
         lat_lon_row_col ['cols']  = cols
-
         # saving
         lat_lon_row_col.to_csv(self.temp_dir+self.case_name+'_row_col_lat_lon.csv')
         self.col_row_name = self.temp_dir+self.case_name+'_row_col_lat_lon.csv'
 
-    def check_candex_input (self):
+    def check_candex_input(self):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        the functions checkes if the necessary candex object are provided from the user
+        """
         if self.temp_dir != '':
             if self.temp_dir[-1] != '/':
                 sys.exit('the provided temporary folder for candex should end with (/)')
@@ -215,21 +223,48 @@ class candex:
         if self.remap_csv != '':
             print('remap file is provided; candex will use this file and skip calculation of remapping')
 
-    def make_shape_point(self,lon_d, lat_d, ID):
-            # read the pandas data frame of the all statiosn
-            from   shapely.geometry import Point
-            import geopandas as gpd
-            import pandas as pd
-            df = pd.DataFrame()
-            df['LATITUDE']  = lat_d
-            df['LONGITUDE'] = lon_d
-            df['ID']        = ID
-            df['geometry']  = df.apply(lambda row: Point(row.LONGITUDE, row.LATITUDE ), axis=1) # set the geometry
-            df  = gpd.GeoDataFrame(df) # pass this to a geopandas dataframe
-            return df
+    def make_shape_point(   self,
+                            lon_d,
+                            lat_d,
+                            ID):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function creates a geopandas dataframe of lat, lon and IDs provided
+        Arguments
+        ---------
+        lon_d: numpy array, the longitude
+        lat_d: numpy array, the latitude
+        ID: numpy array, the ID
+        Returns
+        -------
+        df: geopandas dataframe, with geometry of longitude and latitude
+        """
+        # read the pandas data frame of the all statiosn
+        from   shapely.geometry import Point
+        import geopandas as gpd
+        import pandas as pd
+        df = pd.DataFrame()
+        df['LATITUDE']  = lat_d
+        df['LONGITUDE'] = lon_d
+        df['ID']        = ID
+        df['geometry']  = df.apply(lambda row: Point(row.LONGITUDE, row.LATITUDE ), axis=1) # set the geometry
+        df  = gpd.GeoDataFrame(df) # pass this to a geopandas dataframe
+        return df
 
     def check_target_shp (self,shp):
-
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        this function check if target shapefile and add ID and centroid lat and lon is not provided
+        Arguments
+        ---------
+        shp: geopandas dataframe, polygone, multipolygon, point, multipoint
+        """
         # load the needed packages
         import geopandas as gpd
         from   shapely.geometry import Polygon
@@ -317,6 +352,13 @@ class candex:
         return shp
 
     def check_source_nc (self):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function checks the consistency of the dimentions and varibales for source netcdf file(s)
+        """
         flag_do_not_match = False
         nc_names = glob.glob (self.source_nc)
         if not nc_names:
@@ -403,7 +445,14 @@ in dimensions of the varibales and latitude and longitude')
             print(lat_dim)
 
     def check_source_nc_shp (self):
-
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function checks the source netcdf file shapefile
+        needs more development
+        """
         # load the needed packages
         import geopandas as gpd
         from   shapely.geometry import Polygon
@@ -411,7 +460,6 @@ in dimensions of the varibales and latitude and longitude')
         import shapely
         #
         multi_source = False
-        #
         nc_names = glob.glob (self.source_nc)
         ncid = nc4.Dataset(nc_names[0])
         # sink/target shapefile is what we want the varibales to be remapped to
@@ -474,22 +522,9 @@ in dimensions of the varibales and latitude and longitude')
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/candex
         @ author's email id:       sh.gharari@gmail.com
-        @ license:                  Apache2
-
-        This function gets a NetCDF file the assosiated shapefile given the cordination of a given box
-        if correct_360 is True then the code convert the lon values more than 180 to negative lon
-
-        Arguments
-        ---------
-        name_of_nc: string, the name of the nc file
-        name_of_variable: string, the name of [sample] variable from nc file
-        name_of_lat_var: string, the name of the variable lat
-        name_of_lon_var: string, the name of the variable lon
-        name_of_shp: string, the name of the shapfile to be created
-        box_values: the box to limit to a specific domain or boolean of False
-        correct_360: logical, True or Flase
-        Returns
-        -------
+        @ license:                 GNU-GPLv3
+        This function checks dimension of the source shapefile and checks the case of regular, rotated, and irregular
+        also created the 2D array of lat and lon for creating the shapefile
         """
         import geopandas as gpd
         from   shapely.geometry import Polygon
@@ -595,38 +630,29 @@ in dimensions of the varibales and latitude and longitude')
             self.lon = lon
             self.ID  = ID
 
-    def lat_lon_SHP(self, lat, lon, file_name):
+    def lat_lon_SHP(self,
+                    lat,
+                    lon,
+                    file_name):
         """
         @ author:                  Shervan Gharari, Wouter Knoben
         @ Github:                  https://github.com/ShervanGharari/candex
         @ author's email id:       sh.gharari@gmail.com
-        @ license:                 Apache2
-
-        This function gets a 2-D lat and lon and return the shapefile given the lat and lon matrices
-        The function return a shapefile within the box_values specify by the model simulation.
-        correct_360 is True, then the values of more than 180 for the lon are converted to negative lon
-        correct_360 is False, then the cordinates of the shapefile remain in 0 to 360 degree
-        The function remove the first, last rows and colomns
-
+        @ license:                 GNU-GPLv3
+        This function creates a shapefile for the source netcdf file
         Arguments
         ---------
         lat: the 2D matrix of lat_2D [n,m,]
         lon: the 2D matrix of lon_2D [n,m,]
-        box_values: a 1D array [minlat, maxlat, minlon, maxlon]
-        correct_360: logical, True or Flase
-
-        Returns
-        -------
-        result: a shapefile with (n-2)*(m-2) elements depicting the provided 2-D lat and lon values
+        file_name: string, name of the file that the shapefile will be saved at
         """
         # check if lat/lon that are taken in has the same dimension
         import geopandas as gpd
         from   shapely.geometry import Polygon
         import shapefile # pyshed library
         import shapely
-
+        #
         lat_lon_shape = lat.shape
-
         # write the shapefile
         with shapefile.Writer(file_name) as w:
             w.autoBalance = 1 # turn on function that keeps file stable if number of shapes and records don't line up
@@ -678,7 +704,24 @@ in dimensions of the varibales and latitude and longitude')
                     # update records/fields for the polygon
                     w.record(m, center_lat, center_lon)
 
-    def add_lat_lon_source_SHP(self, shp, source_shp_lat, source_shp_lon, source_shp_ID):
+    def add_lat_lon_source_SHP( self,
+                                shp,
+                                source_shp_lat,
+                                source_shp_lon,
+                                source_shp_ID):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function add lat, lon and ID from the source shapefile if provided
+        Arguments
+        ---------
+        shp: geodataframe of source shapefile
+        source_shp_lat: string, the name of the lat field in the source shapefile
+        source_shp_lon: string, the name of the lon field in the source shapefile
+        source_shp_ID: string, the name of the ID field in the source shapefile
+        """
         import geopandas as gpd
         from   shapely.geometry import Polygon
         import shapefile # pyshed library
@@ -691,7 +734,26 @@ in dimensions of the varibales and latitude and longitude')
             shp ['ID_s']  = np.arange(len(shp))+1
         return shp
 
-    def expand_source_SHP(self, shp, temp_dir, case_name):
+    def expand_source_SHP(  self,
+                            shp,
+                            temp_dir,
+                            case_name):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function add lat, lon and ID from the source shapefile if provided
+        Arguments
+        ---------
+        shp: geodataframe of source shapefile
+        source_shp_lat: string, the name of the lat field in the source shapefile
+        source_shp_lon: string, the name of the lon field in the source shapefile
+        source_shp_ID: string, the name of the ID field in the source shapefile
+        Returns
+        -------
+        result: geopandas dataframe, expanded source shapefile that covers -180 to 360 of lon
+        """
         import geopandas as gpd
         from   shapely.geometry import Polygon
         import shapefile # pyshed library
@@ -759,7 +821,9 @@ in dimensions of the varibales and latitude and longitude')
         result = gpd.read_file(temp_dir+case_name+'_source_shapefile_expanded.shp')
         return result
 
-    def intersection_shp(self, shp_1, shp_2):
+    def intersection_shp(   self,
+                            shp_1,
+                            shp_2):
         import geopandas as gpd
         from   shapely.geometry import Polygon
         import shapefile # pyshed library
@@ -768,7 +832,7 @@ in dimensions of the varibales and latitude and longitude')
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/candex
         @ author's email id:       sh.gharari@gmail.com
-        @license:                  Apache2
+        @license:                  GNU-GPLv3
         This fucntion intersect two shapefile. It keeps the fiels from the first and second shapefiles (identified by S_1_ and
         S_2_). It also creats other field including AS1 (area of the shape element from shapefile 1), IDS1 (an arbitary index
         for the shapefile 1), AS2 (area of the shape element from shapefile 1), IDS2 (an arbitary index for the shapefile 1),
@@ -777,19 +841,15 @@ in dimensions of the varibales and latitude and longitude')
         summation is not 1 for a given shape from shapefile 1, this will help to preseve mass if part of the shapefile are not
         intersected), AP2N (the area normalized in the case AP2 summation is not 1 for a given shape from shapefile 2, this
         will help to preseve mass if part of the shapefile are not intersected)
-
         Arguments
         ---------
         shp_1: geo data frame, shapefile 1
         shp_2: geo data frame, shapefile 2
-
         Returns
         -------
         result: a geo data frame that includes the intersected shapefile and area, percent and normalized percent of each shape
         elements in another one
         """
-        # Calculating the area of every shapefile (both should be in degree or meters)
-
         # get the column name of shp_1
         column_names = shp_1.columns
         column_names = list(column_names)
@@ -842,7 +902,11 @@ in dimensions of the varibales and latitude and longitude')
         result ['AP2N'] = AP2N
         return result
 
-    def spatial_overlays(self, df1, df2, how='intersection', reproject=True):
+    def spatial_overlays(   self,
+                            df1,
+                            df2,
+                            how='intersection',
+                            reproject=True):
         import geopandas as gpd
         from shapely.geometry import Polygon
         import shapefile # pyshed library
@@ -852,23 +916,22 @@ in dimensions of the varibales and latitude and longitude')
         Currently only supports data GeoDataFrames with polygons.
         Implements several methods that are all effectively subsets of
         the union.
-
-        Omer Ozak
-        ozak
+        author: Omer Ozak
         https://github.com/ozak
         https://github.com/geopandas/geopandas/pull/338
+        license: GNU-GPLv3
         Parameters
         ----------
-        df1 : GeoDataFrame with MultiPolygon or Polygon geometry column
-        df2 : GeoDataFrame with MultiPolygon or Polygon geometry column
-        how : string
+        df1: GeoDataFrame with MultiPolygon or Polygon geometry column
+        df2: GeoDataFrame with MultiPolygon or Polygon geometry column
+        how: string
             Method of spatial overlay: 'intersection', 'union',
             'identity', 'symmetric_difference' or 'difference'.
         use_sindex : boolean, default True
             Use the spatial index to speed up operation if available.
         Returns
         -------
-        df : GeoDataFrame
+        df: GeoDataFrame
             GeoDataFrame with new set of polygons and attributes
             resulting from the overlay
         """
@@ -956,12 +1019,24 @@ in dimensions of the varibales and latitude and longitude')
             dfunion = dfunion[(dfunion[cols1+cols2].isnull()==False).values]
             return dfunion
 
-    def create_remap(self, int_df, lat_source, lon_source):
+    def create_remap(   self,
+                        int_df,
+                        lat_source,
+                        lon_source):
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/candex
         @ author's email id:       sh.gharari@gmail.com
-        @ license:                 Apache2
+        @ license:                 GNU-GPLv3
+        this function add the corresponsing row and columns from the source NetCDF file
+        Parameters
+        ----------
+        int_df: intersected data frame that includes the infromation for source and sink
+        lat_source: numpy array of source lat
+        lon_source: numpy array of source lon
+        Returns
+        -------
+        int_df: dataframe, including the associated rows and cols and candex case
         """
         # the lat lon from the intersection/remap
         lat_source_int = np.array(int_df['lat_s'])
@@ -977,8 +1052,27 @@ in dimensions of the varibales and latitude and longitude')
         return int_df
 
 
-    def create_row_col_df (self, lat_source, lon_source, lat_target_int, lon_target_int):
-
+    def create_row_col_df ( self,
+                            lat_source,
+                            lon_source,
+                            lat_target_int,
+                            lon_target_int):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        this fucntion gets the row and colomns of the source netcdf file and returns it
+        ----------
+        lat_source: numpy array of lat source
+        lon_source: numpy array of lon source
+        lat_target_int: numpy array of lat source
+        lon_target_int: numpy array of lon source
+        Returns
+        -------
+        rows: numpy array, rows from the source file based on the target lat/lon
+        cols: numpy array, cols from the source file based on the target lat/lon
+        """
         # create the rows and cols
         rows = np.zeros(len(lat_target_int))
         cols = np.zeros(len(lon_target_int))
@@ -995,9 +1089,27 @@ in dimensions of the varibales and latitude and longitude')
         # pass to class
         return rows, cols
 
-
-    def check_candex_remap(self, remap_df):
-
+    def check_candex_remap(  self,
+                             remap_df):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        this function check the remapping dataframe
+        Parameters:
+        ----------
+        remap_df: dataframe, including remapping information including the following colomns:
+                    ID_target
+                    lon_target
+                    lat_target
+                    ID_source
+                    lat_source
+                    lon_source
+                    rows
+                    cols
+                    order
+        """
         # check if there is candex_case in the columns
         if 'candex_case' in remap_df.columns:
             print('candex case exists in the remap file')
@@ -1016,37 +1128,14 @@ in dimensions of the varibales and latitude and longitude')
             sys.exit('provided remapping file does not have one of the needed fields: \n'+\
                 'ID_t, lat_t, lon_t, ID_2, lat_s, lon_s, weight')
 
-
     def __target_nc_creation(self):
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/candex
         @ author's email id:       sh.gharari@gmail.com
-        @license:                  Apache2
-
-        This function funcitons read different grids and sum them up based on the
+        @ license:                 GNU-GPLv3
+        This funciton read different grids and sum them up based on the
         weight provided to aggregate them over a larger area
-
-        Arguments
-        ---------
-        nc_name: str, the name of the nc file including its path
-        target_time: str, the target time to be read
-        dim_time: dimension of time
-        varibale_name: name of the varibale to be read from the nc file
-        mapping_df: the dataframe used in reading the data including the following colomns:
-                    ID_target
-                    lon_target
-                    lat_target
-                    ID_source
-                    lat_source
-                    lon_source
-                    rows
-                    cols
-                    order
-
-        Returns
-        -------
-        weighted_value: a numpy array that has the remapped values from the nc file
         """
         print('------REMAPPING------')
         remap = pd.read_csv(self.remap_csv)
@@ -1092,6 +1181,15 @@ in dimensions of the varibales and latitude and longitude')
             target_name = self.output_dir + self.case_name + '_remapped_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.nc'
             if os.path.exists(target_name): # remove file if exists
                 os.remove(target_name)
+            for var in ncids.variables.values():
+                if var.name == self.var_time:
+                    time_dtype =  str(var.dtype)
+                    print(var.dtype)
+            time_dtype_code = 'f8' # initialize the time as float
+            if 'float' in time_dtype.lower():
+                time_dtype_code = 'f8'
+            elif 'int' in time_dtype.lower():
+                time_dtype_code = 'i4'
             # reporting
             print('Remapping '+nc_name+' to '+target_name)
             print('Started at date and time '+str(datetime.now()))
@@ -1100,7 +1198,7 @@ in dimensions of the varibales and latitude and longitude')
                 dimid_N = ncid.createDimension(self.remapped_dim_id, len(hruID_var))  # limited dimensiton equal the number of hruID
                 dimid_T = ncid.createDimension('time', None)   # unlimited dimensiton
                 # Variable time
-                time_varid = ncid.createVariable('time', 'i4', ('time', ))
+                time_varid = ncid.createVariable('time', time_dtype_code, ('time', ))
                 # Attributes
                 time_varid.long_name = self.var_time
                 time_varid.units = time_unit  # e.g. 'days since 2000-01-01 00:00' should change accordingly
@@ -1183,28 +1281,14 @@ in dimensions of the varibales and latitude and longitude')
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/candex
         @ author's email id:       sh.gharari@gmail.com
-        @license:                  Apache2
-
-        This function funcitons read different grids and sum them up based on the
-        weight provided to aggregate them over a larger area
-
+        @ license:                 GNU-GPLv3
+        This function reads the data for a given time and calculates the weighted average
         Arguments
         ---------
-        nc_name: str, the name of the nc file including its path
-        target_time: str, the target time to be read
-        dim_time: dimension of time
-        varibale_name: name of the varibale to be read from the nc file
-        mapping_df: the dataframe used in reading the data including the following colomns:
-                    ID_target
-                    lon_target
-                    lat_target
-                    ID_source
-                    lat_source
-                    lon_source
-                    rows
-                    cols
-                    order
-
+        nc_name: string, name of the netCDF file
+        target_time: string,
+        varibale_name: string, name of varibale from source netcsf file to be remapped
+        mapping_df: pandas dataframe, including the row and column of the source data and weight
         Returns
         -------
         weighted_value: a numpy array that has the remapped values from the nc file
