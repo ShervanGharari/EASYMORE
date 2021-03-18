@@ -908,7 +908,7 @@ in dimensions of the varibales and latitude and longitude')
                             how='intersection',
                             reproject=True):
         import geopandas as gpd
-        from shapely.geometry import Polygon
+        from   shapely.geometry import Polygon
         import shapefile # pyshed library
         import shapely
         """
@@ -1167,6 +1167,7 @@ in dimensions of the varibales and latitude and longitude')
                 self.license == 'the original license of the source NetCDF file is not provided'
             if ('license' in nc_att_list):
                 self.license == getattr(ncids, 'License')
+                self.license == 'Original data license '+self.license
             if 'units' in ncids.variables[self.var_time].ncattrs():
                 time_unit = ncids.variables[self.var_time].units
             else:
