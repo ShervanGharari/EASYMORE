@@ -262,20 +262,23 @@ class candex:
             shp_points = self.make_shape_point(lon_c, lat_c, ID)
             shp_points = shp_points.set_crs("EPSG:6933") # set equal area
             shp_points = shp_points.to_crs("EPSG:4326") # to WGS
+            shp_points = shp_points.drop(columns=['LATITUDE','LONGITUDE'])
+            shp_points ['lat'] = shp_points.geometry.y
+            shp_points ['lon'] = shp_points.geometry.x
             shp_points.to_file(self.temp_dir+self.case_name+'_centroid.shp') # save
             print('point shapefile for centroid of the shapes is saves here:')
             print(self.temp_dir+self.case_name+'_centroid.shp')
         if self.sink_shp_lat == '':
             print('candex detects that no field for latitude is provided in sink/target shapefile')
             print('latitude values are added in the field lat_t')
-            shp['lat_t']  = shp_points.geometry.y # centroid lat from target
+            shp['lat_t']  = shp_points ['lat'] # centroid lat from target
         else:
             print('candex detects that the field latitude is provided in sink/target shapefile')
             shp['lat_t'] = shp[self.sink_shp_lat]
         if self.sink_shp_lon == '':
             print('candex detects that no field for longitude is provided in sink/target shapefile')
             print('longitude values are added in the field lon_t')
-            shp['lon_t']  = shp_points.geometry.x # centroid lon from target
+            shp['lon_t']  = shp_points ['lon'] # centroid lon from target
         else:
             print('candex detects that the field longitude is provided in sink/target shapefile')
             shp['lon_t'] = shp[self.sink_shp_lat]
