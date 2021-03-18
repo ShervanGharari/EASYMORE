@@ -30,14 +30,14 @@ class candex:
         self.source_shp_lat            =  '' # source_nc
         self.source_shp_lon            =  '' # source_nc
         self.source_shp_ID             =  '' # source_nc
-        self.remapped_var_id           =  '' # name of the ID variable in the new nc file; default 'ID'
-        self.remapped_dim_id           =  '' # name of the ID dimension in the new nc file; default 'ID'
+        self.remapped_var_id           =  'ID' # name of the ID variable in the new nc file; default 'ID'
+        self.remapped_dim_id           =  'ID' # name of the ID dimension in the new nc file; default 'ID'
         self.temp_dir                  =  './temp/' # temp_dir
         self.output_dir                =  '' # source_nc
         self.format_list               =  []
         self.fill_value_list           =  []
         self.remap_csv                 =  '' # source_nc
-        self.author_name               =  '' 
+        self.author_name               =  ''
         self.license                   =  '' # data license
         self.tolerance                 =  10**-5 # tolerance
         self.get_col_row_flag          =  False
@@ -124,7 +124,7 @@ class candex:
                 shp_2 = shp_2.to_crs ("EPSG:6933") # project to equal area
                 shp_2.to_file(self.temp_dir+self.case_name+'test.shp')
                 shp_2 = gpd.read_file(self.temp_dir+self.case_name+'test.shp')
-                
+
                 # remove test files
                 removeThese = glob.glob(self.temp_dir+self.case_name+'test.*')
                 for file in removeThese:
@@ -215,6 +215,18 @@ class candex:
         if self.remap_csv != '':
             print('remap file is provided; candex will use this file and skip calculation of remapping')
 
+    def make_shape_point(self,lon_d, lat_d, ID):
+            # read the pandas data frame of the all statiosn
+            from   shapely.geometry import Point
+            import geopandas as gpd
+            import pandas as pd
+            df = pd.DataFrame()
+            df['LATITUDE']  = lat_d
+            df['LONGITUDE'] = lon_d
+            df['ID']        = ID
+            df['geometry']  = df.apply(lambda row: Point(row.LONGITUDE, row.LATITUDE ), axis=1) # set the geometry
+            df  = gpd.GeoDataFrame(df) # pass this to a geopandas dataframe
+            return df
 
     def check_target_shp (self,shp):
 
@@ -240,20 +252,33 @@ class candex:
             if len(ID_values) != len(np.unique(ID_values)):
                 sys.exit('The provided IDs in shapefile are not unique; provide unique IDs or do not identify sink_shp_ID')
             shp['ID_t'] = shp[self.sink_shp_ID]
+        if self.sink_shp_lat == '' or self.sink_shp_lon == '':
+            print('candex detects that either of the fields for latitude or longitude is not provided in sink/target shapefile')
+            print('calculating centroid of shapes in equal area projection')
+            shp_temp = shp.to_crs ("EPSG:6933") # source shapefile to equal area
+            lat_c = np.array(shp_temp.centroid.y) # centroid lat from target
+            lon_c = np.array(shp_temp.centroid.x) # centroid lon from target
+            ID = np.array(shp['ID_t'])
+            shp_points = self.make_shape_point(lon_c, lat_c, ID)
+            shp_points = shp_points.set_crs("EPSG:6933") # set equal area
+            shp_points = shp_points.to_crs("EPSG:4326") # to WGS
+            shp_points.to_file(self.temp_dir+self.case_name+'_centroid.shp') # save
+            print('point shapefile for centroid of the shapes is saves here:')
+            print(self.temp_dir+self.case_name+'_centroid.shp')
         if self.sink_shp_lat == '':
             print('candex detects that no field for latitude is provided in sink/target shapefile')
             print('latitude values are added in the field lat_t')
-            shp['lat_t']  = shp.centroid.y # centroid lat from target
+            shp['lat_t']  = shp_points.geometry.y # centroid lat from target
         else:
             print('candex detects that the field latitude is provided in sink/target shapefile')
             shp['lat_t'] = shp[self.sink_shp_lat]
         if self.sink_shp_lon == '':
             print('candex detects that no field for longitude is provided in sink/target shapefile')
             print('longitude values are added in the field lon_t')
-            shp['lon_t']  = shp.centroid.x # centroid lon from target
+            shp['lon_t']  = shp_points.geometry.x # centroid lon from target
         else:
             print('candex detects that the field longitude is provided in sink/target shapefile')
-            shp['lon_t'] = shp[self.sink_shp_lon]
+            shp['lon_t'] = shp[self.sink_shp_lat]
         # check other geometries and add buffer if needed
         detected_points = False
         detected_multipoints = False
@@ -655,7 +680,6 @@ in dimensions of the varibales and latitude and longitude')
         from   shapely.geometry import Polygon
         import shapefile # pyshed library
         import shapely
-
         shp['lat_s'] = shp [source_shp_lat].astype(float)
         shp['lon_s'] = shp [source_shp_lon].astype(float)
         if self.source_shp_ID != '':
@@ -669,7 +693,6 @@ in dimensions of the varibales and latitude and longitude')
         from   shapely.geometry import Polygon
         import shapefile # pyshed library
         import shapely
-
         # put a check to see if there is lon_s and lat_s, ID_s
         column_names = shp.columns
         column_names = list(column_names)
@@ -1022,9 +1045,7 @@ in dimensions of the varibales and latitude and longitude')
         -------
         weighted_value: a numpy array that has the remapped values from the nc file
         """
-
         print('------REMAPPING------')
-
         remap = pd.read_csv(self.remap_csv)
         # creating the target_ID_lat_lon
         target_ID_lat_lon = pd.DataFrame()
@@ -1033,56 +1054,48 @@ in dimensions of the varibales and latitude and longitude')
         target_ID_lat_lon ['lon_t'] = remap ['lon_t']
         target_ID_lat_lon = target_ID_lat_lon.drop_duplicates()
         target_ID_lat_lon = target_ID_lat_lon.sort_values(by=['ID_t'])
-
         # prepare the hru_id (here COMID), lat, lon
         hruID_var = np.array(target_ID_lat_lon['ID_t'])
         hruID_lat = np.array(target_ID_lat_lon['lat_t'])
         hruID_lon = np.array(target_ID_lat_lon['lon_t'])
-
         #
         self.rows = np.array(remap['rows']).astype(int)
         self.cols = np.array(remap['cols']).astype(int)
         self.number_of_target_elements = len(hruID_var)
-
         #
         nc_names = glob.glob(self.source_nc)
         nc_names = sorted(nc_names)
-        
-        # Check if we need to rename the ID variable or dimension
-        if self.remapped_var_id == '':
-            self.remapped_var_id = 'ID'
-        if self.remapped_dim_id == '':
-            self.remapped_dim_id = 'ID'
-            
-        # Check data license
-        if self.license == '':
-            self.license = 'not specified'
-
         for nc_name in nc_names:
-
             # get the time unit and time var from source
             ncids = nc4.Dataset(nc_name)
+            # Check data license, calendar and time units
+            nc_att_list = ncids.ncattrs()
+            nc_att_list = [each_att.lower() for each_att in nc_att_list]
+            if self.license == '' and ('license' not in nc_att_list):
+                self.license == 'the original license of the source NetCDF file is not provided'
+            if ('license' in nc_att_list):
+                self.license == getattr(ncids, 'License')
             if 'units' in ncids.variables[self.var_time].ncattrs():
                 time_unit = ncids.variables[self.var_time].units
+            else:
+                sys.exit('units is not provided for the time varibale for source NetCDF of'+ nc_name)
             if 'calendar' in ncids.variables[self.var_time].ncattrs():
                 time_cal = ncids.variables[self.var_time].calendar
+            else:
+                sys.exit('calendar is not provided for the time varibale for source NetCDF of'+ nc_name)
             time_var = ncids[self.var_time][:]
             self.length_of_time = len(time_var)
             target_date_times = nc4.num2date(time_var,units = time_unit,calendar = time_cal)
             target_name = self.output_dir + self.case_name + '_remapped_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.nc'
             if os.path.exists(target_name): # remove file if exists
                 os.remove(target_name)
-
             # reporting
             print('Remapping '+nc_name+' to '+target_name)
             print('Started at date and time '+str(datetime.now()))
-
             with nc4.Dataset(target_name, "w", format="NETCDF4") as ncid: # creating the NetCDF file
-
                 # define the dimensions
                 dimid_N = ncid.createDimension(self.remapped_dim_id, len(hruID_var))  # limited dimensiton equal the number of hruID
                 dimid_T = ncid.createDimension('time', None)   # unlimited dimensiton
-
                 # Variable time
                 time_varid = ncid.createVariable('time', 'i4', ('time', ))
                 # Attributes
@@ -1092,7 +1105,6 @@ in dimensions of the varibales and latitude and longitude')
                 time_varid.standard_name = self.var_time
                 time_varid.axis = 'T'
                 time_varid[:] = time_var
-
                 # Variables lat, lon, subbasin_ID
                 lat_varid = ncid.createVariable('latitude', 'f8', (self.remapped_dim_id, ))
                 lon_varid = ncid.createVariable('longitude', 'f8', (self.remapped_dim_id, ))
@@ -1109,24 +1121,18 @@ in dimensions of the varibales and latitude and longitude')
                 lat_varid[:] = hruID_lat
                 lon_varid[:] = hruID_lon
                 hruId_varid[:] = hruID_var
-
-
                 # general attributes for NetCDF file
                 ncid.Conventions = 'CF-1.6'
                 ncid.Author = 'The data were written by ' + self.author_name
                 ncid.License = self.license
                 ncid.History = 'Created ' + time.ctime(time.time())
                 ncid.Source = 'Case: ' +self.case_name + '; remapped by script from library of Shervan Gharari (https://github.com/ShervanGharari/candex).'
-
-
                 # write varibales
                 for i in np.arange(len(self.var_names)):
-
                     var_value  = self.__weighted_average( nc_name,
                                                           target_date_times,
                                                           self.var_names[i],
                                                           remap)
-
                     # Variables writing
                     varid = ncid.createVariable(self.var_names[i], self.format_list[i], ('time',self.remapped_dim_id ), fill_value = self.fill_value_list[i])
                     varid [:] = var_value
@@ -1135,11 +1141,9 @@ in dimensions of the varibales and latitude and longitude')
                         varid.long_name = ncids.variables[self.var_names[i]].long_name
                     if 'units' in ncids.variables[self.var_names[i]].ncattrs():
                         varid.units = ncids.variables[self.var_names[i]].units
-
                 # reporting
                 print('Ended   at date and time '+str(datetime.now()))
                 print('------')
-
             if self.save_csv:
                 ds = xr.open_dataset(target_name)
                 for i in np.arange(len(self.var_names)):
@@ -1161,16 +1165,11 @@ in dimensions of the varibales and latitude and longitude')
                     df = df.unstack(level=-3)
                     df = df.transpose()
                     if 'units' in ds[self.var_names[i]].attrs.keys():
-                        print('in')
                         df = df.replace(self.var_names[i], self.var_names[i]+' '+ds[self.var_names[i]].attrs['units'])
                     df.to_csv(target_name_csv)
                     print('Converting variable '+ self.var_names[i] +' from remapped file of '+target_name+\
                         ' to '+target_name_csv)
                 print('------')
-
-
-
-
 
     def __weighted_average(self,
                            nc_name,
@@ -1207,36 +1206,27 @@ in dimensions of the varibales and latitude and longitude')
         -------
         weighted_value: a numpy array that has the remapped values from the nc file
         """
-
         # open dataset
         ds = xr.open_dataset(nc_name)
-
         # rename time varibale to time
         ds = ds.rename({self.var_time:'time'})
-
         # prepared the numpy array for ouptut
         weighted_value = np.zeros([self.length_of_time,self.number_of_target_elements])
         m = 0 # counter
-
         for date in target_time: # loop over time
-
             ds_temp = ds.sel(time=date.strftime("%Y-%m-%d %H:%M:%S"),method="nearest")
             data = np.array(ds_temp[varibale_name])
-
             # get values from the rows and cols and pass to np data array
             if self.case ==1 or self.case ==2:
                 values = data [self.rows,self.cols]
             if self.case ==3:
                 values = data [self.rows]
             values = np.array(values)
-
             # add values to data frame, weighted average and pass to data frame again
             mapping_df['values'] = values
             mapping_df['values_w'] = mapping_df['weight']*mapping_df['values']
             df_temp = mapping_df.groupby(['ID_t'],as_index=False).agg({'values_w': 'sum'})
             df_temp = df_temp.sort_values(by=['ID_t'])
             weighted_value [m,:] = np.array(df_temp['values_w'])
-
-            m = m+1
-
+            m += 1
         return weighted_value
