@@ -1297,13 +1297,15 @@ in dimensions of the varibales and latitude and longitude')
         # open dataset
         ds = xr.open_dataset(nc_name)
         # rename time varibale to time
-        ds = ds.rename({self.var_time:'time'})
+        if self.var_time != 'time'
+            ds = ds.rename({self.var_time:'time'})
         # prepared the numpy array for ouptut
         weighted_value = np.zeros([self.length_of_time,self.number_of_target_elements])
         m = 0 # counter
         for date in target_time: # loop over time
             ds_temp = ds.sel(time=date.strftime("%Y-%m-%d %H:%M:%S"),method="nearest")
             data = np.array(ds_temp[varibale_name])
+            data = np.squeeze(data)
             # get values from the rows and cols and pass to np data array
             if self.case ==1 or self.case ==2:
                 values = data [self.rows,self.cols]
