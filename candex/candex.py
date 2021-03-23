@@ -1259,11 +1259,11 @@ in dimensions of the varibales and latitude and longitude')
                      '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.csv'
                     if os.path.exists(target_name_csv): # remove file if exists
                         os.remove(target_name_csv)
-                    ds_temp = ds_temp.set_coords([self.var_lat,self.var_lon])
+                    ds_temp = ds_temp.set_coords(['latitude','longitude'])
                     df = ds_temp.to_dataframe()
                     df['ID'] = df.index.get_level_values(level=0)
                     df['time'] = df.index.get_level_values(level=1)
-                    df = df.set_index(['ID','time',self.var_lat, self.var_lon])
+                    df = df.set_index(['ID','time','latitude','longitude'])
                     df = df.unstack(level=-3)
                     df = df.transpose()
                     if 'units' in ds[self.var_names[i]].attrs.keys():
@@ -1297,7 +1297,7 @@ in dimensions of the varibales and latitude and longitude')
         # open dataset
         ds = xr.open_dataset(nc_name)
         # rename time varibale to time
-        if self.var_time != 'time'
+        if self.var_time != 'time':
             ds = ds.rename({self.var_time:'time'})
         # prepared the numpy array for ouptut
         weighted_value = np.zeros([self.length_of_time,self.number_of_target_elements])
