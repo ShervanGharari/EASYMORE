@@ -16,35 +16,33 @@ class candex:
     def __init__(self):
 
         self.case_name                 =  'case_temp' # name of the case
-        self.sink_shp                  =  '' # sink shapefile
-        self.sink_shp_ID               =  '' # name_of_field_target_shp
-        self.sink_shp_lat              =  '' # name_of_field_target_shp
-        self.sink_shp_lon              =  '' # name_of_field_target_shp
+        self.sink_shp                  =  '' # sink/target shapefile
+        self.sink_shp_ID               =  '' # name of the column ID in the sink/target shapefile
+        self.sink_shp_lat              =  '' # name of the column latitude in the sink/target shapefile
+        self.sink_shp_lon              =  '' # name of the column longitude in the sink/target shapefile
         self.source_nc                 =  '' # name of nc file to be remapped
-        self.var_names                 =  [] # list of varibale names to be remapped
-        self.var_lon                   =  '' # name of varibale longitude
-        self.var_lat                   =  '' # name of varibale latitude
-        self.var_time                  =  'time' # name of varibale time
-        self.var_ID                    =  '' # source_nc
-        self.source_shp                =  '' # source_nc
-        self.source_shp_lat            =  '' # source_nc
-        self.source_shp_lon            =  '' # source_nc
-        self.source_shp_ID             =  '' # source_nc
+        self.var_names                 =  [] # list of varibale names to be remapped from the source NetCDF file
+        self.var_lon                   =  '' # name of varibale longitude in the source NetCDF file
+        self.var_lat                   =  '' # name of varibale latitude in the source NetCDF file
+        self.var_time                  =  'time' # name of varibale time in the source NetCDF file
+        self.var_ID                    =  '' # name of vriable ID in the source NetCDF file
+        self.source_shp                =  '' # name of source shapefile (essential for case-3)
+        self.source_shp_lat            =  '' # name of column latitude in the source shapefile
+        self.source_shp_lon            =  '' # name of column longitude in the source shapefile
+        self.source_shp_ID             =  '' # name of column ID in the source shapefile
         self.remapped_var_id           =  'ID' # name of the ID variable in the new nc file; default 'ID'
+        self.remapped_var_lat          =  'latitude' # name of the latitude variable in the new nc file; default 'latitude'
+        self.remapped_var_lon          =  'longitude' # name of the longitude variable in the new nc file; default 'longitude'
         self.remapped_dim_id           =  'ID' # name of the ID dimension in the new nc file; default 'ID'
         self.temp_dir                  =  './temp/' # temp_dir
-        self.output_dir                =  '' # source_nc
-        self.format_list               =  ['f8']
-        self.fill_value_list           =  ['-9999']
-        self.remap_csv                 =  '' # source_nc
-        self.author_name               =  ''
+        self.output_dir                =  './output' # output directory
+        self.format_list               =  ['f8'] # float for the remapped values
+        self.fill_value_list           =  ['-9999'] # missing values set to -9999
+        self.remap_csv                 =  '' # name of the remapped file if provided
+        self.author_name               =  '' # name of the authour
         self.license                   =  '' # data license
         self.tolerance                 =  10**-5 # tolerance
-        self.get_col_row_flag          =  False
-        self.save_csv                  =  False
-        # self.box_flag                  =  True # box_flag; may not be used...
-        # self.map_on_ID                 =  False # for future development for remapping on IDs only not supported and not recommended
-
+        self.save_csv                  =  False # save csv
 
     def run_candex(self):
         """
@@ -1051,7 +1049,6 @@ in dimensions of the varibales and latitude and longitude')
         # save remap_df as csv for future use
         return int_df
 
-
     def create_row_col_df ( self,
                             lat_source,
                             lon_source,
@@ -1208,18 +1205,18 @@ in dimensions of the varibales and latitude and longitude')
                 time_varid.axis = 'T'
                 time_varid[:] = time_var
                 # Variables lat, lon, subbasin_ID
-                lat_varid = ncid.createVariable('latitude', 'f8', (self.remapped_dim_id, ))
-                lon_varid = ncid.createVariable('longitude', 'f8', (self.remapped_dim_id, ))
+                lat_varid = ncid.createVariable(self.remapped_var_lat, 'f8', (self.remapped_dim_id, ))
+                lon_varid = ncid.createVariable(self.remapped_var_lon, 'f8', (self.remapped_dim_id, ))
                 hruId_varid = ncid.createVariable(self.remapped_var_id, 'f8', (self.remapped_dim_id, ))
                 # Attributes
-                lat_varid.long_name = 'latitude'
-                lon_varid.long_name = 'longitude'
+                lat_varid.long_name = self.remapped_var_lat
+                lon_varid.long_name = self.remapped_var_lon
                 hruId_varid.long_name = 'subbasin ID'
                 lat_varid.units = 'degrees_north'
                 lon_varid.units = 'degrees_east'
                 hruId_varid.units = '1'
-                lat_varid.standard_name = 'latitude'
-                lon_varid.standard_name = 'longitude'
+                lat_varid.standard_name = self.remapped_var_lat
+                lon_varid.standard_name = self.remapped_var_lon
                 lat_varid[:] = hruID_lat
                 lon_varid[:] = hruID_lon
                 hruId_varid[:] = hruID_var
@@ -1259,11 +1256,11 @@ in dimensions of the varibales and latitude and longitude')
                      '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.csv'
                     if os.path.exists(target_name_csv): # remove file if exists
                         os.remove(target_name_csv)
-                    ds_temp = ds_temp.set_coords(['latitude','longitude'])
+                    ds_temp = ds_temp.set_coords([self.remapped_var_lat,self.remapped_var_lon])
                     df = ds_temp.to_dataframe()
                     df['ID'] = df.index.get_level_values(level=0)
                     df['time'] = df.index.get_level_values(level=1)
-                    df = df.set_index(['ID','time','latitude','longitude'])
+                    df = df.set_index(['ID','time',self.remapped_var_lat,self.remapped_var_lon])
                     df = df.unstack(level=-3)
                     df = df.transpose()
                     if 'units' in ds[self.var_names[i]].attrs.keys():
