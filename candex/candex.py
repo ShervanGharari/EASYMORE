@@ -16,10 +16,10 @@ class candex:
     def __init__(self):
 
         self.case_name                 =  'case_temp' # name of the case
-        self.sink_shp                  =  '' # sink/target shapefile
-        self.sink_shp_ID               =  '' # name of the column ID in the sink/target shapefile
-        self.sink_shp_lat              =  '' # name of the column latitude in the sink/target shapefile
-        self.sink_shp_lon              =  '' # name of the column longitude in the sink/target shapefile
+        self.target_shp                =  '' # sink/target shapefile
+        self.target_shp_ID             =  '' # name of the column ID in the sink/target shapefile
+        self.target_shp_lat            =  '' # name of the column latitude in the sink/target shapefile
+        self.target_shp_lon            =  '' # name of the column longitude in the sink/target shapefile
         self.source_nc                 =  '' # name of nc file to be remapped
         self.var_names                 =  [] # list of varibale names to be remapped from the source NetCDF file
         self.var_lon                   =  '' # name of varibale longitude in the source NetCDF file
@@ -59,12 +59,12 @@ class candex:
         if self.remap_csv == '':
             import geopandas as gpd
             # check the target shapefile
-            sink_shp_gpd = gpd.read_file(self.sink_shp)
-            sink_shp_gpd = self.check_target_shp(sink_shp_gpd)
+            target_shp_gpd = gpd.read_file(self.target_shp)
+            target_shp_gpd = self.check_target_shp(target_shp_gpd)
             # save the standard target shapefile
             print('candex will save standard shapefile for candex claculation as:')
             print(self.temp_dir+self.case_name+'_sink_shapefile.shp')
-            sink_shp_gpd.to_file(self.temp_dir+self.case_name+'_sink_shapefile.shp') # save
+            target_shp_gpd.to_file(self.temp_dir+self.case_name+'_sink_shapefile.shp') # save
             # check the source NetCDF files
             self.check_source_nc()
             # find the case
@@ -274,18 +274,18 @@ class candex:
         else: # check if the projection is WGS84 (or epsg:4326)
             print('candex detects that target shapefile is in WGS84 (epsg:4326)')
         # check if the ID, latitude, longitude are provided
-        if self.sink_shp_ID == '':
+        if self.target_shp_ID == '':
             print('candex detects that no field for ID is provided in sink/target shapefile')
             print('arbitarary values of ID are added in the field ID_t')
             shp['ID_t']  = np.arange(len(shp))+1
         else:
             print('candex detects that the field for ID is provided in sink/target shapefile')
             # check if the provided IDs are unique
-            ID_values = np.array(shp[self.sink_shp_ID])
+            ID_values = np.array(shp[self.target_shp_ID])
             if len(ID_values) != len(np.unique(ID_values)):
-                sys.exit('The provided IDs in shapefile are not unique; provide unique IDs or do not identify sink_shp_ID')
-            shp['ID_t'] = shp[self.sink_shp_ID]
-        if self.sink_shp_lat == '' or self.sink_shp_lon == '':
+                sys.exit('The provided IDs in shapefile are not unique; provide unique IDs or do not identify target_shp_ID')
+            shp['ID_t'] = shp[self.target_shp_ID]
+        if self.target_shp_lat == '' or self.target_shp_lon == '':
             print('candex detects that either of the fields for latitude or longitude is not provided in sink/target shapefile')
             print('calculating centroid of shapes in equal area projection')
             shp_temp = shp.to_crs ("EPSG:6933") # source shapefile to equal area
@@ -301,20 +301,20 @@ class candex:
             shp_points.to_file(self.temp_dir+self.case_name+'_centroid.shp') # save
             print('point shapefile for centroid of the shapes is saves here:')
             print(self.temp_dir+self.case_name+'_centroid.shp')
-        if self.sink_shp_lat == '':
+        if self.target_shp_lat == '':
             print('candex detects that no field for latitude is provided in sink/target shapefile')
             print('latitude values are added in the field lat_t')
             shp['lat_t']  = shp_points ['lat'] # centroid lat from target
         else:
             print('candex detects that the field latitude is provided in sink/target shapefile')
-            shp['lat_t'] = shp[self.sink_shp_lat]
-        if self.sink_shp_lon == '':
+            shp['lat_t'] = shp[self.target_shp_lat]
+        if self.target_shp_lon == '':
             print('candex detects that no field for longitude is provided in sink/target shapefile')
             print('longitude values are added in the field lon_t')
             shp['lon_t']  = shp_points ['lon'] # centroid lon from target
         else:
             print('candex detects that the field longitude is provided in sink/target shapefile')
-            shp['lon_t'] = shp[self.sink_shp_lat]
+            shp['lon_t'] = shp[self.target_shp_lat]
         # check other geometries and add buffer if needed
         detected_points = False
         detected_multipoints = False
@@ -346,7 +346,7 @@ class candex:
             print('if you mistakenly have given poitns as multipoints please correct the target shapefile')
         if detected_lines:
             print('candex detected line as geometry of target shapefile and will considere it as polygon (adding small buffer)')
-        print('it seems everything is OK with the sink/target shapefile; added to candex object sink_shp_gpd')
+        print('it seems everything is OK with the sink/target shapefile; added to candex object target_shp_gpd')
         return shp
 
     def check_source_nc (self):
