@@ -14,7 +14,6 @@ from   datetime     import datetime
 class candex:
 
     def __init__(self):
-
         self.case_name                 =  'case_temp' # name of the case
         self.target_shp                =  '' # sink/target shapefile
         self.target_shp_ID             =  '' # name of the column ID in the sink/target shapefile
@@ -26,6 +25,7 @@ class candex:
         self.var_lat                   =  '' # name of varibale latitude in the source NetCDF file
         self.var_time                  =  'time' # name of varibale time in the source NetCDF file
         self.var_ID                    =  '' # name of vriable ID in the source NetCDF file
+        self.var_names_remapped        =  [] # list of varibale names that will be replaced in the remapped file
         self.source_shp                =  '' # name of source shapefile (essential for case-3)
         self.source_shp_lat            =  '' # name of column latitude in the source shapefile
         self.source_shp_lon            =  '' # name of column longitude in the source shapefile
@@ -63,8 +63,8 @@ class candex:
             target_shp_gpd = self.check_target_shp(target_shp_gpd)
             # save the standard target shapefile
             print('candex will save standard shapefile for candex claculation as:')
-            print(self.temp_dir+self.case_name+'_sink_shapefile.shp')
-            target_shp_gpd.to_file(self.temp_dir+self.case_name+'_sink_shapefile.shp') # save
+            print(self.temp_dir+self.case_name+'_target_shapefile.shp')
+            target_shp_gpd.to_file(self.temp_dir+self.case_name+'_target_shapefile.shp') # save
             # check the source NetCDF files
             self.check_source_nc()
             # find the case
@@ -101,7 +101,7 @@ class candex:
             expanded_source = self.expand_source_SHP(source_shp_gpd, self.temp_dir, self.case_name)
             expanded_source.to_file(self.temp_dir+self.case_name+'_source_shapefile_expanded.shp')
             # intersection of the source and sink/target shapefile
-            shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_sink_shapefile.shp')
+            shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_target_shapefile.shp')
             shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile_expanded.shp')
             # subset the extended shapefile based on the sink/target shapefile
             min_lon, min_lat, max_lon, max_lat = shp_1.total_bounds
@@ -220,6 +220,18 @@ class candex:
                 sys.exit('number of varibales and fill values and formats do not match')
         if self.remap_csv != '':
             print('remap file is provided; candex will use this file and skip calculation of remapping')
+        if len(self.var_names) != len(set(self.var_names)):
+            sys.exit('the name of the variables you have provided from the source NetCDF file to be remapped are not unique')
+        if self.var_names_remapped:
+            if len(self.var_names_remapped) != len(set(self.var_names_remapped)):
+                sys.exit('the name of the variables you have provided as the rename in the remapped file are not unique')
+            if len(self.var_names_remapped) != len(self.var_names):
+                sys.exit('the number of provided variables from the source file and names to be remapped are not the same length')
+        if not self.var_names_remapped:
+            self.var_names_remapped = self.var_names
+        for i in np.arange(len(self.var_names)):
+            print('candex will remap variable ',self.var_names[i],' from source file to variable ',self.var_names_remapped[i],' in remapped NeCDF file')
+
 
     def make_shape_point(   self,
                             lon_d,
@@ -1159,11 +1171,17 @@ in dimensions of the varibales and latitude and longitude')
             ncids = nc4.Dataset(nc_name)
             # Check data license, calendar and time units
             nc_att_list = ncids.ncattrs()
-            nc_att_list = [each_att.lower() for each_att in nc_att_list]
-            if self.license == '' and ('license' not in nc_att_list):
+            nc_att_list = [each_att for each_att in nc_att_list]
+            nc_att_list_lower = [each_att.lower() for each_att in nc_att_list]
+            if self.license == '' and ('license' not in nc_att_list_lower):
                 self.license == 'the original license of the source NetCDF file is not provided'
-            if ('license' in nc_att_list):
-                self.license == getattr(ncids, 'License')
+            if ('license' in nc_att_list_lower):
+                if 'license' in nc_att_list:
+                    self.license == getattr(ncids, 'license')
+                if 'License' in nc_att_list:
+                    self.license == getattr(ncids, 'License')
+                if 'LICENSE' in nc_att_list:
+                    self.license == getattr(ncids, 'LICENSE')
                 self.license == 'Original data license '+self.license
             if 'units' in ncids.variables[self.var_time].ncattrs():
                 time_unit = ncids.variables[self.var_time].units
@@ -1182,7 +1200,6 @@ in dimensions of the varibales and latitude and longitude')
             for var in ncids.variables.values():
                 if var.name == self.var_time:
                     time_dtype =  str(var.dtype)
-                    print(var.dtype)
             time_dtype_code = 'f8' # initialize the time as float
             if 'float' in time_dtype.lower():
                 time_dtype_code = 'f8'
@@ -1233,7 +1250,7 @@ in dimensions of the varibales and latitude and longitude')
                                                           self.var_names[i],
                                                           remap)
                     # Variables writing
-                    varid = ncid.createVariable(self.var_names[i], self.format_list[i], ('time',self.remapped_dim_id ), fill_value = self.fill_value_list[i])
+                    varid = ncid.createVariable(self.var_names_remapped[i], self.format_list[i], ('time',self.remapped_dim_id ), fill_value = self.fill_value_list[i])
                     varid [:] = var_value
                     # Pass attributes
                     if 'long_name' in ncids.variables[self.var_names[i]].ncattrs():
@@ -1245,14 +1262,14 @@ in dimensions of the varibales and latitude and longitude')
                 print('------')
             if self.save_csv:
                 ds = xr.open_dataset(target_name)
-                for i in np.arange(len(self.var_names)):
-                    new_list = list(self.var_names) # new lists
+                for i in np.arange(len(self.var_names_remapped)):
+                    new_list = list(self.var_names_remapped) # new lists
                     del new_list[i] # remove one value
                     ds_temp = ds.drop(new_list) # drop all the other varibales excpet target varibale, lat, lon and time
-                    if 'units' in ds[self.var_names[i]].attrs.keys():
-                        dictionary = {self.var_names[i]:self.var_names[i]+' ['+ds[self.var_names[i]].attrs['units']+']'}
+                    if 'units' in ds[self.var_names_remapped[i]].attrs.keys():
+                        dictionary = {self.var_names_remapped[i]:self.var_names_remapped[i]+' ['+ds[self.var_names_remapped[i]].attrs['units']+']'}
                         ds_temp = ds_temp.rename_vars(dictionary)
-                    target_name_csv = self.output_dir + self.case_name + '_remapped_'+ self.var_names[i] +\
+                    target_name_csv = self.output_dir + self.case_name + '_remapped_'+ self.var_names_remapped[i] +\
                      '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.csv'
                     if os.path.exists(target_name_csv): # remove file if exists
                         os.remove(target_name_csv)
@@ -1263,10 +1280,10 @@ in dimensions of the varibales and latitude and longitude')
                     df = df.set_index(['ID','time',self.remapped_var_lat,self.remapped_var_lon])
                     df = df.unstack(level=-3)
                     df = df.transpose()
-                    if 'units' in ds[self.var_names[i]].attrs.keys():
-                        df = df.replace(self.var_names[i], self.var_names[i]+' '+ds[self.var_names[i]].attrs['units'])
+                    if 'units' in ds[self.var_names_remapped[i]].attrs.keys():
+                        df = df.replace(self.var_names_remapped[i], self.var_names_remapped[i]+' '+ds[self.var_names_remapped[i]].attrs['units'])
                     df.to_csv(target_name_csv)
-                    print('Converting variable '+ self.var_names[i] +' from remapped file of '+target_name+\
+                    print('Converting variable '+ self.var_names_remapped[i] +' from remapped file of '+target_name+\
                         ' to '+target_name_csv)
                 print('------')
 
