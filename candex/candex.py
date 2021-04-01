@@ -232,38 +232,6 @@ class candex:
         for i in np.arange(len(self.var_names)):
             print('candex will remap variable ',self.var_names[i],' from source file to variable ',self.var_names_remapped[i],' in remapped NeCDF file')
 
-
-    def make_shape_point(   self,
-                            lon_d,
-                            lat_d,
-                            ID):
-        """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function creates a geopandas dataframe of lat, lon and IDs provided
-        Arguments
-        ---------
-        lon_d: numpy array, the longitude
-        lat_d: numpy array, the latitude
-        ID: numpy array, the ID
-        Returns
-        -------
-        df: geopandas dataframe, with geometry of longitude and latitude
-        """
-        # read the pandas data frame of the all statiosn
-        from   shapely.geometry import Point
-        import geopandas as gpd
-        import pandas as pd
-        df = pd.DataFrame()
-        df['LATITUDE']  = lat_d
-        df['LONGITUDE'] = lon_d
-        df['ID']        = ID
-        df['geometry']  = df.apply(lambda row: Point(row.LONGITUDE, row.LATITUDE ), axis=1) # set the geometry
-        df  = gpd.GeoDataFrame(df) # pass this to a geopandas dataframe
-        return df
-
     def check_target_shp (self,shp):
         """
         @ author:                  Shervan Gharari
@@ -304,10 +272,14 @@ class candex:
             lat_c = np.array(shp_temp.centroid.y) # centroid lat from target
             lon_c = np.array(shp_temp.centroid.x) # centroid lon from target
             ID = np.array(shp['ID_t'])
-            shp_points = self.make_shape_point(lon_c, lat_c, ID)
+            df_point = pd.DataFrame()
+            df_point ['lat'] = lat_c
+            df_point ['lon'] = lon_c
+            df_point ['ID']  = ID
+            shp_points = self.make_shape_point(df_point, 'lon', 'lat')
             shp_points = shp_points.set_crs("EPSG:6933") # set equal area
             shp_points = shp_points.to_crs("EPSG:4326") # to WGS
-            shp_points = shp_points.drop(columns=['LATITUDE','LONGITUDE'])
+            shp_points = shp_points.drop(columns=['lat','lon'])
             shp_points ['lat'] = shp_points.geometry.y
             shp_points ['lon'] = shp_points.geometry.x
             shp_points.to_file(self.temp_dir+self.case_name+'_centroid.shp') # save
@@ -578,14 +550,14 @@ in dimensions of the varibales and latitude and longitude')
             lat_temp = np.array(ncid.variables[self.var_lat][:])
             lat_temp_diff = np.diff(lat_temp)
             lat_temp_diff_unique = np.unique(lat_temp_diff)
-            print(lat_temp_diff_unique)
-            print(lat_temp_diff_unique.shape)
+            #print(lat_temp_diff_unique)
+            #print(lat_temp_diff_unique.shape)
             #
             lon_temp = np.array(ncid.variables[self.var_lon][:])
             lon_temp_diff = np.diff(lon_temp)
             lon_temp_diff_unique = np.unique(lon_temp_diff)
-            print(lon_temp_diff_unique)
-            print(lon_temp_diff_unique.shape)
+            #print(lon_temp_diff_unique)
+            #print(lon_temp_diff_unique.shape)
             # expanding just for the the creation of shapefile with first last rows and columns
             if (len(lat_temp_diff_unique)==1) and (len(lon_temp_diff_unique)==1): # then lat lon are spaced equal
                 # create expanded lat
@@ -627,7 +599,7 @@ in dimensions of the varibales and latitude and longitude')
             self.case = 3
             lat = ncid.variables[self.var_lat][:]
             lon = ncid.variables[self.var_lon][:]
-            print(lat, lon)
+            #print(lat, lon)
             if self.var_ID  == '':
                 print('candex detects that no varibale for ID of the source netCDF file; an arbitatiry ID will be provided')
                 ID =  np.arange(len(lat))+1 # pass arbitarary values
@@ -1334,3 +1306,338 @@ in dimensions of the varibales and latitude and longitude')
             weighted_value [m,:] = np.array(df_temp['values_w'])
             m += 1
         return weighted_value
+
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+
+
+    def make_shape_point(   self,
+                            dataframe,
+                            lon_field,
+                            lat_field):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function creates a geopandas dataframe of lat, lon and IDs provided
+        Arguments
+        ---------
+        lon_d: numpy array, the longitude
+        lat_d: numpy array, the latitude
+        ID: numpy array, the ID
+        Returns
+        -------
+        df: geopandas dataframe, with geometry of longitude and latitude
+        """
+        # read the pandas data frame of the all statiosn
+        #from   shapely.geometry import Point
+        import geopandas as gpd
+        import pandas as pd
+        #df['geometry']  = df.apply(lambda row: Point(row.LONGITUDE, row.LATITUDE ), axis=1) # set the geometry
+        # shp  = gpd.GeoDataFrame(df) # pass this to a geopandas dataframe
+        shp = gpd.GeoDataFrame(dataframe, geometry=gpd.points_from_xy(df.lon, df.lat))
+        return shp
+
+    # def lat_lon_value_geotiff(  self,
+    #                             geotiff_name,
+    #                             make_shapefile=False):
+
+    #     from pysheds.grid import Grid
+    #     import pandas as pd
+
+    #     grid = Grid.from_raster(geotiff_name, data_name='temp') # part of Missouri River
+    #     dem_coords = grid.temp.coords
+    #     lat = np.array(dem_coords[:,0].reshape(grid.temp.shape)).flatten()
+    #     lon = np.array(dem_coords[:,1].reshape(grid.temp.shape)).flatten()
+    #     values = np.array(grid.temp).flatten()
+    #     df = pd.DataFrame()
+    #     df['lat']  = lat
+    #     df['lon'] = lon
+    #     df['value']  = values
+    #     print(type(df))
+    #     if make_shapefile:
+    #         shp = self.make_shape_point (df, 'lon', 'lat')
+    #     else:
+    #         shp = None
+    #     return df, shp
+
+    def bbox_to_pixel_offsets(self,gt, bbox):
+        """
+        Zonal Statistics
+        Vector-Raster Analysis
+        Copyright 2013 Matthew Perry
+        Usage:
+          zonal_stats.py VECTOR RASTER
+          zonal_stats.py -h | --help
+          zonal_stats.py --version
+        Options:
+          -h --help     Show this screen.
+          --version     Show version.
+        """
+        originX = gt[0]
+        originY = gt[3]
+        pixel_width = gt[1]
+        pixel_height = gt[5]
+        x1 = int((bbox[0] - originX) / pixel_width)
+        x2 = int((bbox[1] - originX) / pixel_width) + 1
+        y1 = int((bbox[3] - originY) / pixel_height)
+        y2 = int((bbox[2] - originY) / pixel_height) + 1
+        xsize = x2 - x1
+        ysize = y2 - y1
+        return (x1, y1, xsize, ysize)
+
+    def zonal_stat(self, vector_path, raster_path, band =1, nodata_value=None, global_src_extent=False):
+        from osgeo import gdal, ogr
+        # from osgeo.gdalconst import *
+        import osgeo.gdalconst
+        import numpy as np
+        import sys
+        gdal.PushErrorHandler('CPLQuietErrorHandler')
+        import pandas as pd
+        import os
+        import geopandas as gpd
+        """
+        original code:
+        Zonal Statistics
+        Vector-Raster Analysis
+        Copyright 2013 Matthew Perry
+        Usage:
+          zonal_stats.py VECTOR RASTER
+          zonal_stats.py -h | --help
+          zonal_stats.py --version
+        Options:
+          -h --help     Show this screen.
+          --version     Show version.
+        changes by:
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function creates a geopandas dataframe of lat, lon and IDs provided
+        Arguments
+        ---------
+        vector_path: string; the path to the shapefile
+        raster_path: string; the path to the raster
+        band: the band in the raster
+        nodata_value: set as None
+        global_src_extent : set as False
+        Returns
+        -------
+        shp: geodataframe, with values of mean, max, min, sum, std, count, fid
+        """
+        # read the ratster file band number n
+        rds = gdal.Open(raster_path, osgeo.gdalconst.GA_ReadOnly)
+        assert(rds)
+        rb = rds.GetRasterBand(band)
+        rgt = rds.GetGeoTransform()
+        # if nodata_value is identified
+        if nodata_value:
+            nodata_value = float(nodata_value)
+            rb.SetNoDataValue(nodata_value)
+        # read vector data
+        vds = ogr.Open(vector_path, osgeo.gdalconst.GA_ReadOnly)  # TODO maybe open update if we want to write stats
+        assert(vds)
+        vlyr = vds.GetLayer(0)
+        # create an in-memory numpy array of the source raster data
+        # covering the whole extent of the vector layer
+        if global_src_extent:
+            # use global source extent
+            # useful only when disk IO or raster scanning inefficiencies are your limiting factor
+            # advantage: reads raster data in one pass
+            # disadvantage: large vector extents may have big memory requirements
+            src_offset = self.bbox_to_pixel_offsets(rgt, vlyr.GetExtent())
+            src_array = rb.ReadAsArray(*src_offset)
+            # calculate new geotransform of the layer subset
+            new_gt = (
+                (rgt[0] + (src_offset[0] * rgt[1])),
+                rgt[1],
+                0.0,
+                (rgt[3] + (src_offset[1] * rgt[5])),
+                0.0,
+                rgt[5]
+            )
+        mem_drv = ogr.GetDriverByName('Memory')
+        driver = gdal.GetDriverByName('MEM')
+        # Loop through vectors
+        stats = []
+        feat = vlyr.GetNextFeature()
+        while feat is not None:
+            if not global_src_extent:
+                # use local source extent
+                # fastest option when you have fast disks and well indexed raster (ie tiled Geotiff)
+                # advantage: each feature uses the smallest raster chunk
+                # disadvantage: lots of reads on the source raster
+                src_offset = self.bbox_to_pixel_offsets(rgt, feat.geometry().GetEnvelope())
+                src_array = rb.ReadAsArray(*src_offset)
+                # calculate new geotransform of the feature subset
+                new_gt = (
+                    (rgt[0] + (src_offset[0] * rgt[1])),
+                    rgt[1],
+                    0.0,
+                    (rgt[3] + (src_offset[1] * rgt[5])),
+                    0.0,
+                    rgt[5]
+                )
+            if src_array is not None:
+                # Create a temporary vector layer in memory
+                mem_ds = mem_drv.CreateDataSource('out')
+                mem_layer = mem_ds.CreateLayer('poly', None, ogr.wkbPolygon)
+                mem_layer.CreateFeature(feat.Clone())
+                # Rasterize it
+                rvds = driver.Create('', src_offset[2], src_offset[3], 1, gdal.GDT_Byte)
+                rvds.SetGeoTransform(new_gt)
+                gdal.RasterizeLayer(rvds, [1], mem_layer, burn_values=[1])
+                rv_array = rvds.ReadAsArray()
+                # Mask the source data array with our current feature
+                # we take the logical_not to flip 0<->1 to get the correct mask effect
+                # we also mask out nodata values explictly
+                masked = np.ma.MaskedArray(
+                    src_array,
+                    mask=np.logical_or(
+                        src_array == nodata_value,
+                        np.logical_not(rv_array)
+                    )
+                )
+                feature_stats = {
+                    'min': float(masked.min()),
+                    'mean': float(masked.mean()),
+                    'max': float(masked.max()),
+                    'std': float(masked.std()),
+                    'sum': float(masked.sum()),
+                    'count': int(masked.count()),
+                    'fid': int(feat.GetFID())}
+            else:
+                feature_stats = {
+                    'min': 'NaN',
+                    'mean': 'NaN',
+                    'max': 'NaN',
+                    'std': 'NaN',
+                    'sum': 'NaN',
+                    'count': 'NaN',
+                    'fid': 'NaN'}
+            stats.append(feature_stats)
+            rvds = None
+            mem_ds = None
+            feat = vlyr.GetNextFeature()
+        vds = None
+        rds = None
+        stats = pd.DataFrame(stats)
+        shp = gpd.read_file(vector_path)
+        shp ['min'] = stats['min'].astype(float)
+        shp ['mean'] = stats['mean'].astype(float)
+        shp ['max'] = stats['max'].astype(float)
+        shp ['std'] = stats['std'].astype(float)
+        shp ['sum'] = stats['sum'].astype(float)
+        shp ['count'] = stats['count'].astype(float)
+        shp ['fid'] =  stats['fid'].astype(float)
+        return shp
+
+    def geotiff_zones(self, raster_path_in, raster_path_out, band =1, num_bin=10, slice_level = None):
+        from osgeo import gdal, ogr
+        # from osgeo.gdalconst import *
+        import osgeo.gdalconst
+        import numpy as np
+        import sys
+        gdal.PushErrorHandler('CPLQuietErrorHandler')
+        import pandas as pd
+        import os
+        import geopandas as gpd
+        """
+        original code:
+        Zonal Statistics
+        Vector-Raster Analysis
+        Copyright 2013 Matthew Perry
+        Usage:
+          zonal_stats.py VECTOR RASTER
+          zonal_stats.py -h | --help
+          zonal_stats.py --version
+        Options:
+          -h --help     Show this screen.
+          --version     Show version.
+        changes by:
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function creates a geopandas dataframe of lat, lon and IDs provided
+        Arguments
+        ---------
+        vector_path: string; the path to the shapefile
+        raster_path: string; the path to the raster
+        band: the band in the raster
+        nodata_value: set as None
+        global_src_extent : set as False
+        Returns
+        -------
+        shp: geodataframe, with values of mean, max, min, sum, std, count, fid
+        """
+        # read the ratster file band number n
+        import os
+        import gdal
+        import numpy as np
+        import matplotlib.pyplot as plt
+        ds = gdal.Open(raster_path_in)
+        band = ds.GetRasterBand(band)
+        arr = band.ReadAsArray()
+        [cols, rows] = arr.shape
+        arr_min = arr.min()
+        arr_max = arr.max()
+        print(arr_min, arr_max)
+        if slice_level is None: # calculate the delta from min to max with number of bins
+            delta = np.arange(arr_min, arr_max, (arr_max-arr_min)/num_bin)
+        else:
+            # check if slice_level is monotonically increasing
+            slice_level = slice_level.flatten()
+            if slice_level.ndim != 1:
+                sys.exit('it seems the provided slice levels are not 1 dimentional numpy array')
+            if len(slice_level) != len(np.unique(slice_level)):
+                sys.exit('it seems the provided slice levels do not have unique values')
+            if not np.all(np.diff(slice_level) > 0):
+                sys.exit('it seems the provided slice levels are not stricktly increasing')
+            delta = slice_level
+            # check values:
+            if (arr_min > delta.max()) or (arr_max < delta.min()):
+                print('max from geotiff: ', arr_max, 'min from geotiff: ', arr_min)
+                sys.exit('it seems the provided slice levels are not stricktly increasing')
+        arr_out = arr
+        for i in np.arange(len(delta)-1):
+            arr_out = np.where(np.logical_and(arr_out>=delta[i], arr_out<=delta[i+1]), (delta[i]+delta[i+1])/2,arr_out)
+        # saving
+        driver = gdal.GetDriverByName("GTiff")
+        outdata = driver.Create(raster_path_out, rows, cols, 1, gdal.GDT_UInt16)
+        outdata.SetGeoTransform(ds.GetGeoTransform())##sets same geotransform as input
+        outdata.SetProjection(ds.GetProjection())##sets same projection as input
+        outdata.GetRasterBand(1).WriteArray(arr_out)
+        outdata.GetRasterBand(1).SetNoDataValue(0)##if you want these values transparent
+        outdata.FlushCache() ##saves to disk!!
+        outdata = None
+        band=None
+        ds=None
+
+
+    def geotiff2shp(self, raster_path_in, vector_path_out, band = 1):
+
+        from osgeo import gdal, ogr
+        import sys
+        # this allows GDAL to throw Python Exceptions
+        #gdal.UseExceptions()
+        src_ds = gdal.Open(raster_path_in)
+        srcband = src_ds.GetRasterBand(1)
+        drv = ogr.GetDriverByName('ESRI Shapefile')
+        dst_ds = drv.CreateDataSource(vector_path_out)
+        dst_layer = dst_ds.CreateLayer(vector_path_out , srs=None)
+        fd = ogr.FieldDefn('DN', ogr.OFTInteger)
+        dst_layer.CreateField(fd)
+        dst_field = dst_layer.GetLayerDefn().GetFieldIndex('DN')
+        gdal.Polygonize(srcband, None, dst_layer, dst_field, [], callback=None)
