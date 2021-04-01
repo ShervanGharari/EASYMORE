@@ -44,6 +44,10 @@ class candex:
         self.tolerance                 =  10**-5 # tolerance
         self.save_csv                  =  False # save csv
 
+    ##############################################################
+    #### NetCDF remapping
+    ##############################################################
+
     def run_candex(self):
         """
         @ author:                  Shervan Gharari
@@ -803,204 +807,6 @@ in dimensions of the varibales and latitude and longitude')
         result = gpd.read_file(temp_dir+case_name+'_source_shapefile_expanded.shp')
         return result
 
-    def intersection_shp(   self,
-                            shp_1,
-                            shp_2):
-        import geopandas as gpd
-        from   shapely.geometry import Polygon
-        import shapefile # pyshed library
-        import shapely
-        """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
-        @ author's email id:       sh.gharari@gmail.com
-        @license:                  GNU-GPLv3
-        This fucntion intersect two shapefile. It keeps the fiels from the first and second shapefiles (identified by S_1_ and
-        S_2_). It also creats other field including AS1 (area of the shape element from shapefile 1), IDS1 (an arbitary index
-        for the shapefile 1), AS2 (area of the shape element from shapefile 1), IDS2 (an arbitary index for the shapefile 1),
-        AINT (the area of teh intersected shapes), AP1 (the area of the intersected shape to the shapes from shapefile 1),
-        AP2 (the area of teh intersected shape to the shapefes from shapefile 2), AP1N (the area normalized in the case AP1
-        summation is not 1 for a given shape from shapefile 1, this will help to preseve mass if part of the shapefile are not
-        intersected), AP2N (the area normalized in the case AP2 summation is not 1 for a given shape from shapefile 2, this
-        will help to preseve mass if part of the shapefile are not intersected)
-        Arguments
-        ---------
-        shp_1: geo data frame, shapefile 1
-        shp_2: geo data frame, shapefile 2
-        Returns
-        -------
-        result: a geo data frame that includes the intersected shapefile and area, percent and normalized percent of each shape
-        elements in another one
-        """
-        # get the column name of shp_1
-        column_names = shp_1.columns
-        column_names = list(column_names)
-        # removing the geometry from the column names
-        column_names.remove('geometry')
-        # renaming the column with S_1
-        for i in range(len(column_names)):
-            shp_1 = shp_1.rename(
-                columns={column_names[i]: 'S_1_' + column_names[i]})
-        # Caclulating the area for shp1
-        shp_1['AS1']  = shp_1.area
-        shp_1['IDS1'] = np.arange(shp_1.shape[0])+1
-        # get the column name of shp_2
-        column_names = shp_2.columns
-        column_names = list(column_names)
-        # removing the geometry from the colomn names
-        column_names.remove('geometry')
-        # renaming the column with S_2
-        for i in range(len(column_names)):
-            shp_2 = shp_2.rename(
-                columns={column_names[i]: 'S_2_' + column_names[i]})
-        # Caclulating the area for shp2
-        shp_2['AS2'] = shp_2.area
-        shp_2['IDS2'] = np.arange(shp_2.shape[0])+1
-        # making intesection
-        result = self.spatial_overlays (shp_1, shp_2, how='intersection')
-        # Caclulating the area for shp2
-        result['AINT'] = result['geometry'].area
-        result['AP1'] = result['AINT']/result['AS1']
-        result['AP2'] = result['AINT']/result['AS2']
-        # taking the part of data frame as the numpy to incread the spead
-        # finding the IDs from shapefile one
-        ID_S1 = np.array (result['IDS1'])
-        AP1 = np.array(result['AP1'])
-        AP1N = AP1 # creating the nnormalized percent area
-        ID_S1_unique = np.unique(ID_S1) #unique idea
-        for i in ID_S1_unique:
-            INDX = np.where(ID_S1==i) # getting the indeces
-            AP1N[INDX] = AP1[INDX] / AP1[INDX].sum() # normalizing for that sum
-        # taking the part of data frame as the numpy to incread the spead
-        # finding the IDs from shapefile one
-        ID_S2 = np.array (result['IDS2'])
-        AP2 = np.array(result['AP2'])
-        AP2N = AP2 # creating the nnormalized percent area
-        ID_S2_unique = np.unique(ID_S2) #unique idea
-        for i in ID_S2_unique:
-            INDX = np.where(ID_S2==i) # getting the indeces
-            AP2N[INDX] = AP2[INDX] / AP2[INDX].sum() # normalizing for that sum
-        result ['AP1N'] = AP1N
-        result ['AP2N'] = AP2N
-        return result
-
-    def spatial_overlays(   self,
-                            df1,
-                            df2,
-                            how='intersection',
-                            reproject=True):
-        import geopandas as gpd
-        from   shapely.geometry import Polygon
-        import shapefile # pyshed library
-        import shapely
-        """
-        Perform spatial overlay between two polygons.
-        Currently only supports data GeoDataFrames with polygons.
-        Implements several methods that are all effectively subsets of
-        the union.
-        author: Omer Ozak
-        https://github.com/ozak
-        https://github.com/geopandas/geopandas/pull/338
-        license: GNU-GPLv3
-        Parameters
-        ----------
-        df1: GeoDataFrame with MultiPolygon or Polygon geometry column
-        df2: GeoDataFrame with MultiPolygon or Polygon geometry column
-        how: string
-            Method of spatial overlay: 'intersection', 'union',
-            'identity', 'symmetric_difference' or 'difference'.
-        use_sindex : boolean, default True
-            Use the spatial index to speed up operation if available.
-        Returns
-        -------
-        df: GeoDataFrame
-            GeoDataFrame with new set of polygons and attributes
-            resulting from the overlay
-        """
-        df1 = df1.copy()
-        df2 = df2.copy()
-        df1['geometry'] = df1.geometry.buffer(0)
-        df2['geometry'] = df2.geometry.buffer(0)
-        if df1.crs!=df2.crs and reproject:
-            print('Data has different projections.')
-            print('Converted data to projection of first GeoPandas DatFrame')
-            df2.to_crs(crs=df1.crs, inplace=True)
-        if how=='intersection':
-            # Spatial Index to create intersections
-            spatial_index = df2.sindex
-            df1['bbox'] = df1.geometry.apply(lambda x: x.bounds)
-            df1['sidx']=df1.bbox.apply(lambda x:list(spatial_index.intersection(x)))
-            pairs = df1['sidx'].to_dict()
-            nei = []
-            for i,j in pairs.items():
-                for k in j:
-                    nei.append([i,k])
-            pairs = gpd.GeoDataFrame(nei, columns=['idx1','idx2'], crs=df1.crs)
-            pairs = pairs.merge(df1, left_on='idx1', right_index=True)
-            pairs = pairs.merge(df2, left_on='idx2', right_index=True, suffixes=['_1','_2'])
-            pairs['Intersection'] = pairs.apply(lambda x: (x['geometry_1'].intersection(x['geometry_2'])).buffer(0), axis=1)
-            pairs = gpd.GeoDataFrame(pairs, columns=pairs.columns, crs=df1.crs)
-            cols = pairs.columns.tolist()
-            cols.remove('geometry_1')
-            cols.remove('geometry_2')
-            cols.remove('sidx')
-            cols.remove('bbox')
-            cols.remove('Intersection')
-            dfinter = pairs[cols+['Intersection']].copy()
-            dfinter.rename(columns={'Intersection':'geometry'}, inplace=True)
-            dfinter = gpd.GeoDataFrame(dfinter, columns=dfinter.columns, crs=pairs.crs)
-            dfinter = dfinter.loc[dfinter.geometry.is_empty==False]
-            dfinter.drop(['idx1','idx2'], inplace=True, axis=1)
-            return dfinter
-        elif how=='difference':
-            spatial_index = df2.sindex
-            df1['bbox'] = df1.geometry.apply(lambda x: x.bounds)
-            df1['sidx'] = df1.bbox.apply(lambda x:list(spatial_index.intersection(x)))
-            df1['new_g'] = df1.apply(lambda x: reduce(lambda x, y: x.difference(y).buffer(0),
-                                     [x.geometry]+list(df2.iloc[x.sidx].geometry)) , axis=1)
-            df1.geometry = df1.new_g
-            df1 = df1.loc[df1.geometry.is_empty==False].copy()
-            df1.drop(['bbox', 'sidx', 'new_g'], axis=1, inplace=True)
-            return df1
-        elif how=='symmetric_difference':
-            df1['idx1'] = df1.index.tolist()
-            df2['idx2'] = df2.index.tolist()
-            df1['idx2'] = np.nan
-            df2['idx1'] = np.nan
-            dfsym = df1.merge(df2, on=['idx1','idx2'], how='outer', suffixes=['_1','_2'])
-            dfsym['geometry'] = dfsym.geometry_1
-            dfsym.loc[dfsym.geometry_2.isnull()==False, 'geometry'] = dfsym.loc[dfsym.geometry_2.isnull()==False, 'geometry_2']
-            dfsym.drop(['geometry_1', 'geometry_2'], axis=1, inplace=True)
-            dfsym = gpd.GeoDataFrame(dfsym, columns=dfsym.columns, crs=df1.crs)
-            spatial_index = dfsym.sindex
-            dfsym['bbox'] = dfsym.geometry.apply(lambda x: x.bounds)
-            dfsym['sidx'] = dfsym.bbox.apply(lambda x:list(spatial_index.intersection(x)))
-            dfsym['idx'] = dfsym.index.values
-            dfsym.apply(lambda x: x.sidx.remove(x.idx), axis=1)
-            dfsym['new_g'] = dfsym.apply(lambda x: reduce(lambda x, y: x.difference(y).buffer(0),
-                             [x.geometry]+list(dfsym.iloc[x.sidx].geometry)) , axis=1)
-            dfsym.geometry = dfsym.new_g
-            dfsym = dfsym.loc[dfsym.geometry.is_empty==False].copy()
-            dfsym.drop(['bbox', 'sidx', 'idx', 'idx1','idx2', 'new_g'], axis=1, inplace=True)
-            return dfsym
-        elif how=='union':
-            dfinter = spatial_overlays(df1, df2, how='intersection')
-            dfsym = spatial_overlays(df1, df2, how='symmetric_difference')
-            dfunion = dfinter.append(dfsym)
-            dfunion.reset_index(inplace=True, drop=True)
-            return dfunion
-        elif how=='identity':
-            dfunion = spatial_overlays(df1, df2, how='union')
-            cols1 = df1.columns.tolist()
-            cols2 = df2.columns.tolist()
-            cols1.remove('geometry')
-            cols2.remove('geometry')
-            cols2 = set(cols2).intersection(set(cols1))
-            cols1 = list(set(cols1).difference(set(cols2)))
-            cols2 = [col+'_1' for col in cols2]
-            dfunion = dfunion[(dfunion[cols1+cols2].isnull()==False).values]
-            return dfunion
-
     def create_remap(   self,
                         int_df,
                         lat_source,
@@ -1307,19 +1113,210 @@ in dimensions of the varibales and latitude and longitude')
             m += 1
         return weighted_value
 
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
 
+
+
+    ##############################################################
+    #### GIS section
+    ##############################################################
+
+    def intersection_shp(   self,
+                            shp_1,
+                            shp_2):
+        import geopandas as gpd
+        from   shapely.geometry import Polygon
+        import shapefile # pyshed library
+        import shapely
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @license:                  GNU-GPLv3
+        This fucntion intersect two shapefile. It keeps the fiels from the first and second shapefiles (identified by S_1_ and
+        S_2_). It also creats other field including AS1 (area of the shape element from shapefile 1), IDS1 (an arbitary index
+        for the shapefile 1), AS2 (area of the shape element from shapefile 1), IDS2 (an arbitary index for the shapefile 1),
+        AINT (the area of teh intersected shapes), AP1 (the area of the intersected shape to the shapes from shapefile 1),
+        AP2 (the area of teh intersected shape to the shapefes from shapefile 2), AP1N (the area normalized in the case AP1
+        summation is not 1 for a given shape from shapefile 1, this will help to preseve mass if part of the shapefile are not
+        intersected), AP2N (the area normalized in the case AP2 summation is not 1 for a given shape from shapefile 2, this
+        will help to preseve mass if part of the shapefile are not intersected)
+        Arguments
+        ---------
+        shp_1: geo data frame, shapefile 1
+        shp_2: geo data frame, shapefile 2
+        Returns
+        -------
+        result: a geo data frame that includes the intersected shapefile and area, percent and normalized percent of each shape
+        elements in another one
+        """
+        # get the column name of shp_1
+        column_names = shp_1.columns
+        column_names = list(column_names)
+        # removing the geometry from the column names
+        column_names.remove('geometry')
+        # renaming the column with S_1
+        for i in range(len(column_names)):
+            shp_1 = shp_1.rename(
+                columns={column_names[i]: 'S_1_' + column_names[i]})
+        # Caclulating the area for shp1
+        shp_1['AS1']  = shp_1.area
+        shp_1['IDS1'] = np.arange(shp_1.shape[0])+1
+        # get the column name of shp_2
+        column_names = shp_2.columns
+        column_names = list(column_names)
+        # removing the geometry from the colomn names
+        column_names.remove('geometry')
+        # renaming the column with S_2
+        for i in range(len(column_names)):
+            shp_2 = shp_2.rename(
+                columns={column_names[i]: 'S_2_' + column_names[i]})
+        # Caclulating the area for shp2
+        shp_2['AS2'] = shp_2.area
+        shp_2['IDS2'] = np.arange(shp_2.shape[0])+1
+        # making intesection
+        result = self.spatial_overlays (shp_1, shp_2, how='intersection')
+        # Caclulating the area for shp2
+        result['AINT'] = result['geometry'].area
+        result['AP1'] = result['AINT']/result['AS1']
+        result['AP2'] = result['AINT']/result['AS2']
+        # taking the part of data frame as the numpy to incread the spead
+        # finding the IDs from shapefile one
+        ID_S1 = np.array (result['IDS1'])
+        AP1 = np.array(result['AP1'])
+        AP1N = AP1 # creating the nnormalized percent area
+        ID_S1_unique = np.unique(ID_S1) #unique idea
+        for i in ID_S1_unique:
+            INDX = np.where(ID_S1==i) # getting the indeces
+            AP1N[INDX] = AP1[INDX] / AP1[INDX].sum() # normalizing for that sum
+        # taking the part of data frame as the numpy to incread the spead
+        # finding the IDs from shapefile one
+        ID_S2 = np.array (result['IDS2'])
+        AP2 = np.array(result['AP2'])
+        AP2N = AP2 # creating the nnormalized percent area
+        ID_S2_unique = np.unique(ID_S2) #unique idea
+        for i in ID_S2_unique:
+            INDX = np.where(ID_S2==i) # getting the indeces
+            AP2N[INDX] = AP2[INDX] / AP2[INDX].sum() # normalizing for that sum
+        result ['AP1N'] = AP1N
+        result ['AP2N'] = AP2N
+        return result
+
+    def spatial_overlays(   self,
+                            df1,
+                            df2,
+                            how='intersection',
+                            reproject=True):
+        import geopandas as gpd
+        from   shapely.geometry import Polygon
+        import shapefile # pyshed library
+        import shapely
+        """
+        Perform spatial overlay between two polygons.
+        Currently only supports data GeoDataFrames with polygons.
+        Implements several methods that are all effectively subsets of
+        the union.
+        author: Omer Ozak
+        https://github.com/ozak
+        https://github.com/geopandas/geopandas/pull/338
+        license: GNU-GPLv3
+        Parameters
+        ----------
+        df1: GeoDataFrame with MultiPolygon or Polygon geometry column
+        df2: GeoDataFrame with MultiPolygon or Polygon geometry column
+        how: string
+            Method of spatial overlay: 'intersection', 'union',
+            'identity', 'symmetric_difference' or 'difference'.
+        use_sindex : boolean, default True
+            Use the spatial index to speed up operation if available.
+        Returns
+        -------
+        df: GeoDataFrame
+            GeoDataFrame with new set of polygons and attributes
+            resulting from the overlay
+        """
+        df1 = df1.copy()
+        df2 = df2.copy()
+        df1['geometry'] = df1.geometry.buffer(0)
+        df2['geometry'] = df2.geometry.buffer(0)
+        if df1.crs!=df2.crs and reproject:
+            print('Data has different projections.')
+            print('Converted data to projection of first GeoPandas DatFrame')
+            df2.to_crs(crs=df1.crs, inplace=True)
+        if how=='intersection':
+            # Spatial Index to create intersections
+            spatial_index = df2.sindex
+            df1['bbox'] = df1.geometry.apply(lambda x: x.bounds)
+            df1['sidx']=df1.bbox.apply(lambda x:list(spatial_index.intersection(x)))
+            pairs = df1['sidx'].to_dict()
+            nei = []
+            for i,j in pairs.items():
+                for k in j:
+                    nei.append([i,k])
+            pairs = gpd.GeoDataFrame(nei, columns=['idx1','idx2'], crs=df1.crs)
+            pairs = pairs.merge(df1, left_on='idx1', right_index=True)
+            pairs = pairs.merge(df2, left_on='idx2', right_index=True, suffixes=['_1','_2'])
+            pairs['Intersection'] = pairs.apply(lambda x: (x['geometry_1'].intersection(x['geometry_2'])).buffer(0), axis=1)
+            pairs = gpd.GeoDataFrame(pairs, columns=pairs.columns, crs=df1.crs)
+            cols = pairs.columns.tolist()
+            cols.remove('geometry_1')
+            cols.remove('geometry_2')
+            cols.remove('sidx')
+            cols.remove('bbox')
+            cols.remove('Intersection')
+            dfinter = pairs[cols+['Intersection']].copy()
+            dfinter.rename(columns={'Intersection':'geometry'}, inplace=True)
+            dfinter = gpd.GeoDataFrame(dfinter, columns=dfinter.columns, crs=pairs.crs)
+            dfinter = dfinter.loc[dfinter.geometry.is_empty==False]
+            dfinter.drop(['idx1','idx2'], inplace=True, axis=1)
+            return dfinter
+        elif how=='difference':
+            spatial_index = df2.sindex
+            df1['bbox'] = df1.geometry.apply(lambda x: x.bounds)
+            df1['sidx'] = df1.bbox.apply(lambda x:list(spatial_index.intersection(x)))
+            df1['new_g'] = df1.apply(lambda x: reduce(lambda x, y: x.difference(y).buffer(0),
+                                     [x.geometry]+list(df2.iloc[x.sidx].geometry)) , axis=1)
+            df1.geometry = df1.new_g
+            df1 = df1.loc[df1.geometry.is_empty==False].copy()
+            df1.drop(['bbox', 'sidx', 'new_g'], axis=1, inplace=True)
+            return df1
+        elif how=='symmetric_difference':
+            df1['idx1'] = df1.index.tolist()
+            df2['idx2'] = df2.index.tolist()
+            df1['idx2'] = np.nan
+            df2['idx1'] = np.nan
+            dfsym = df1.merge(df2, on=['idx1','idx2'], how='outer', suffixes=['_1','_2'])
+            dfsym['geometry'] = dfsym.geometry_1
+            dfsym.loc[dfsym.geometry_2.isnull()==False, 'geometry'] = dfsym.loc[dfsym.geometry_2.isnull()==False, 'geometry_2']
+            dfsym.drop(['geometry_1', 'geometry_2'], axis=1, inplace=True)
+            dfsym = gpd.GeoDataFrame(dfsym, columns=dfsym.columns, crs=df1.crs)
+            spatial_index = dfsym.sindex
+            dfsym['bbox'] = dfsym.geometry.apply(lambda x: x.bounds)
+            dfsym['sidx'] = dfsym.bbox.apply(lambda x:list(spatial_index.intersection(x)))
+            dfsym['idx'] = dfsym.index.values
+            dfsym.apply(lambda x: x.sidx.remove(x.idx), axis=1)
+            dfsym['new_g'] = dfsym.apply(lambda x: reduce(lambda x, y: x.difference(y).buffer(0),
+                             [x.geometry]+list(dfsym.iloc[x.sidx].geometry)) , axis=1)
+            dfsym.geometry = dfsym.new_g
+            dfsym = dfsym.loc[dfsym.geometry.is_empty==False].copy()
+            dfsym.drop(['bbox', 'sidx', 'idx', 'idx1','idx2', 'new_g'], axis=1, inplace=True)
+            return dfsym
+        elif how=='union':
+            dfinter = spatial_overlays(df1, df2, how='intersection')
+            dfsym = spatial_overlays(df1, df2, how='symmetric_difference')
+            dfunion = dfinter.append(dfsym)
+            dfunion.reset_index(inplace=True, drop=True)
+            return dfunion
+        elif how=='identity':
+            dfunion = spatial_overlays(df1, df2, how='union')
+            cols1 = df1.columns.tolist()
+            cols2 = df2.columns.tolist()
+            cols1.remove('geometry')
+            cols2.remove('geometry')
+            cols2 = set(cols2).intersection(set(cols1))
+            cols1 = list(set(cols1).difference(set(cols2)))
+            cols2 = [col+'_1' for col in cols2]
+            dfunion = dfunion[(dfunion[cols1+cols2].isnull()==False).values]
+            return dfunion
 
     def make_shape_point(   self,
                             dataframe,
@@ -1626,10 +1623,12 @@ in dimensions of the varibales and latitude and longitude')
         ds=None
 
 
-    def geotiff2shp(self, raster_path_in, vector_path_out, band = 1):
+    def geotiff2shp(self, raster_path_in, vector_path_out, band = 1, data_frame=None, data_frame_values=None):
 
         from osgeo import gdal, ogr
         import sys
+        import geopandas as gpd
+        import pandas as pd
         # this allows GDAL to throw Python Exceptions
         #gdal.UseExceptions()
         src_ds = gdal.Open(raster_path_in)
@@ -1637,7 +1636,241 @@ in dimensions of the varibales and latitude and longitude')
         drv = ogr.GetDriverByName('ESRI Shapefile')
         dst_ds = drv.CreateDataSource(vector_path_out)
         dst_layer = dst_ds.CreateLayer(vector_path_out , srs=None)
-        fd = ogr.FieldDefn('DN', ogr.OFTInteger)
+        fd = ogr.FieldDefn('values', ogr.OFTInteger)
         dst_layer.CreateField(fd)
-        dst_field = dst_layer.GetLayerDefn().GetFieldIndex('DN')
+        dst_field = dst_layer.GetLayerDefn().GetFieldIndex('values')
         gdal.Polygonize(srcband, None, dst_layer, dst_field, [], callback=None)
+        if data_frame and data_frame_values: # if data frame is provided it will merge it with
+            df = rpd.read_csv(data_frame)
+            df ['values'] = df [data_frame_values]
+            df = df.sort_values(by='values')# sort on values
+            shp = gpd.read_file(vector_path_out)
+            shp = pd.merge_asof(shp, df, on='values') #, direction='nearest')
+            shp = shp.set_geometry('geometry') #bring back the geometry filed; pd to gpd
+
+    def voronoi_diagram(self, infile_points, outfile_voronoi, buffer=2): # infile a point shapefile, outfile a shapefile
+
+        import shapefile
+        import geovoronoi
+        import os
+        from   shapely.geometry import Polygon
+        import numpy as np
+        import geopandas as gpd
+        # read the shapefile
+        stations = gpd.read_file(infile_points)
+        # get the crs
+        crs_org = stations.crs
+        # add the ID_t to the point shapefiles
+        stations ['ID_s'] = np.arange(len(stations))+1
+        stations ['ID_s'] = stations ['ID_s'].astype(float)
+        # get the total boundary of the shapefile
+        stations_buffert = stations.buffer(buffer) # add a buffer
+        minx, miny, maxx, maxy = stations_buffert.total_bounds
+        # create the bounding shapefile
+        parts = []
+        with shapefile.Writer('test.shp') as w:
+            w.autoBalance = 1 # turn on function that keeps file stable if number of shapes and records don't line up
+            w.field("ID_bounding",'N') # create (N)umerical attribute fields, integer
+            # creating the polygon given the lat and lon
+            parts.append([ (minx, miny),\
+                           (minx, maxy), \
+                           (maxx, maxy), \
+                           (maxx, miny), \
+                           (minx, miny)])
+            # store polygon
+            w.poly(parts)
+            # update records/fields for the polygon
+            w.record(1)
+        boundary = gpd.read_file('test.shp')
+        os.remove('test.dbf');os.remove('test.shx');os.remove('test.shp')
+        # create the voroni diagram for given point shapefile
+        coords = geovoronoi.points_to_coords(stations.geometry)
+        poly_shapes, location = \
+        geovoronoi.voronoi_regions_from_coords(coords, boundary.iloc[0].geometry)
+        # pass te polygons to shapefile
+        Thiessen = gpd.GeoDataFrame()
+        Thiessen['ID'] = None
+        for i in np.arange(len(poly_shapes)):
+            Thiessen.loc[i, 'geometry'] = Polygon(poly_shapes[i])
+            Thiessen.loc[i, 'ID_s']     = stations.iloc[location[i][0]].ID_s.astype(float)
+        Thiessen = Thiessen.sort_values(by='ID_s')# sort on values
+        stations = stations.drop(columns='geometry')
+        Thiessen = pd.merge_asof(Thiessen, stations, on='ID_s') #, direction='nearest')
+        Thiessen = Thiessen.set_geometry('geometry') #bring back the geometry filed; pd to gpd
+        Thiessen = Thiessen.set_crs(crs_org)#"EPSG:4326"
+        Thiessen.to_file(outfile_voronoi)
+
+    def dem_processing (self,
+                        dem_tif_in,
+                        river_shp_out,
+                        dir_tif_in=None,
+                        dirmap = None,
+                        dirnodata = None,
+                        river_network_flush = False,
+                        pour_point = (0,0),
+                        threshold = 100):
+        # Specify directional mapping
+        if not dirmap:
+            #N    NE    E    SE    S    SW    W    NW
+            dirmap = (64,  128,  1,   2,    4,   8,    16,  32)
+        if not dir_tif_in:
+            grid = Grid.from_raster(dem_tif_in, data_name='dem') # part of Missouri River
+            grid.fill_depressions(data='dem', out_name='flooded_dem')
+            grid.resolve_flats('flooded_dem', out_name='inflated_dem') #resolve the flats
+            grid.flowdir(data='inflated_dem', out_name='dir', dirmap=dirmap)
+            # Add new dir to grid as float
+            grid.add_gridded_data(grid.dir.astype(float), data_name='dir_new', affine=grid.affine,
+                                  shape=grid.dem.shape, crs=grid.crs, nodata=grid.dem.nodata)
+            grid.to_raster('dir_new', '../temporary/dir.tif' , view=False)
+        else:
+            grid = Grid.from_raster(dir_tif_in, data_name='dir') # part of Missouri River
+        grid.accumulation(data='dir', out_name='acc')
+        if river_network_flush:
+            xy = np.column_stack([pour_point[0], pour_point[1]])
+            # putting the outlet point exactly on the river network
+            new_xy = grid.snap_to_mask(grid.acc > 1000, xy, return_dist=False)
+            new_xs, new_ys = new_xy[:,0], new_xy[:,1]
+            # Delineate the catchment
+            grid.catchment(data='dir', x=new_xs, y=new_ys, dirmap=dirmap, out_name='catch', nodata_in=dirnodata,
+                           recursionlimit=1500000, xytype='label')
+            grid.clip_to('catch') # must be clipped
+            # Compute accumulation
+            grid.accumulation(data='catch', out_name='acc')
+            branches = None
+            branches = grid.extract_river_network(fdir='catch', acc='acc', threshold=threshold, dirmap=dirmap)
+            for branch in branches['features']:
+                line = np.asarray(branch['geometry']['coordinates'])
+            # dumpt the lines into a network
+            with open(self.temp_dir+'/test.json', 'w') as json_file:
+                json.dump(branches, json_file)
+            # load the json and save it as a shapefile using geopandas
+            shp = gpd.read_file(self.temp_dir+'/test.json')
+            shp['ID'] = np.arrang(len(shp)) + 1
+            # save the shapefile
+            shp.to_file(river_shp_out)
+
+
+    def NTOPO_creation( self,
+                        dem_tif_in,
+                        river_shp_out,
+                        dir_tif_in=None,
+                        dirmap = None,
+                        dirnodata = None,
+                        river_network_flush = False,
+                        pour_point = (0,0),
+                        threshold = 100):
+
+        import geopandas as gpd
+        import pandas as pd
+
+        A = gpd.read_file(infile_river)
+
+        # creat additional fields for network topology data
+        A['start_lat'] = None
+        A['start_lon'] = None
+        A['end_lat']   = None
+        A['end_lon']   = None
+        A['end_lat_b'] = None
+        A['end_lon_b'] = None
+        A['ID']        = None
+        A['Down_ID']   = None
+        A['order']     = None
+        A['Up_ID']     = None
+        # popolating the fileds
+        for index, row in A.iterrows():
+            line = np.asarray(row['geometry'])
+            # populate the filed
+            A['start_lat'].loc[index] = line[-1,1]
+            A['start_lon'].loc[index] = line[-1,0]
+            A['end_lat'].loc[index]   = line[0,1]
+            A['end_lon'].loc[index]   = line[0,0]
+            A['end_lat_b'].loc[index] = line[1,1] # one before merged point not to include all the contributing area of confluence
+            A['end_lon_b'].loc[index] = line[1,0] # one before merged point not to include all the contributing area of confluence
+        # create a list of immidiate downstream
+        A['Down_ID'] = -9999
+        for index, row in A.iterrows():
+            # get the end lat, lon of a river segment
+            end_lat = A['end_lat'].loc[index]
+            end_lon = A['end_lon'].loc[index]
+            # find which degment start with that lat, lon
+            indy = A.index[A['start_lat'] == end_lat].tolist()
+            indx = A.index[A['start_lon'] == end_lon].tolist()
+            # find the ind of indy and indx
+            ind = list(set(indy).intersection(indx))
+            # assign the list of downstream segment to the field if no downstream -9999
+            if str(ind).strip('[]') != '':
+                A['Down_ID'].loc[index] = A['ID'].iloc[int(str(ind).strip('[]'))]
+            else:
+                A['Down_ID'].loc[index] = -9999
+        # creat a list of immidiate upstream
+        for index, row in A.iterrows():
+            # get the ID of the river segment
+            ID = A['ID'].loc[index]
+            # find the immidate upstream
+            ind = A.index[A['Down_ID'] == ID]
+            indup = A['ID'].iloc[ind].tolist()
+            # assign the upstream list
+            A['Up_ID'].loc[index] = str(indup)
+        # save the shapefile
+        A.to_file(outfile_network_topology)
+        # save virtual gauges as points
+        yc = A['end_lat_b']
+        xc = A['end_lon_b']
+        pts = GeoSeries([Point(x, y) for x, y in zip(xc, yc)])
+        pts.to_file(outfile_virtual_gauges)
+
+    def subbasin_creation(  self,
+                            dir_tif_in,
+                            river_shp_in,
+                            subbasin_tiff_out,
+                            dir_tif_in=None,
+                            dirmap = None,
+                            dirnodata = None,
+                            river_network_flush = False,
+                            pour_point = (0,0),
+                            threshold = 100):
+
+        grid = Grid.from_raster(dir_tif_in, data_name='dir')
+        # Specify directional mapping
+        #N    NE    E    SE    S    SW    W    NW
+        dirmap = (64,  128,  1,   2,    4,   8,    16,  32)
+        # initializing the sub_basin raster
+        z1 = np.zeros(grid.shape)
+        # loop over each segment of the river
+        for index, row in A.iterrows():
+            cat_ID = A['ID'].iloc[index] # get the ID of that river segment
+            c_2 = grid.catchment(A['end_lon_b'].iloc[index], A['end_lat_b'].iloc[index], \
+                               data='dir', dirmap=dirmap, xytype='label', inplace=False)
+            c_2 = (c_2 != 0).astype(int)
+            if A['Up_ID'].iloc[index]=='[]': # in case no upstream, first order river segment
+                #print('first order', A['Up_ID'].iloc[index])
+                c_1 = np.zeros(grid.shape)  # no upstream area should be carved from the deliniated sub-basin
+            else:
+                #print('higher order', A['Up_ID'].iloc[index])
+                c_1_temp = np.zeros(grid.shape)
+                # find the index of the upstream area in the
+                s=A['Up_ID'].iloc[index] # get the string of upstream id onjects
+                # remove
+                s = s.replace('[', '')
+                s = s.replace(']', '')
+                up_ids = np.fromstring(s, dtype=int, sep=',')
+                # loop over upstream segments and create the model
+                for i in np.arange(up_ids.size):
+                    #find the index of the upstream and creat the basin
+                    index_local = A.index[A['ID'] == up_ids[i]].tolist()
+                    index_local = int(index_local[0]) # the local index of upstream segment
+                    c_1 = grid.catchment(A['end_lon_b'].iloc[index_local], A['end_lat_b'].iloc[index_local], \
+                                         data='dir', dirmap=dirmap, xytype='label', inplace=False)
+                    c_1_temp = c_1_temp + (c_1 != 0).astype(int)
+                c_1 = c_1_temp
+            # carve the upstream area from the river segment
+            c = c_2 - c_1
+            #print(c.max())
+            z1 += cat_ID * (c != 0).astype(int)
+        # Add z1 to grid
+        grid.add_gridded_data(z1, data_name='sub_basin', affine=grid.affine,
+                              shape=grid.shape, crs=grid.crs, nodata=np.nan)
+
+        # Write to raster
+        grid.to_raster('sub_basin', subbasin_tiff_out, view=False)
+
