@@ -1321,7 +1321,8 @@ in dimensions of the varibales and latitude and longitude')
     def make_shape_point(   self,
                             dataframe,
                             lon_field,
-                            lat_field):
+                            lat_field,
+                            crs='EPSG:4326'):
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/candex
@@ -1330,20 +1331,18 @@ in dimensions of the varibales and latitude and longitude')
         This function creates a geopandas dataframe of lat, lon and IDs provided
         Arguments
         ---------
-        lon_d: numpy array, the longitude
-        lat_d: numpy array, the latitude
-        ID: numpy array, the ID
+        dataframe: dataframe
+        lon_field: string, the name of longitude column in dataframe
+        lat_field: string, the name of latitude column in dataframe
+        crs: string, indicating the spatial reference; e.g.'EPSG:4326'
         Returns
         -------
-        df: geopandas dataframe, with geometry of longitude and latitude
+        shp: geopandas dataframe, with geometry of longitude and latitude
         """
-        # read the pandas data frame of the all statiosn
-        #from   shapely.geometry import Point
         import geopandas as gpd
         import pandas as pd
-        #df['geometry']  = df.apply(lambda row: Point(row.LONGITUDE, row.LATITUDE ), axis=1) # set the geometry
-        # shp  = gpd.GeoDataFrame(df) # pass this to a geopandas dataframe
-        shp = gpd.GeoDataFrame(dataframe, geometry=gpd.points_from_xy(df.lon, df.lat))
+        shp = gpd.GeoDataFrame(dataframe, geometry=gpd.points_from_xy(dataframe[lon_field], dataframe[lat_field]))
+        shp.set_crs = crs
         return shp
 
     # def lat_lon_value_geotiff(  self,
@@ -1823,7 +1822,6 @@ in dimensions of the varibales and latitude and longitude')
                             dir_tif_in,
                             river_shp_in,
                             subbasin_tiff_out,
-                            dir_tif_in=None,
                             dirmap = None,
                             dirnodata = None,
                             river_network_flush = False,
@@ -1874,3 +1872,134 @@ in dimensions of the varibales and latitude and longitude')
         # Write to raster
         grid.to_raster('sub_basin', subbasin_tiff_out, view=False)
 
+    def visualize_tiff (self, geotiff_path, fig_size = (14,7), cmap='jet', colorbar_label = '', title ='', xlable = '',ylable=''):
+
+
+        from pysheds.grid import Grid
+        import matplotlib.pyplot as plt
+        # import numpy as np
+        # import json
+        # import geopandas as gpd
+        # from shapely.geometry import Point
+        # from geopandas import GeoSeries
+        # set the font and font size for plots
+        plt.rcParams["font.family"] = "Times New Roman"
+        plt.rcParams.update({'font.size': 16})
+
+        grid = Grid.from_raster(geotiff_path, data_name='temp') # part of Missouri River
+
+        ID = np.where(grid.temp!=grid.temp.nodata) # the missing values is set to -9999 removing them from min and max for colorbar
+        plt.figure(figsize = fig_size)
+        plt.imshow(grid.temp.astype(float), extent=grid.extent, cmap=cmap, zorder=1,
+                   vmin=np.min(grid.temp[ID]), vmax=np.max(grid.temp[ID]))
+        plt.colorbar(label=colorbar_label) # creating the colorbar and its name and unit
+        plt.grid(zorder=0) # creating the grid on the map
+        plt.title(title) # creating title
+        plt.xlabel(xlable) #xlable which is long
+        plt.ylabel(ylable) #ylable which is lat
+        plt.tight_layout()
+
+
+    def get_all_downstream (self,
+                            seg_IDs,
+                            down_IDs):
+        """
+        @ author:                  Shervan Gharari, Wouter Knoben
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function get a 1-D array of numpy arrays of river reach ID and a similar 1-D array
+        of downstream river reach ID
+        Arguments
+        ---------
+        seg_IDs: the 1D array of seg id [n,]
+        down_IDs: the 1D array of downstream seg id [n,]
+        Returns
+        -------
+        Array: the 2D array of downsream seg id s [n,1000] 1000 is maximume number of downstream
+        """
+        import pandas as pd
+        import numpy as np
+        #
+        NTOPO = np.empty([len(seg_IDs),1000]) # create the empty array with length of seg_IDs and 1000
+        NTOPO [:] = np.nan # populate with nan
+        NTOPO [:,0] = seg_IDs # assign the first colomn as seg id
+        # loop over the seg_IDs
+        for i in np.arange(len(seg_IDs)):
+            ID = seg_IDs [i] # get the seg ID
+            down_ID = down_IDs [i] # get the seg downstream ID
+            if down_ID in seg_IDs: # check if the downstream seg is part of river network
+                down_stream_exists = True
+            else:
+                down_stream_exists = False
+            m = 1 # initialize m
+            while down_ID > 0 and down_stream_exists: # while not the last segment
+                # update the ID and ID down
+                idx = np.where (seg_IDs == down_ID) # get the index of the segment that is downstream
+                ID = seg_IDs [idx] # update the ID
+                down_ID = down_IDs [idx] # update the downstream
+                if down_ID in seg_IDs:
+                    down_stream_exists = True
+                else:
+                    down_stream_exists = False
+                NTOPO[i,m] = ID
+                m += 1
+        return NTOPO
+
+
+    def NTOPO_subset (  self,
+                        seg_ID,
+                        NTOPO):
+        """
+        @ author:                  Shervan Gharari, Wouter Knoben
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function get a 1-D array of numpy arrays of river reach ID and a similar 1-D array
+        of downstream river reach ID
+        Arguments
+        ---------
+        seg_IDs: the 1D array of seg id [n,]
+        down_IDs: the 1D array of downstream seg id [n,]
+        Returns
+        -------
+        Array: the 2D array of downsream seg id s [n,1000] 1000 is maximume number of downstream
+        """
+        import pandas as pd
+        import numpy as np
+        #
+        NTOPO = np.empty([len(seg_IDs),1000]) # create the empty array with length of seg_IDs and 1000
+        NTOPO [:] = np.nan # populate with nan
+        NTOPO [:,0] = seg_IDs # assign the first colomn as seg id
+        # loop over the seg_IDs
+        for i in np.arange(len(seg_IDs)):
+            ID = seg_IDs [i] # get the seg ID
+            down_ID = down_IDs [i] # get the seg downstream ID
+            if down_ID in seg_IDs: # check if the downstream seg is part of river network
+                down_stream_exists = True
+            else:
+                down_stream_exists = False
+            m = 1 # initialize m
+            while down_ID > 0 and down_stream_exists: # while not the last segment
+                # update the ID and ID down
+                idx = np.where (seg_IDs == down_ID) # get the index of the segment that is downstream
+                ID = seg_IDs [idx] # update the ID
+                down_ID = down_IDs [idx] # update the downstream
+                if down_ID in seg_IDs:
+                    down_stream_exists = True
+                else:
+                    down_stream_exists = False
+                NTOPO[i,m] = ID
+                m += 1
+        return NTOPO
+
+    def tif_crop ( self,
+                    raster_in,
+                    raster_out,
+                    xmin=None,
+                    xmax=None,
+                    ymin=None,
+                    ymax=None):
+        from osgeo import gdal
+        bbox = (xmin,ymin,xmax,ymax)
+        gdal.Translate('output_crop_raster.tif', 'input_raster.tif', projWin = bbox)
