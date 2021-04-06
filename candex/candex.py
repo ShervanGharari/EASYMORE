@@ -1113,9 +1113,6 @@ in dimensions of the varibales and latitude and longitude')
             m += 1
         return weighted_value
 
-
-
-
     ##############################################################
     #### GIS section
     ##############################################################
@@ -1322,7 +1319,7 @@ in dimensions of the varibales and latitude and longitude')
                             dataframe,
                             lon_field,
                             lat_field,
-                            crs='EPSG:4326'):
+                            crs=None):
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/candex
@@ -1331,7 +1328,7 @@ in dimensions of the varibales and latitude and longitude')
         This function creates a geopandas dataframe of lat, lon and IDs provided
         Arguments
         ---------
-        dataframe: dataframe
+        dataframe: pandas dataframe or string linking to a csv data frame
         lon_field: string, the name of longitude column in dataframe
         lat_field: string, the name of latitude column in dataframe
         crs: string, indicating the spatial reference; e.g.'EPSG:4326'
@@ -1341,68 +1338,22 @@ in dimensions of the varibales and latitude and longitude')
         """
         import geopandas as gpd
         import pandas as pd
+        if isinstance(dataframe, str):
+            dataframe = pd.read_csv(dataframe)
         shp = gpd.GeoDataFrame(dataframe, geometry=gpd.points_from_xy(dataframe[lon_field], dataframe[lat_field]))
-        shp.set_crs = crs
+        if crs:
+            shp.set_crs = crs
+        else:
+            print('no crs is provided for the point shapefiles; EASYMORE will allocate WGS84')
+            shp.set_crs = 'EPSG:4326'
         return shp
 
-    # def lat_lon_value_geotiff(  self,
-    #                             geotiff_name,
-    #                             make_shapefile=False):
-
-    #     from pysheds.grid import Grid
-    #     import pandas as pd
-
-    #     grid = Grid.from_raster(geotiff_name, data_name='temp') # part of Missouri River
-    #     dem_coords = grid.temp.coords
-    #     lat = np.array(dem_coords[:,0].reshape(grid.temp.shape)).flatten()
-    #     lon = np.array(dem_coords[:,1].reshape(grid.temp.shape)).flatten()
-    #     values = np.array(grid.temp).flatten()
-    #     df = pd.DataFrame()
-    #     df['lat']  = lat
-    #     df['lon'] = lon
-    #     df['value']  = values
-    #     print(type(df))
-    #     if make_shapefile:
-    #         shp = self.make_shape_point (df, 'lon', 'lat')
-    #     else:
-    #         shp = None
-    #     return df, shp
-
-    def bbox_to_pixel_offsets(self,gt, bbox):
-        """
-        Zonal Statistics
-        Vector-Raster Analysis
-        Copyright 2013 Matthew Perry
-        Usage:
-          zonal_stats.py VECTOR RASTER
-          zonal_stats.py -h | --help
-          zonal_stats.py --version
-        Options:
-          -h --help     Show this screen.
-          --version     Show version.
-        """
-        originX = gt[0]
-        originY = gt[3]
-        pixel_width = gt[1]
-        pixel_height = gt[5]
-        x1 = int((bbox[0] - originX) / pixel_width)
-        x2 = int((bbox[1] - originX) / pixel_width) + 1
-        y1 = int((bbox[3] - originY) / pixel_height)
-        y2 = int((bbox[2] - originY) / pixel_height) + 1
-        xsize = x2 - x1
-        ysize = y2 - y1
-        return (x1, y1, xsize, ysize)
-
-    def zonal_stat(self, vector_path, raster_path, band =1, nodata_value=None, global_src_extent=False):
-        from osgeo import gdal, ogr
-        # from osgeo.gdalconst import *
-        import osgeo.gdalconst
-        import numpy as np
-        import sys
-        gdal.PushErrorHandler('CPLQuietErrorHandler')
-        import pandas as pd
-        import os
-        import geopandas as gpd
+    def zonal_stat(self,
+                   vector_path,
+                   raster_path,
+                   histogram = False,
+                   raster_band = 1,
+                   nodata_value = None):
         """
         original code:
         Zonal Statistics
@@ -1415,7 +1366,7 @@ in dimensions of the varibales and latitude and longitude')
         Options:
           -h --help     Show this screen.
           --version     Show version.
-        changes by:
+        modified by:
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/candex
         @ author's email id:       sh.gharari@gmail.com
@@ -1425,17 +1376,29 @@ in dimensions of the varibales and latitude and longitude')
         ---------
         vector_path: string; the path to the shapefile
         raster_path: string; the path to the raster
-        band: the band in the raster
-        nodata_value: set as None
+        histogram: logical; set to false, for discrete values in raster (such as lan cover) can be set True
+        raster_band: int, the band in the raster to be used for zonal statistics
+        nodata_value: no data value in raster to be ingnored
         global_src_extent : set as False
         Returns
         -------
-        shp: geodataframe, with values of mean, max, min, sum, std, count, fid
+        shp: geodataframe, with values of mean, max, min, sum, std, count, fid for each shape in shapefile
         """
+        from osgeo import gdal, ogr
+        # from osgeo.gdalconst import *
+        import osgeo.gdalconst
+        import numpy as np
+        import sys
+        gdal.PushErrorHandler('CPLQuietErrorHandler')
+        import pandas as pd
+        import os
+        import geopandas as gpd
+        # set hardcoded value
+        global_src_extent = False
         # read the ratster file band number n
         rds = gdal.Open(raster_path, osgeo.gdalconst.GA_ReadOnly)
         assert(rds)
-        rb = rds.GetRasterBand(band)
+        rb = rds.GetRasterBand(raster_band)
         rgt = rds.GetGeoTransform()
         # if nodata_value is identified
         if nodata_value:
@@ -1505,14 +1468,35 @@ in dimensions of the varibales and latitude and longitude')
                         np.logical_not(rv_array)
                     )
                 )
-                feature_stats = {
-                    'min': float(masked.min()),
-                    'mean': float(masked.mean()),
-                    'max': float(masked.max()),
-                    'std': float(masked.std()),
-                    'sum': float(masked.sum()),
-                    'count': int(masked.count()),
-                    'fid': int(feat.GetFID())}
+                if histogram:
+                    masked_numpy = np.ma.filled(masked.astype(float), np.nan)
+                    masked_numpy = masked_numpy[~np.isnan(masked_numpy)]
+                    masked_numpy_bin = np.unique(masked_numpy)
+                    masked_numpy_bin = np.append(masked_numpy_bin-0.00000001, masked_numpy_bin[-1]+0.000000001)
+                    feature_stats = {
+                        'min': float(masked.min()),
+                        'mean': float(masked.mean()),
+                        'max': float(masked.max()),
+                        'std': float(masked.std()),
+                        'sum': float(masked.sum()),
+                        'count': int(masked.count()),
+                        'fid': int(feat.GetFID()),
+                        'unique': str(np.unique(masked_numpy)),
+                        'freq': str(np.histogram(masked_numpy,bins=masked_numpy_bin)[0]),
+                        'percent': str(np.histogram(masked_numpy,bins=masked_numpy_bin)[0]/masked.count()*100)}
+                else:
+                    feature_stats = {
+                        'min': float(masked.min()),
+                        'mean': float(masked.mean()),
+                        'max': float(masked.max()),
+                        'std': float(masked.std()),
+                        'sum': float(masked.sum()),
+                        'count': int(masked.count()),
+                        'fid': int(feat.GetFID()),
+                        'unique': 'NaN',
+                        'freq': 'NaN',
+                        'percent': 'NaN'}
+
             else:
                 feature_stats = {
                     'min': 'NaN',
@@ -1521,7 +1505,10 @@ in dimensions of the varibales and latitude and longitude')
                     'std': 'NaN',
                     'sum': 'NaN',
                     'count': 'NaN',
-                    'fid': 'NaN'}
+                    'fid': 'NaN',
+                    'unique': 'NaN',
+                    'freq': 'NaN',
+                    'percent': 'NaN'}
             stats.append(feature_stats)
             rvds = None
             mem_ds = None
@@ -1537,20 +1524,14 @@ in dimensions of the varibales and latitude and longitude')
         shp ['sum'] = stats['sum'].astype(float)
         shp ['count'] = stats['count'].astype(float)
         shp ['fid'] =  stats['fid'].astype(float)
+        if histogram:
+            shp ['unique'] =  stats['unique'].astype(str)
+            shp ['freq'] =  stats['freq'].astype(str)
+            shp ['percent'] =  stats['percent'].astype(str)
         return shp
 
-    def geotiff_zones(self, raster_path_in, raster_path_out, band =1, num_bin=10, slice_level = None):
-        from osgeo import gdal, ogr
-        # from osgeo.gdalconst import *
-        import osgeo.gdalconst
-        import numpy as np
-        import sys
-        gdal.PushErrorHandler('CPLQuietErrorHandler')
-        import pandas as pd
-        import os
-        import geopandas as gpd
+    def bbox_to_pixel_offsets(self,gt, bbox):
         """
-        original code:
         Zonal Statistics
         Vector-Raster Analysis
         Copyright 2013 Matthew Perry
@@ -1561,51 +1542,71 @@ in dimensions of the varibales and latitude and longitude')
         Options:
           -h --help     Show this screen.
           --version     Show version.
-        changes by:
+        """
+        originX = gt[0]
+        originY = gt[3]
+        pixel_width = gt[1]
+        pixel_height = gt[5]
+        x1 = int((bbox[0] - originX) / pixel_width)
+        x2 = int((bbox[1] - originX) / pixel_width) + 1
+        y1 = int((bbox[3] - originY) / pixel_height)
+        y2 = int((bbox[2] - originY) / pixel_height) + 1
+        xsize = x2 - x1
+        ysize = y2 - y1
+        return (x1, y1, xsize, ysize)
+
+    def geotif_zones(self,
+                     raster_path_in,
+                     raster_path_out,
+                     raster_band = 1,
+                     num_bin = 10,
+                     slice_values = None):
+        """
+        original code by:
+        Andrea Massetti;
+        https://gis.stackexchange.com/questions/164853/reading-modifying-and-writing-a-geotiff-with-gdal-in-python
+        modified by:
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/candex
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
-        This function creates a geopandas dataframe of lat, lon and IDs provided
+        This function creates a raster file based on assiging single values to a given range of cell values;
+        example is creating elevation zone based on a raster file of digital elevation models (DEMs)
         Arguments
         ---------
-        vector_path: string; the path to the shapefile
-        raster_path: string; the path to the raster
-        band: the band in the raster
-        nodata_value: set as None
-        global_src_extent : set as False
-        Returns
-        -------
-        shp: geodataframe, with values of mean, max, min, sum, std, count, fid
+        raster_path_in: string; the path to the input raster
+        raster_path_out: string; the path to the output raster
+        raster_band: int; the band in the raster
+        num_bin: int; number of bins to slice min and max
+        slice_values : np.array; strcitly monotonically increasing levels for slicing the raster
         """
         # read the ratster file band number n
         import os
-        import gdal
+        from osgeo import gdal
         import numpy as np
-        import matplotlib.pyplot as plt
         ds = gdal.Open(raster_path_in)
-        band = ds.GetRasterBand(band)
+        band = ds.GetRasterBand(raster_band)
         arr = band.ReadAsArray()
         [cols, rows] = arr.shape
         arr_min = arr.min()
         arr_max = arr.max()
         print(arr_min, arr_max)
-        if slice_level is None: # calculate the delta from min to max with number of bins
+        if slice_values is None: # calculate the delta from min to max with number of bins
             delta = np.arange(arr_min, arr_max, (arr_max-arr_min)/num_bin)
         else:
             # check if slice_level is monotonically increasing
-            slice_level = slice_level.flatten()
-            if slice_level.ndim != 1:
+            slice_values = slice_values.flatten()
+            if slice_values.ndim != 1:
                 sys.exit('it seems the provided slice levels are not 1 dimentional numpy array')
-            if len(slice_level) != len(np.unique(slice_level)):
+            if len(slice_values) != len(np.unique(slice_values)):
                 sys.exit('it seems the provided slice levels do not have unique values')
-            if not np.all(np.diff(slice_level) > 0):
-                sys.exit('it seems the provided slice levels are not stricktly increasing')
-            delta = slice_level
+            if not np.all(np.diff(slice_values) > 0):
+                sys.exit('it seems the provided slice levels are not in increasing order')
+            delta = slice_values
             # check values:
             if (arr_min > delta.max()) or (arr_max < delta.min()):
                 print('max from geotiff: ', arr_max, 'min from geotiff: ', arr_min)
-                sys.exit('it seems the provided slice levels are not stricktly increasing')
+                sys.exit('it seems the provided bound specified by slice_level is outside of raster max to min values')
         arr_out = arr
         for i in np.arange(len(delta)-1):
             arr_out = np.where(np.logical_and(arr_out>=delta[i], arr_out<=delta[i+1]), (delta[i]+delta[i+1])/2,arr_out)
@@ -1615,49 +1616,117 @@ in dimensions of the varibales and latitude and longitude')
         outdata.SetGeoTransform(ds.GetGeoTransform())##sets same geotransform as input
         outdata.SetProjection(ds.GetProjection())##sets same projection as input
         outdata.GetRasterBand(1).WriteArray(arr_out)
-        outdata.GetRasterBand(1).SetNoDataValue(0)##if you want these values transparent
-        outdata.FlushCache() ##saves to disk!!
+        outdata.GetRasterBand(1).SetNoDataValue(0)
+        outdata.FlushCache()
         outdata = None
         band=None
         ds=None
 
-
-    def geotiff2shp(self, raster_path_in, vector_path_out, band = 1, data_frame=None, data_frame_values=None):
-
-        from osgeo import gdal, ogr
-        import sys
-        import geopandas as gpd
-        import pandas as pd
+    def geotif2shp(self,
+                   raster_path_in,
+                   vector_path_out,
+                   raster_band = 1,
+                   name_of_filed = 'values'):
+        """
+        original code by:
+        Kadir Şahbaz;
+        https://gis.stackexchange.com/questions/281073/excluding-extent-when-polygonizing-raster-file-using-python
+        and
+        https://gis.stackexchange.com/questions/254410/raster-to-vector-conversion-using-gdal-python
+        modified by:
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function reads a raster file in geotiff and return vector values refering to that raster
+        Arguments
+        ---------
+        raster_path_in: string; the path to the input raster
+        raster_path_out: string; the path to the output raster
+        raster_band: int; the band in the raster
+        name_of_filed: string; the name of the column of extracted values in shapefile
+        """
+        from osgeo import gdal, ogr, osr
         # this allows GDAL to throw Python Exceptions
         #gdal.UseExceptions()
         src_ds = gdal.Open(raster_path_in)
-        srcband = src_ds.GetRasterBand(1)
+        srs = osr.SpatialReference()
+        srs.ImportFromWkt(src_ds.GetProjection())
+        srcband = src_ds.GetRasterBand(raster_band)
         drv = ogr.GetDriverByName('ESRI Shapefile')
         dst_ds = drv.CreateDataSource(vector_path_out)
-        dst_layer = dst_ds.CreateLayer(vector_path_out , srs=None)
-        fd = ogr.FieldDefn('values', ogr.OFTInteger)
+        dst_layer = dst_ds.CreateLayer(vector_path_out , srs=srs)
+        fd = ogr.FieldDefn(name_of_filed, ogr.OFTInteger)
         dst_layer.CreateField(fd)
-        dst_field = dst_layer.GetLayerDefn().GetFieldIndex('values')
+        dst_field = dst_layer.GetLayerDefn().GetFieldIndex(name_of_filed)
         gdal.Polygonize(srcband, None, dst_layer, dst_field, [], callback=None)
-        if data_frame and data_frame_values: # if data frame is provided it will merge it with
-            df = rpd.read_csv(data_frame)
-            df ['values'] = df [data_frame_values]
-            df = df.sort_values(by='values')# sort on values
-            shp = gpd.read_file(vector_path_out)
-            shp = pd.merge_asof(shp, df, on='values') #, direction='nearest')
-            shp = shp.set_geometry('geometry') #bring back the geometry filed; pd to gpd
 
-    def voronoi_diagram(self, infile_points, outfile_voronoi, buffer=2): # infile a point shapefile, outfile a shapefile
+    def extract_value_tiff (  self,
+                              lon_in,
+                              lat_in,
+                              raster_path_in):
+        """
+        original code by:
+        Charlie Parr;
+        https://gis.stackexchange.com/questions/317391/python-extract-raster-values-at-point-locations/324830
+        modified by:
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function reads a raster file in geotiff and return vector values refering to cells of that raster
+        given then lat and lon values
+        Arguments
+        ---------
+        lon_in: np.array; longitude of the points to be extraxted (in geotiff projection)
+        lat_in: np.array; latitude of the points to be extraxted (in geotiff projection)
+        raster_path_in: string; the path to the input raster
+        """
+        import rasterio
+        import geopandas as gpd
+        import numpy as np
+        # Initialize coords
+        coords = np.zeros([len(lon_in),2])
+        coords[:,0] = lon_in
+        coords[:,1] = lat_in
+        # Open the raster and store metadata
+        src = rasterio.open(raster_path_in)
+        # Sample the raster at every point location and store values in DataFrame
+        values = [x for x in src.sample(coords)]
+        return np.array(values)
 
-        import shapefile
+    def voronoi_diagram(self,
+                        points_shp_in,
+                        voronoi_shp_out,
+                        buffer = 2):
+        """
+        original code by:
+        Abdishakur
+        https://towardsdatascience.com/how-to-create-voronoi-regions-with-geospatial-data-in-python-adbb6c5f2134
+        modified by:
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function reads a shapefile of points and return the Thiessen or Voronoi polygons
+        ---------
+        points_shp_in: geopandas or string; if string it will read the file
+        voronoi_shp_out: string; the path to save the output Voronoi shapefile
+        buffer: float; the buffer around the points_shp_in to create Voronoi shapefile
+        """
+        import shapefile # as part of pyshp
         import geovoronoi
         import os
         from   shapely.geometry import Polygon
         import numpy as np
+        import pandas as pd
         import geopandas as gpd
         # read the shapefile
-        stations = gpd.read_file(infile_points)
-        # get the crs
+        if isinstance(points_shp_in, str):
+            stations = gpd.read_file(points_shp_in)
+        else:
+            stations = points_shp_in # geodataframe
+        # get the crs from the point shapefile
         crs_org = stations.crs
         # add the ID_t to the point shapefiles
         stations ['ID_s'] = np.arange(len(stations))+1
@@ -1696,215 +1765,14 @@ in dimensions of the varibales and latitude and longitude')
         stations = stations.drop(columns='geometry')
         Thiessen = pd.merge_asof(Thiessen, stations, on='ID_s') #, direction='nearest')
         Thiessen = Thiessen.set_geometry('geometry') #bring back the geometry filed; pd to gpd
-        Thiessen = Thiessen.set_crs(crs_org)#"EPSG:4326"
-        Thiessen.to_file(outfile_voronoi)
-
-    def dem_processing (self,
-                        dem_tif_in,
-                        river_shp_out,
-                        dir_tif_in=None,
-                        dirmap = None,
-                        dirnodata = None,
-                        river_network_flush = False,
-                        pour_point = (0,0),
-                        threshold = 100):
-        # Specify directional mapping
-        if not dirmap:
-            #N    NE    E    SE    S    SW    W    NW
-            dirmap = (64,  128,  1,   2,    4,   8,    16,  32)
-        if not dir_tif_in:
-            grid = Grid.from_raster(dem_tif_in, data_name='dem') # part of Missouri River
-            grid.fill_depressions(data='dem', out_name='flooded_dem')
-            grid.resolve_flats('flooded_dem', out_name='inflated_dem') #resolve the flats
-            grid.flowdir(data='inflated_dem', out_name='dir', dirmap=dirmap)
-            # Add new dir to grid as float
-            grid.add_gridded_data(grid.dir.astype(float), data_name='dir_new', affine=grid.affine,
-                                  shape=grid.dem.shape, crs=grid.crs, nodata=grid.dem.nodata)
-            grid.to_raster('dir_new', '../temporary/dir.tif' , view=False)
-        else:
-            grid = Grid.from_raster(dir_tif_in, data_name='dir') # part of Missouri River
-        grid.accumulation(data='dir', out_name='acc')
-        if river_network_flush:
-            xy = np.column_stack([pour_point[0], pour_point[1]])
-            # putting the outlet point exactly on the river network
-            new_xy = grid.snap_to_mask(grid.acc > 1000, xy, return_dist=False)
-            new_xs, new_ys = new_xy[:,0], new_xy[:,1]
-            # Delineate the catchment
-            grid.catchment(data='dir', x=new_xs, y=new_ys, dirmap=dirmap, out_name='catch', nodata_in=dirnodata,
-                           recursionlimit=1500000, xytype='label')
-            grid.clip_to('catch') # must be clipped
-            # Compute accumulation
-            grid.accumulation(data='catch', out_name='acc')
-            branches = None
-            branches = grid.extract_river_network(fdir='catch', acc='acc', threshold=threshold, dirmap=dirmap)
-            for branch in branches['features']:
-                line = np.asarray(branch['geometry']['coordinates'])
-            # dumpt the lines into a network
-            with open(self.temp_dir+'/test.json', 'w') as json_file:
-                json.dump(branches, json_file)
-            # load the json and save it as a shapefile using geopandas
-            shp = gpd.read_file(self.temp_dir+'/test.json')
-            shp['ID'] = np.arrang(len(shp)) + 1
-            # save the shapefile
-            shp.to_file(river_shp_out)
-
-
-    def NTOPO_creation( self,
-                        dem_tif_in,
-                        river_shp_out,
-                        dir_tif_in=None,
-                        dirmap = None,
-                        dirnodata = None,
-                        river_network_flush = False,
-                        pour_point = (0,0),
-                        threshold = 100):
-
-        import geopandas as gpd
-        import pandas as pd
-
-        A = gpd.read_file(infile_river)
-
-        # creat additional fields for network topology data
-        A['start_lat'] = None
-        A['start_lon'] = None
-        A['end_lat']   = None
-        A['end_lon']   = None
-        A['end_lat_b'] = None
-        A['end_lon_b'] = None
-        A['ID']        = None
-        A['Down_ID']   = None
-        A['order']     = None
-        A['Up_ID']     = None
-        # popolating the fileds
-        for index, row in A.iterrows():
-            line = np.asarray(row['geometry'])
-            # populate the filed
-            A['start_lat'].loc[index] = line[-1,1]
-            A['start_lon'].loc[index] = line[-1,0]
-            A['end_lat'].loc[index]   = line[0,1]
-            A['end_lon'].loc[index]   = line[0,0]
-            A['end_lat_b'].loc[index] = line[1,1] # one before merged point not to include all the contributing area of confluence
-            A['end_lon_b'].loc[index] = line[1,0] # one before merged point not to include all the contributing area of confluence
-        # create a list of immidiate downstream
-        A['Down_ID'] = -9999
-        for index, row in A.iterrows():
-            # get the end lat, lon of a river segment
-            end_lat = A['end_lat'].loc[index]
-            end_lon = A['end_lon'].loc[index]
-            # find which degment start with that lat, lon
-            indy = A.index[A['start_lat'] == end_lat].tolist()
-            indx = A.index[A['start_lon'] == end_lon].tolist()
-            # find the ind of indy and indx
-            ind = list(set(indy).intersection(indx))
-            # assign the list of downstream segment to the field if no downstream -9999
-            if str(ind).strip('[]') != '':
-                A['Down_ID'].loc[index] = A['ID'].iloc[int(str(ind).strip('[]'))]
-            else:
-                A['Down_ID'].loc[index] = -9999
-        # creat a list of immidiate upstream
-        for index, row in A.iterrows():
-            # get the ID of the river segment
-            ID = A['ID'].loc[index]
-            # find the immidate upstream
-            ind = A.index[A['Down_ID'] == ID]
-            indup = A['ID'].iloc[ind].tolist()
-            # assign the upstream list
-            A['Up_ID'].loc[index] = str(indup)
-        # save the shapefile
-        A.to_file(outfile_network_topology)
-        # save virtual gauges as points
-        yc = A['end_lat_b']
-        xc = A['end_lon_b']
-        pts = GeoSeries([Point(x, y) for x, y in zip(xc, yc)])
-        pts.to_file(outfile_virtual_gauges)
-
-    def subbasin_creation(  self,
-                            dir_tif_in,
-                            river_shp_in,
-                            subbasin_tiff_out,
-                            dirmap = None,
-                            dirnodata = None,
-                            river_network_flush = False,
-                            pour_point = (0,0),
-                            threshold = 100):
-
-        grid = Grid.from_raster(dir_tif_in, data_name='dir')
-        # Specify directional mapping
-        #N    NE    E    SE    S    SW    W    NW
-        dirmap = (64,  128,  1,   2,    4,   8,    16,  32)
-        # initializing the sub_basin raster
-        z1 = np.zeros(grid.shape)
-        # loop over each segment of the river
-        for index, row in A.iterrows():
-            cat_ID = A['ID'].iloc[index] # get the ID of that river segment
-            c_2 = grid.catchment(A['end_lon_b'].iloc[index], A['end_lat_b'].iloc[index], \
-                               data='dir', dirmap=dirmap, xytype='label', inplace=False)
-            c_2 = (c_2 != 0).astype(int)
-            if A['Up_ID'].iloc[index]=='[]': # in case no upstream, first order river segment
-                #print('first order', A['Up_ID'].iloc[index])
-                c_1 = np.zeros(grid.shape)  # no upstream area should be carved from the deliniated sub-basin
-            else:
-                #print('higher order', A['Up_ID'].iloc[index])
-                c_1_temp = np.zeros(grid.shape)
-                # find the index of the upstream area in the
-                s=A['Up_ID'].iloc[index] # get the string of upstream id onjects
-                # remove
-                s = s.replace('[', '')
-                s = s.replace(']', '')
-                up_ids = np.fromstring(s, dtype=int, sep=',')
-                # loop over upstream segments and create the model
-                for i in np.arange(up_ids.size):
-                    #find the index of the upstream and creat the basin
-                    index_local = A.index[A['ID'] == up_ids[i]].tolist()
-                    index_local = int(index_local[0]) # the local index of upstream segment
-                    c_1 = grid.catchment(A['end_lon_b'].iloc[index_local], A['end_lat_b'].iloc[index_local], \
-                                         data='dir', dirmap=dirmap, xytype='label', inplace=False)
-                    c_1_temp = c_1_temp + (c_1 != 0).astype(int)
-                c_1 = c_1_temp
-            # carve the upstream area from the river segment
-            c = c_2 - c_1
-            #print(c.max())
-            z1 += cat_ID * (c != 0).astype(int)
-        # Add z1 to grid
-        grid.add_gridded_data(z1, data_name='sub_basin', affine=grid.affine,
-                              shape=grid.shape, crs=grid.crs, nodata=np.nan)
-
-        # Write to raster
-        grid.to_raster('sub_basin', subbasin_tiff_out, view=False)
-
-    def visualize_tiff (self, geotiff_path, fig_size = (14,7), cmap='jet', colorbar_label = '', title ='', xlable = '',ylable=''):
-
-
-        from pysheds.grid import Grid
-        import matplotlib.pyplot as plt
-        # import numpy as np
-        # import json
-        # import geopandas as gpd
-        # from shapely.geometry import Point
-        # from geopandas import GeoSeries
-        # set the font and font size for plots
-        plt.rcParams["font.family"] = "Times New Roman"
-        plt.rcParams.update({'font.size': 16})
-
-        grid = Grid.from_raster(geotiff_path, data_name='temp') # part of Missouri River
-
-        ID = np.where(grid.temp!=grid.temp.nodata) # the missing values is set to -9999 removing them from min and max for colorbar
-        plt.figure(figsize = fig_size)
-        plt.imshow(grid.temp.astype(float), extent=grid.extent, cmap=cmap, zorder=1,
-                   vmin=np.min(grid.temp[ID]), vmax=np.max(grid.temp[ID]))
-        plt.colorbar(label=colorbar_label) # creating the colorbar and its name and unit
-        plt.grid(zorder=0) # creating the grid on the map
-        plt.title(title) # creating title
-        plt.xlabel(xlable) #xlable which is long
-        plt.ylabel(ylable) #ylable which is lat
-        plt.tight_layout()
-
+        Thiessen = Thiessen.set_crs(crs_org)#
+        Thiessen.to_file(voronoi_shp_out)
 
     def get_all_downstream (self,
                             seg_IDs,
                             down_IDs):
         """
-        @ author:                  Shervan Gharari, Wouter Knoben
+        @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/candex
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
@@ -1913,15 +1781,15 @@ in dimensions of the varibales and latitude and longitude')
         Arguments
         ---------
         seg_IDs: the 1D array of seg id [n,]
-        down_IDs: the 1D array of downstream seg id [n,]
+        down_IDs: the 1D array of downstream seg id [n,]; if no down_IDs for a given segment should be negative
         Returns
         -------
-        Array: the 2D array of downsream seg id s [n,1000] 1000 is maximume number of downstream
+        NTOPO: the 2D array of downsream seg id s [n,10000]; 10000 is maximume number of downstream
         """
         import pandas as pd
         import numpy as np
         #
-        NTOPO = np.empty([len(seg_IDs),1000]) # create the empty array with length of seg_IDs and 1000
+        NTOPO = np.empty([len(seg_IDs),10000]) # create the empty array with length of seg_IDs and 10000
         NTOPO [:] = np.nan # populate with nan
         NTOPO [:,0] = seg_IDs # assign the first colomn as seg id
         # loop over the seg_IDs
@@ -1946,19 +1814,20 @@ in dimensions of the varibales and latitude and longitude')
                 m += 1
         return NTOPO
 
-
-    def NTOPO_subset (  self,
-                        seg_ID,
-                        NTOPO):
+    def get_all_upstream(   self,
+                            seg_ID,
+                            seg_IDs,
+                            down_IDs):
         """
-        @ author:                  Shervan Gharari, Wouter Knoben
+        @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/candex
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
-        This function get a 1-D array of numpy arrays of river reach ID and a similar 1-D array
-        of downstream river reach ID
+        This function gets a segmenet ID, a 1-D array of numpy arrays of river reach ID and
+        a similar 1-D array of downstream river reach ID
         Arguments
         ---------
+        seg_ID: the segment id which we want the upstream
         seg_IDs: the 1D array of seg id [n,]
         down_IDs: the 1D array of downstream seg id [n,]
         Returns
@@ -1968,30 +1837,16 @@ in dimensions of the varibales and latitude and longitude')
         import pandas as pd
         import numpy as np
         #
-        NTOPO = np.empty([len(seg_IDs),1000]) # create the empty array with length of seg_IDs and 1000
-        NTOPO [:] = np.nan # populate with nan
-        NTOPO [:,0] = seg_IDs # assign the first colomn as seg id
-        # loop over the seg_IDs
+        downstreams = self.get_all_downstream(seg_IDs, down_IDs)
+        upstreams = np.array([])
+        # loop over the rows and find the rows that the seg_ID is mentioned in them
         for i in np.arange(len(seg_IDs)):
-            ID = seg_IDs [i] # get the seg ID
-            down_ID = down_IDs [i] # get the seg downstream ID
-            if down_ID in seg_IDs: # check if the downstream seg is part of river network
-                down_stream_exists = True
-            else:
-                down_stream_exists = False
-            m = 1 # initialize m
-            while down_ID > 0 and down_stream_exists: # while not the last segment
-                # update the ID and ID down
-                idx = np.where (seg_IDs == down_ID) # get the index of the segment that is downstream
-                ID = seg_IDs [idx] # update the ID
-                down_ID = down_IDs [idx] # update the downstream
-                if down_ID in seg_IDs:
-                    down_stream_exists = True
-                else:
-                    down_stream_exists = False
-                NTOPO[i,m] = ID
-                m += 1
-        return NTOPO
+            # get rows
+            row = downstreams[i,:].flatten()
+            # check if seg_ID is in the row
+            if seg_ID in row:
+                upstreams = np.append (upstreams, row[0])
+        return upstreams
 
     def tif_crop ( self,
                     raster_in,
@@ -2002,4 +1857,4 @@ in dimensions of the varibales and latitude and longitude')
                     ymax=None):
         from osgeo import gdal
         bbox = (xmin,ymin,xmax,ymax)
-        gdal.Translate('output_crop_raster.tif', 'input_raster.tif', projWin = bbox)
+        gdal.Translate(raster_out, raster_in, projWin = bbox)
