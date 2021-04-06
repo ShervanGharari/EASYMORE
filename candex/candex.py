@@ -1348,6 +1348,51 @@ in dimensions of the varibales and latitude and longitude')
             shp.set_crs = 'EPSG:4326'
         return shp
 
+    def zonal_stat_vector ( self,
+                            vector_path_1,
+                            vector_path_2,
+                            field_ID_1 = None,
+                            field_ID_2 = None):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function reads the two shapefile in WGS84 and return the percent of intersection
+        of the elements of the second shapefile in the first shapefile (also the normalized values)
+        Arguments
+        ---------
+        vector_path_1: string; the path to the target shapefile; as an example subbasins
+        vector_path_2: string; the path to the source shapefile; as an land cover
+        field_ID_1: name of the fields from the first shapefile that identifies between the shapes
+        field_ID_2: name of the fields from the second shapefile that identifies between the shapes
+        Returns
+        -------
+        shp_int: geodataframe, with values of mean, max, min, sum, std, count, fid for each shape in shapefile
+        """
+        import geopandas as gpd
+        shp_1 = gpd.read_file(vector_path_1)
+        shp_1 = shp_1.to_crs ("EPSG:6933") # project to equal area
+        shp_2 = gpd.read_file(vector_path_2)
+        shp_2 = shp_2.to_crs ("EPSG:6933") # project to equal area
+        shp_int = self.intersection_shp(shp_1, shp_2)
+        # rename dictionary
+        dict_rename = {'S_1_'+field_ID_1: field_ID_1+'_1',
+                       'S_2_'+field_ID_2: field_ID_2+'_2',
+                       'AS1' : 'Area_1[m2]',
+                       'AS2' : 'Area_2[m2]',
+                       'AP1' : 'percent',
+                       'AP1N': 'percent_N'}
+        shp_int = shp_int.rename(columns=dict_rename)
+        column_list = list (['Area_1[m2]','Area_2[m2]',
+            'geometry', 'percent', 'percent_N',
+            field_ID_1+'_1', field_ID_2+'_2'])
+        shp_int = shp_int[column_list]
+        shp_int['percent']   = shp_int['percent'] * 100 # to perent
+        shp_int['percent_N'] = shp_int['percent_N'] * 100 # to perent
+        shp_int = shp_int.to_crs("EPSG:4326")
+        return shp_int
+
     def zonal_stat(self,
                    vector_path,
                    raster_path,
@@ -1496,7 +1541,6 @@ in dimensions of the varibales and latitude and longitude')
                         'unique': 'NaN',
                         'freq': 'NaN',
                         'percent': 'NaN'}
-
             else:
                 feature_stats = {
                     'min': 'NaN',
@@ -1528,6 +1572,19 @@ in dimensions of the varibales and latitude and longitude')
             shp ['unique'] =  stats['unique'].astype(str)
             shp ['freq'] =  stats['freq'].astype(str)
             shp ['percent'] =  stats['percent'].astype(str)
+            shp ['mode'] = None
+            for index, row in shp.iterrows():
+                frequency = row ['freq']
+                frequency = frequency.replace(']', '')
+                frequency = frequency.replace('[', '')
+                frequency = np.fromstring(frequency, dtype=float, sep=' ')
+                unique = row ['unique']
+                unique = unique.replace(']', '')
+                unique = unique.replace('[', '')
+                unique = np.fromstring(unique, dtype=float, sep=' ')
+                idx = np.where(frequency == np.max(frequency))
+                value = unique[idx]
+                shp['mode'].iloc[index] = str(value)
         return shp
 
     def bbox_to_pixel_offsets(self,gt, bbox):
@@ -1622,7 +1679,24 @@ in dimensions of the varibales and latitude and longitude')
         band=None
         ds=None
 
+
     def geotif2shp(self,
+                   raster_path_in,
+                   vector_path_out,
+                   raster_band = 1,
+                   name_of_filed = 'values',
+                   dissolve = True):
+
+        self.__geotif2shp_subfun(raster_path_in,
+            vector_path_out,
+            raster_band = raster_band,
+            name_of_filed = name_of_filed)
+        if dissolve:
+            self.shp_dissolve(vector_path_out,
+                              vector_path_out,
+                              name_of_filed)
+
+    def __geotif2shp_subfun(self,
                    raster_path_in,
                    vector_path_out,
                    raster_band = 1,
@@ -1642,11 +1716,12 @@ in dimensions of the varibales and latitude and longitude')
         Arguments
         ---------
         raster_path_in: string; the path to the input raster
-        raster_path_out: string; the path to the output raster
+        vector_path_out: string; the path to the output shapefile
         raster_band: int; the band in the raster
         name_of_filed: string; the name of the column of extracted values in shapefile
         """
         from osgeo import gdal, ogr, osr
+        import geopandas as gpd
         # this allows GDAL to throw Python Exceptions
         #gdal.UseExceptions()
         src_ds = gdal.Open(raster_path_in)
@@ -1660,6 +1735,31 @@ in dimensions of the varibales and latitude and longitude')
         dst_layer.CreateField(fd)
         dst_field = dst_layer.GetLayerDefn().GetFieldIndex(name_of_filed)
         gdal.Polygonize(srcband, None, dst_layer, dst_field, [], callback=None)
+
+    def shp_dissolve(   self,
+                        vector_path_in,
+                        vector_path_out,
+                        name_of_filed):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function recieve a shapefile name and its colomn to be dissolved
+        Arguments
+        ---------
+        raster_path_in: string; the path to the input raster
+        raster_path_out: string; the path to the output raster
+        name_of_filed: string; the name of the column of extracted values in shapefile
+        """
+        import geopandas as gpd
+        shp = gpd.read_file(vector_path_in)
+        shp = shp.dissolve(by=name_of_filed)
+        shp ['temp'] = shp.index
+        shp = shp.reset_index(drop=True)
+        shp [name_of_filed] = shp ['temp']
+        shp = shp.drop(columns=['temp'])
+        shp.to_file(vector_path_out)
 
     def extract_value_tiff (  self,
                               lon_in,
