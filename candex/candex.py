@@ -1352,7 +1352,7 @@ in dimensions of the varibales and latitude and longitude')
             shp = shp.set_crs (crs)
         else:
             print('no crs is provided for the point shapefiles; EASYMORE will allocate WGS84')
-            shp.set_crs = 'EPSG:4326'
+            shp = shp.set_crs ('EPSG:4326')
         return shp
 
     def zonal_stat_vector ( self,
@@ -1654,7 +1654,6 @@ in dimensions of the varibales and latitude and longitude')
         [cols, rows] = arr.shape
         arr_min = arr.min()
         arr_max = arr.max()
-        print(arr_min, arr_max)
         if slice_values is None: # calculate the delta from min to max with number of bins
             delta = np.arange(arr_min, arr_max, (arr_max-arr_min)/num_bin)
         else:
@@ -1671,7 +1670,16 @@ in dimensions of the varibales and latitude and longitude')
             if (arr_min > delta.max()) or (arr_max < delta.min()):
                 print('max from geotiff: ', arr_max, 'min from geotiff: ', arr_min)
                 sys.exit('it seems the provided bound specified by slice_level is outside of raster max to min values')
+        if (arr_max > delta.max()):
+            delta = np.append(delta,np.array([arr_max]))
+            delta = np.unique(delta)
+            delta = np.sort(delta)
+        if (arr_min < delta.min()):
+            delta = np.append(delta,np.array([arr_min]))
+            delta = np.unique(delta)
+            delta = np.sort(delta)
         arr_out = arr
+        print(delta)
         for i in np.arange(len(delta)-1):
             arr_out = np.where(np.logical_and(arr_out>=delta[i], arr_out<=delta[i+1]), (delta[i]+delta[i+1])/2,arr_out)
         # saving
@@ -1704,15 +1712,16 @@ in dimensions of the varibales and latitude and longitude')
                               name_of_filed)
 
     def __geotif2shp_subfun(self,
-                   raster_path_in,
-                   vector_path_out,
-                   raster_band = 1,
-                   name_of_filed = 'values'):
+                            raster_path_in,
+                            vector_path_out,
+                            raster_band = 1,
+                            name_of_filed = 'values'):
         """
         original code by:
         Kadir Şahbaz;
         https://gis.stackexchange.com/questions/281073/excluding-extent-when-polygonizing-raster-file-using-python
         and
+        onakua
         https://gis.stackexchange.com/questions/254410/raster-to-vector-conversion-using-gdal-python
         modified by:
         @ author:                  Shervan Gharari
@@ -1835,6 +1844,7 @@ in dimensions of the varibales and latitude and longitude')
             stations = points_shp_in # geodataframe
         # get the crs from the point shapefile
         crs_org = stations.crs
+        print(crs_org)
         # add the ID_t to the point shapefiles
         stations ['ID_s'] = np.arange(len(stations))+1
         stations ['ID_s'] = stations ['ID_s'].astype(float)
@@ -1872,7 +1882,7 @@ in dimensions of the varibales and latitude and longitude')
         stations = stations.drop(columns='geometry')
         Thiessen = pd.merge_asof(Thiessen, stations, on='ID_s') #, direction='nearest')
         Thiessen = Thiessen.set_geometry('geometry') #bring back the geometry filed; pd to gpd
-        Thiessen = Thiessen.set_crs(crs_org)#
+        Thiessen = Thiessen.set_crs(crs_org)
         Thiessen.to_file(voronoi_shp_out)
 
     def get_all_downstream (self,
@@ -1896,6 +1906,8 @@ in dimensions of the varibales and latitude and longitude')
         import pandas as pd
         import numpy as np
         #
+        seg_IDs = np.array(seg_IDs)
+        down_IDs = np.array(down_IDs)
         NTOPO = np.empty([len(seg_IDs),10000]) # create the empty array with length of seg_IDs and 10000
         NTOPO [:] = np.nan # populate with nan
         NTOPO [:,0] = seg_IDs # assign the first colomn as seg id
@@ -1923,8 +1935,7 @@ in dimensions of the varibales and latitude and longitude')
 
     def get_all_upstream(   self,
                             seg_ID,
-                            seg_IDs,
-                            down_IDs):
+                            NTOPO):
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/candex
@@ -1935,8 +1946,7 @@ in dimensions of the varibales and latitude and longitude')
         Arguments
         ---------
         seg_ID: the segment id which we want the upstream
-        seg_IDs: the 1D array of seg id [n,]
-        down_IDs: the 1D array of downstream seg id [n,]
+        NTOPO: the 2D array of downstream for each segment
         Returns
         -------
         Array: the 2D array of downsream seg id s [n,1000] 1000 is maximume number of downstream
@@ -1944,14 +1954,11 @@ in dimensions of the varibales and latitude and longitude')
         import pandas as pd
         import numpy as np
         #
-        seg_IDs = np.array(seg_IDs)
-        down_IDs = np.array(down_IDs)
-        downstreams = self.get_all_downstream(seg_IDs, down_IDs)
         upstreams = np.array([])
         # loop over the rows and find the rows that the seg_ID is mentioned in them
-        for i in np.arange(len(seg_IDs)):
+        for i in np.arange(len(NTOPO[:,0])):
             # get rows
-            row = downstreams[i,:].flatten()
+            row = NTOPO[i,:].flatten()
             # check if seg_ID is in the row
             if seg_ID in row:
                 upstreams = np.append (upstreams, row[0])
@@ -1967,3 +1974,331 @@ in dimensions of the varibales and latitude and longitude')
         from osgeo import gdal
         bbox = (xmin,ymin,xmax,ymax)
         gdal.Translate(raster_out, raster_in, projWin = bbox)
+
+    def run_subbasin_creation(self,
+                              dem_tif_in,
+                              pour_point = (-9999,-9999),
+                              river_thr = 10000, #starting point in number of cells int
+                              dir_tif_in = None,
+                              acc_tif_in = None,
+                              dirmap = (64,  128,  1,   2,    4,   8,    16,  32)): # N, NE, E, SE, S, SW, W, NW):
+
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This functions recives a path to a DEM raster file and create the flow direction
+        low accumulation, river network and river network topology and subbasins
+        Arguments
+        ---------
+        raster_path_in: string; the path to the input raster, DEM geotif
+        pour_point: (x, y), location of the outlet of the basin
+        river_thr: int, number of cells accumulation that river start
+        dir_tif_in: string; the path to the direction raster
+        acc_tif_in: string; the path to the accumulation raster
+        dirmap: showing the direction of the values in the dir map if direction is provided
+        """
+        import geopandas as gpd
+        import numpy as np
+        from pysheds.grid import Grid
+        import os
+        grid = Grid.from_raster(dem_tif_in, data_name='dem')
+        crs = str(grid.crs)
+        if 'wgs84' in crs.lower():
+            print('easymore detect the tif file is projected in WGS84')
+        else:
+            sys.exit('the provided DEM should be in WGS84')
+        grid_size = grid.cellsize
+        if not os.path.isdir(self.temp_dir):
+            os.mkdir(self.temp_dir)
+        if not os.path.isdir(self.output_dir):
+            os.mkdir(self.output_dir)
+        if dir_tif_in:
+            print('providing the acc_tif_in is not yet supported, easymore with calculate direction internally')
+            print('easymore set dir_tif_in to None')
+            dir_tif_in = None
+        if acc_tif_in:
+            print('providing the acc_tif_in is not yet supported, easymore with calculate accumulation internally')
+            print('easymore set acc_tif_in to None')
+            acc_tif_in = None
+        self.dem_processing (dem_tif_in,
+                             dir_tif_in = None,
+                             acc_tif_in = None,
+                             dirmap = dirmap)
+        self.river (self.temp_dir+self.case_name+'_dir.tif',
+                    self.temp_dir+self.case_name+'_acc.tif',
+                    self.temp_dir+self.case_name+'_river.shp',
+                    dirmap = dirmap,
+                    pour_point = pour_point,
+                    snap_pour_point = 100,
+                    river_thr = river_thr)
+        self.river_network( self.temp_dir+self.case_name+'_river.shp',
+                            self.temp_dir+self.case_name+'_river_NTOPO.shp',
+                            dem_tif_in = dem_tif_in,
+                            acc_tif_in = self.temp_dir+self.case_name+'_acc.tif',
+                            grid_size = grid_size)
+        shp = gpd.read_file(self.temp_dir+self.case_name+'_river_NTOPO.shp')
+        shp_t = shp.to_crs ("EPSG:6933")
+        shp['length'] = shp_t.geometry.length
+        shp.to_file(self.temp_dir+self.case_name+'_river_NTOPO.shp')
+        self.subbasin_creation(  self.temp_dir+self.case_name+'_dir.tif',
+                                 self.temp_dir+self.case_name+'_river_NTOPO.shp',
+                                 self.temp_dir+self.case_name+'_subbasin.tif')
+        self.geotif2shp(   self.temp_dir+self.case_name+'_subbasin.tif',
+                           self.temp_dir+self.case_name+'_subbasin.shp',
+                           raster_band = 1,
+                           name_of_filed = 'ID',
+                           dissolve = True)
+        shp = gpd.read_file(self.temp_dir+self.case_name+'_subbasin.shp')
+        shp = shp [shp['ID']!=0] # remove the subbasin ID of zero
+        shp_t = shp.to_crs("EPSG:6933")
+        shp ['Area[m2]'] = shp_t.area
+        shp.to_file(self.output_dir+self.case_name+'_subbasin.shp')
+        # upstream area
+        cat = gpd.read_file(self.output_dir+self.case_name+'_subbasin.shp')
+        cat = cat.sort_values(by='ID')
+        cat = cat.reset_index(drop=True)
+        river = gpd.read_file(self.temp_dir+self.case_name+'_river_NTOPO.shp')
+        river = river.sort_values(by='ID')
+        river = river.reset_index(drop=True)
+        NTOPO = self.get_all_downstream (river.ID,river.Down_ID)
+        # loop over the segemets and get the upstream
+        Area_up = np.zeros([len(cat)])
+        m = 0
+        for index, row in cat.iterrows():
+            upstreams = self.get_all_upstream(row.ID,NTOPO)
+            cat_t = cat [cat['ID'].isin(upstreams)]
+            Area_up [m] = cat_t['Area[m2]'].sum()
+            m += 1
+        river ['Area_up'] = Area_up
+        river ['Area[m2]'] = cat['Area[m2]']
+        river.to_file(self.output_dir+self.case_name+'_river_NTOPO.shp')
+
+    def dem_processing (self,
+                        dem_tif_in,
+                        dir_tif_in = None, #TODO: include if user give dir_tif_in
+                        acc_tif_in = None, #TODO: include if user give acc_tif_in
+                        dirmap = (64,  128,  1,   2,    4,   8,    16,  32)): # N, NE, E, SE, S, SW, W, NW
+        """
+        original code by:
+        pysheds developer team
+        https://github.com/mdbartos/pysheds
+        modified by:
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function reads a dem (or also a direction file and map) and generate the dir file, and flow accumualtion
+        ---------
+        dem_tif_in: string; the path to the input raster
+        dir_tif_in: string; the path to the direction raster
+        acc_tif_in: string; the path to the accumulation raster
+        dirmap: showing the direction of the values in the dir map if direction is provided
+        """
+        from pysheds.grid import Grid
+        import geopandas as gpd
+        import numpy as np
+        import os
+        grid = Grid.from_raster(dem_tif_in, data_name='dem')
+        grid.fill_depressions(data='dem', out_name='flooded_dem')
+        grid.resolve_flats('flooded_dem', out_name='inflated_dem') #resolve the flats
+        # Add new dir to grid as float and save in temporary folder
+        if not dir_tif_in:
+            grid.flowdir(data='inflated_dem', out_name='dir', dirmap=dirmap)
+            print('direction map is not provided; candex will calculate flow direction and save in temporary file:')
+            print('candex will save the direction file here: ', self.temp_dir+self.case_name+'_dir.tif')
+            grid.add_gridded_data(grid.dir.astype(float), data_name='dir_new', affine=grid.affine,
+                                  shape=grid.dem.shape, crs=grid.crs, nodata=grid.dir.nodata)
+            grid.to_raster('dir_new', self.temp_dir+self.case_name+'_dir.tif' , view=False)
+        if not acc_tif_in:
+            grid.accumulation(data='dir', out_name='acc')
+            # Add new dir to grid as float
+            grid.add_gridded_data(grid.acc.astype(float), data_name='acc_new', affine=grid.affine,
+                                  shape=grid.dem.shape, crs=grid.crs, nodata=grid.acc.nodata)
+            print('candex will save the accumulation file here: ', self.temp_dir+self.case_name+'_acc.tif')
+            grid.to_raster('acc_new', self.temp_dir+self.case_name+'_acc.tif' , view=False)
+
+    def river  (self,
+                dir_tif_in,
+                acc_tif_in,
+                shp_river_out,
+                dirmap = (64,  128,  1,   2,    4,   8,    16,  32), # N, NE, E, SE, S, SW, W, NW
+                pour_point = (-9999,-9999), # lon and lat of the outlet
+                snap_pour_point = 100, # threshold for snap the outlet to river network
+                river_thr = None,
+                grid_size = 0): # starting river netwrok threshold in number of grids
+        """
+        original code by:
+        pysheds developer team
+        https://github.com/mdbartos/pysheds
+        modified by:
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/candex
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function reads direction and flow accumulation and the most downstream point and threshold
+        ---------
+        dir_tif_in: string; the path to the direction geotif
+        acc_tif_in: string; the path to the flow accumulation geotif
+        dirmap: int; direction of each value in flow direction file
+        pour_point: (lon,lat); the most downstream location
+        snap_pour_point: int; the maximum flow accumulation for correcting to the river segment in cell
+        river_thr: int; starting point of river network for more than an accumulation value
+        """
+        from pysheds.grid import Grid
+        import geopandas as gpd
+        import json
+        import numpy as np
+        import os
+        #
+        grid = Grid.from_raster(dir_tif_in, data_name='dir')
+        grid1 = Grid.from_raster(acc_tif_in, data_name='acc')
+        grid.add_gridded_data(grid1.acc, data_name='acc', affine=grid.affine,
+                              shape=grid.shape, crs=grid.crs, nodata=np.nan)
+        # putting the outlet point exactly on the river network
+        xy = np.column_stack([pour_point[0], pour_point[1]])
+        new_xy = grid.snap_to_mask(grid.acc > snap_pour_point, xy, return_dist=False)
+        new_xs, new_ys = new_xy[:,0], new_xy[:,1]
+        # Delineate the catchment
+        grid.catchment(data='dir', x=new_xs, y=new_ys, dirmap=dirmap, out_name='catch',\
+                       nodata=grid.dir.nodata,\
+                       recursionlimit=1500000, xytype='label')
+        grid.clip_to('catch') # must be clipped
+        # Compute accumulation
+        grid.accumulation(data='catch', out_name='acc')
+        branches = None
+        branches = grid.extract_river_network(fdir='catch',
+                                              acc='acc',
+                                              threshold=river_thr,
+                                              dirmap=dirmap)
+        for branch in branches['features']:
+            line = np.asarray(branch['geometry']['coordinates'])
+        # dumpt the lines into a network
+        with open(self.temp_dir+self.case_name+'_river.json', 'w') as json_file:
+            json.dump(branches, json_file)
+        # load the json and save it as a shapefile using geopandas
+        shp = gpd.read_file(self.temp_dir+self.case_name+'_river.json')
+        os.remove (self.temp_dir+self.case_name+'_river.json')
+        shp['ID'] = np.arange(len(shp)) + 1
+        # save the shapefile
+        shp.to_file(shp_river_out)
+
+    def river_network(  self,
+                        infile_river,
+                        outfile_river_NTopo,
+                        dem_tif_in = None,
+                        acc_tif_in = None,
+                        grid_size = 0.00):
+
+        import geopandas as gpd
+        import pandas as pd
+        import numpy as np
+        from shapely.geometry import Point
+        import shapely
+        #
+        shp = gpd.read_file(infile_river)
+        # creat additional fields for network topology data
+        shp['start_lat'] = None
+        shp['start_lon'] = None
+        shp['end_lat']   = None
+        shp['end_lon']   = None
+        shp['end_lat_b'] = None
+        shp['end_lon_b'] = None
+        shp['Down_ID']   = -9999
+        shp['Up_ID']     = None
+        shp['Up1_ID']    = None
+        shp['Up2_ID']    = None
+        shp['Up3_ID']    = None
+        shp['Up4_ID']    = None
+        shp['Up5_ID']    = None
+        # popolating the fileds
+        for index, row in shp.iterrows():
+            line = np.asarray(row['geometry'])
+            # populate the filed
+            shp['start_lat'].iloc[index] = line[-1,1]
+            shp['start_lon'].iloc[index] = line[-1,0]
+            shp['end_lat'].iloc[index]   = line[0,1]
+            shp['end_lon'].iloc[index]   = line[0,0]
+            shp['end_lat_b'].iloc[index] = line[1,1] # one before merged point not to include all the contributing area of confluence
+            shp['end_lon_b'].iloc[index] = line[1,0] # one before merged point not to include all the contributing area of confluence
+        for index, row in shp.iterrows():
+            # get the end lat, lon of a river segment
+            end_lat = shp['end_lat'].iloc[index]
+            end_lon = shp['end_lon'].iloc[index]
+            # find which segment start with that lat, lon
+            indy = shp.index[shp['start_lat'] == end_lat].tolist()
+            indx = shp.index[shp['start_lon'] == end_lon].tolist()
+            # find the end of indy and indx
+            ind = list(set(indy).intersection(indx))
+            # assign the list of downstream segment to the field if no downstream -9999
+            if str(ind).strip('[]') != '':
+                shp['Down_ID'].loc[index] = shp['ID'].iloc[int(str(ind).strip('[]'))]
+            else:
+                shp['Down_ID'].loc[index] = -9999
+        # creat a list of immidiate upstream
+        for index, row in shp.iterrows():
+            # get the ID of the river segment
+            ID = shp['ID'].iloc[index]
+            # find the immidate upstream
+            ind = shp.index[shp['Down_ID'] == ID]
+            indup = shp['ID'].iloc[ind].tolist()
+            shp['Up_ID'] = str(indup)
+            # assign the upstream list
+            for i in np.arange(len(indup)):
+                field_name = 'Up'+str(i+1)+'_ID'
+                shp[field_name].loc[index] = indup[i]
+        if dem_tif_in:
+            values = self.extract_value_tiff (np.array(shp['start_lon'])+grid_size/2,
+                                              np.array(shp['start_lat'])-grid_size/2,
+                                              dem_tif_in)
+            shp['start_ele'] = values
+            values = self.extract_value_tiff (np.array(shp['end_lon'])+grid_size/2,
+                                              np.array(shp['end_lat'])-grid_size/2,
+                                              dem_tif_in)
+            shp['end_ele'] = values
+        if acc_tif_in:
+            values = self.extract_value_tiff (np.array(shp['end_lon_b'])+grid_size/2,
+                                              np.array(shp['end_lat_b'])-grid_size/2,
+                                              acc_tif_in)
+            shp['end_acc'] = values
+            shp = shp.sort_values(by='end_acc')
+        # save the shapefile
+#         for index, _ in shp.iterrows():
+#             polys = shp.geometry.iloc[index] # get the shape
+#             polys = shapely.affinity.translate(polys, xoff=+grid_size/2, yoff=-grid_size/2, zoff=0.0)
+#             shp.geometry.iloc[index] = polys
+        shp.to_file(outfile_river_NTopo)
+
+    def subbasin_creation(  self,
+                            dir_tif_in,
+                            river_shp_in,
+                            subbasin_tiff_out,
+                            dirmap = (64,  128,  1,   2,    4,   8,    16,  32)):#N, NE, E, SE, S, SW, W, NW
+        from pysheds.grid import Grid
+        import geopandas as gpd
+        import numpy as np
+
+        grid = Grid.from_raster(dir_tif_in, data_name='dir')
+        A = gpd.read_file(river_shp_in)
+        # sort based on accumulation
+        A['end_lat_b'] = A['end_lat_b'].astype(float)
+        A['end_lon_b'] = A['end_lon_b'].astype(float)
+        # initializing the sub_basin raster
+        z1 = np.zeros(grid.shape)
+        # loop over each segment of the river
+        for index, row in A.iterrows():
+            print(index)
+            cat_ID = A['ID'].iloc[index] # get the ID of that river segment
+            c = grid.catchment(A['end_lon_b'].iloc[index], A['end_lat_b'].iloc[index], \
+                               data='dir', dirmap=dirmap, xytype='label', inplace=False)
+            z1 += cat_ID * (c != 0).astype(int)
+            idx = np.where(c != 0)
+            grid.dir[idx] = grid.dir.nodata
+        # Add z1 to grid
+        idx = np.where(z1 == 0)
+        z1[idx] = np.nan
+        grid.add_gridded_data(z1, data_name='sub_basin', affine=grid.affine,
+                              shape=grid.shape, crs=grid.crs, nodata=np.nan)
+        # Write to raster
+        grid.to_raster('sub_basin', subbasin_tiff_out, view=False)
