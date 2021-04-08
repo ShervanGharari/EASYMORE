@@ -140,6 +140,7 @@ class candex:
             dict_rename = {'S_1_ID_t' : 'ID_t',
                            'S_1_lat_t': 'lat_t',
                            'S_1_lon_t': 'lon_t',
+                           'S_1_order': 'order_t',
                            'S_2_ID_s' : 'ID_s',
                            'S_2_lat_s': 'lat_s',
                            'S_2_lon_s': 'lon_s',
@@ -335,6 +336,7 @@ class candex:
         if detected_lines:
             print('candex detected line as geometry of target shapefile and will considere it as polygon (adding small buffer)')
         print('it seems everything is OK with the sink/target shapefile; added to candex object target_shp_gpd')
+        shp['order'] = np.arange(len(shp)) + 1 # order of the shapefile
         return shp
 
     def check_source_nc (self):
@@ -911,9 +913,9 @@ in dimensions of the varibales and latitude and longitude')
             sys.exit('candex case should be one of 1, 2 or 3; please refer to the documentation')
         self.case = np.unique(np.array(remap_df['candex_case']))
         # check if the needed columns are existing
-        if not set(['ID_t','lat_t','lon_t','ID_s','lat_s','lon_s','weight']) <= set(remap_df.columns):
+        if not set(['ID_t','lat_t','lon_t','order_t','ID_s','lat_s','lon_s','weight']) <= set(remap_df.columns):
             sys.exit('provided remapping file does not have one of the needed fields: \n'+\
-                'ID_t, lat_t, lon_t, ID_2, lat_s, lon_s, weight')
+                'ID_t, lat_t, lon_t, order_t, ID_2, lat_s, lon_s, weight')
 
     def __target_nc_creation(self):
         """
@@ -931,8 +933,9 @@ in dimensions of the varibales and latitude and longitude')
         target_ID_lat_lon ['ID_t']  = remap ['ID_t']
         target_ID_lat_lon ['lat_t'] = remap ['lat_t']
         target_ID_lat_lon ['lon_t'] = remap ['lon_t']
+        target_ID_lat_lon ['oder_t'] = remap ['order_t']
         target_ID_lat_lon = target_ID_lat_lon.drop_duplicates()
-        target_ID_lat_lon = target_ID_lat_lon.sort_values(by=['ID_t'])
+        target_ID_lat_lon = target_ID_lat_lon.sort_values(by=['order_t'])
         # prepare the hru_id (here COMID), lat, lon
         hruID_var = np.array(target_ID_lat_lon['ID_t'])
         hruID_lat = np.array(target_ID_lat_lon['lat_t'])
@@ -1107,8 +1110,8 @@ in dimensions of the varibales and latitude and longitude')
             # add values to data frame, weighted average and pass to data frame again
             mapping_df['values'] = values
             mapping_df['values_w'] = mapping_df['weight']*mapping_df['values']
-            df_temp = mapping_df.groupby(['ID_t'],as_index=False).agg({'values_w': 'sum'})
-            df_temp = df_temp.sort_values(by=['ID_t'])
+            df_temp = mapping_df.groupby(['order_t'],as_index=False).agg({'values_w': 'sum'})
+            df_temp = df_temp.sort_values(by=['order_t'])
             weighted_value [m,:] = np.array(df_temp['values_w'])
             m += 1
         return weighted_value
@@ -1379,12 +1382,12 @@ in dimensions of the varibales and latitude and longitude')
         # rename dictionary
         dict_rename = {'S_1_'+field_ID_1: field_ID_1+'_1',
                        'S_2_'+field_ID_2: field_ID_2+'_2',
-                       'AS1' : 'Area_1[m2]',
-                       'AS2' : 'Area_2[m2]',
+                       'AS1' : 'A_1[m2]',
+                       'AINT': 'Aint[m2]',
                        'AP1' : 'percent',
                        'AP1N': 'percent_N'}
         shp_int = shp_int.rename(columns=dict_rename)
-        column_list = list (['Area_1[m2]','Area_2[m2]',
+        column_list = list (['A_1[m2]','Aint[m2]',
             'geometry', 'percent', 'percent_N',
             field_ID_1+'_1', field_ID_2+'_2'])
         shp_int = shp_int[column_list]
@@ -1937,6 +1940,8 @@ in dimensions of the varibales and latitude and longitude')
         import pandas as pd
         import numpy as np
         #
+        seg_IDs = np.array(seg_IDs)
+        down_IDs = np.array(down_IDs)
         downstreams = self.get_all_downstream(seg_IDs, down_IDs)
         upstreams = np.array([])
         # loop over the rows and find the rows that the seg_ID is mentioned in them
