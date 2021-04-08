@@ -1964,16 +1964,16 @@ in dimensions of the varibales and latitude and longitude')
                 upstreams = np.append (upstreams, row[0])
         return upstreams
 
-    def tif_crop ( self,
-                    raster_in,
-                    raster_out,
-                    xmin=None,
-                    xmax=None,
-                    ymin=None,
-                    ymax=None):
-        from osgeo import gdal
-        bbox = (xmin,ymin,xmax,ymax)
-        gdal.Translate(raster_out, raster_in, projWin = bbox)
+    # def tif_crop ( self,
+    #                 raster_in,
+    #                 raster_out,
+    #                 xmin=None,
+    #                 xmax=None,
+    #                 ymin=None,
+    #                 ymax=None):
+    #     from osgeo import gdal
+    #     bbox = (xmin,ymin,xmax,ymax)
+    #     gdal.Translate(raster_out, raster_in, projWin = bbox)
 
     def run_subbasin_creation(self,
                               dem_tif_in,
@@ -2288,7 +2288,6 @@ in dimensions of the varibales and latitude and longitude')
         z1 = np.zeros(grid.shape)
         # loop over each segment of the river
         for index, row in A.iterrows():
-            print(index)
             cat_ID = A['ID'].iloc[index] # get the ID of that river segment
             c = grid.catchment(A['end_lon_b'].iloc[index], A['end_lat_b'].iloc[index], \
                                data='dir', dirmap=dirmap, xytype='label', inplace=False)
