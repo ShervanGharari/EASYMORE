@@ -35,7 +35,7 @@ class candex:
         self.remapped_var_lon          =  'longitude' # name of the longitude variable in the new nc file; default 'longitude'
         self.remapped_dim_id           =  'ID' # name of the ID dimension in the new nc file; default 'ID'
         self.temp_dir                  =  './temp/' # temp_dir
-        self.output_dir                =  './output' # output directory
+        self.output_dir                =  './output/' # output directory
         self.format_list               =  ['f8'] # float for the remapped values
         self.fill_value_list           =  ['-9999'] # missing values set to -9999
         self.remap_csv                 =  '' # name of the remapped file if provided
@@ -336,6 +336,9 @@ class candex:
         if detected_lines:
             print('candex detected line as geometry of target shapefile and will considere it as polygon (adding small buffer)')
         print('it seems everything is OK with the sink/target shapefile; added to candex object target_shp_gpd')
+        if self.sort_ID:
+            shp = shp.sort_values(by='ID_t')
+            shp = shp.reset_index(drop=True)
         shp['order'] = np.arange(len(shp)) + 1 # order of the shapefile
         return shp
 
