@@ -2301,3 +2301,35 @@ in dimensions of the varibales and latitude and longitude')
                               shape=grid.shape, crs=grid.crs, nodata=np.nan)
         # Write to raster
         grid.to_raster('sub_basin', subbasin_tiff_out, view=False)
+
+    def visualize_tiff (self,
+                        geotiff_path,
+                        fig_size = (14,7),
+                        cmap='jet',
+                        colorbar_label = '',
+                        title ='',
+                        xlable = '',
+                        ylable=''):
+        from pysheds.grid import Grid
+        import matplotlib.pyplot as plt
+        import numpy as np
+        import json
+        import geopandas as gpd
+        from shapely.geometry import Point
+        from geopandas import GeoSeries
+        # set the font and font size for plots
+        plt.rcParams["font.family"] = "Times New Roman"
+        plt.rcParams.update({'font.size': 16})
+
+        grid = Grid.from_raster(geotiff_path, data_name='temp') # part of Missouri River
+
+        ID = np.where(grid.temp!=grid.temp.nodata) # the missing values is set to -9999 removing them from min and max for colorbar
+        plt.figure(figsize = fig_size)
+        plt.imshow(grid.temp.astype(float), extent=grid.extent, cmap=cmap, zorder=1,
+                   vmin=np.min(grid.temp[ID]), vmax=np.max(grid.temp[ID]))
+        plt.colorbar(label=colorbar_label) # creating the colorbar and its name and unit
+        plt.grid(zorder=0) # creating the grid on the map
+        plt.title(title) # creating title
+        plt.xlabel(xlable) #xlable which is long
+        plt.ylabel(ylable) #ylable which is lat
+        plt.tight_layout()
