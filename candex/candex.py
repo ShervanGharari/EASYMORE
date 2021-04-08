@@ -43,6 +43,7 @@ class candex:
         self.license                   =  '' # data license
         self.tolerance                 =  10**-5 # tolerance
         self.save_csv                  =  False # save csv
+        self.sort_ID                   =  False # to sort the remapped based on the target shapfile ID; self.target_shp_ID should be given
 
     ##############################################################
     #### NetCDF remapping
@@ -281,8 +282,7 @@ class candex:
             df_point ['lat'] = lat_c
             df_point ['lon'] = lon_c
             df_point ['ID']  = ID
-            shp_points = self.make_shape_point(df_point, 'lon', 'lat')
-            shp_points = shp_points.set_crs("EPSG:6933") # set equal area
+            shp_points = self.make_shape_point(df_point, 'lon', 'lat', crs="EPSG:6933")
             shp_points = shp_points.to_crs("EPSG:4326") # to WGS
             shp_points = shp_points.drop(columns=['lat','lon'])
             shp_points ['lat'] = shp_points.geometry.y
@@ -933,9 +933,10 @@ in dimensions of the varibales and latitude and longitude')
         target_ID_lat_lon ['ID_t']  = remap ['ID_t']
         target_ID_lat_lon ['lat_t'] = remap ['lat_t']
         target_ID_lat_lon ['lon_t'] = remap ['lon_t']
-        target_ID_lat_lon ['oder_t'] = remap ['order_t']
+        target_ID_lat_lon ['order_t'] = remap ['order_t']
         target_ID_lat_lon = target_ID_lat_lon.drop_duplicates()
         target_ID_lat_lon = target_ID_lat_lon.sort_values(by=['order_t'])
+        target_ID_lat_lon = target_ID_lat_lon.reset_index(drop=True)
         # prepare the hru_id (here COMID), lat, lon
         hruID_var = np.array(target_ID_lat_lon['ID_t'])
         hruID_lat = np.array(target_ID_lat_lon['lat_t'])
@@ -1345,7 +1346,7 @@ in dimensions of the varibales and latitude and longitude')
             dataframe = pd.read_csv(dataframe)
         shp = gpd.GeoDataFrame(dataframe, geometry=gpd.points_from_xy(dataframe[lon_field], dataframe[lat_field]))
         if crs:
-            shp.set_crs = crs
+            shp = shp.set_crs (crs)
         else:
             print('no crs is provided for the point shapefiles; EASYMORE will allocate WGS84')
             shp.set_crs = 'EPSG:4326'
