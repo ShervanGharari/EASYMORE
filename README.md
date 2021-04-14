@@ -28,13 +28,12 @@ go to the candex folder, where `setup.py` is located and install candex locally:
 
 ## Examples:
 
-1. [Remapping a regular lat/lon gridded data or model output to irregular shapes.](./examples/Example_1.ipynb)
-2. [Remapping a rotate lat/lon gridded data or model output to irregular shapes.](./examples/Example_2.ipynb)
-3. [Remapping an irregular shapefile data, such as Thiessen polygon for example, to irregular shapes.](./examples/Example_3.ipynb)
-4. [Extract the data for points (such as location of stations, cities, etc) from the grided or irregular shapefiles; temprature example](./examples/Example_4.ipynb)
-5. [Extract the data for points (such as location of stations, cities, etc) from the grided or irregular shapefiles; GRACE example](./examples/Example_5.ipynb)
-6. [Resampling of regular, rotated or irregular data and model output to any resolution density of the points](./examples/Example_6.ipynb)
-
+1. [Remapping a regular lat/lon gridded data or model output to irregular shapes.](./examples/Chapter1_E1.ipynb)
+2. [Remapping a rotate lat/lon gridded data or model output to irregular shapes.](./examples/Chapter1_E2.ipynb)
+3. [Remapping an irregular shapefile data, such as Thiessen polygon for example, to irregular shapes.](./examples/Chapter1_E3.ipynb)
+4. [Extract the data for points (such as location of stations, cities, etc) from the grided or irregular shapefiles; temprature example](./examples/Chapter1_E4.ipynb)
+5. [Resampling of regular, rotated or irregular data and model output to any resolution density of the points](./examples/Chapter1_E5.ipynb)
+6. [Manipulation of remapped variables such as lapse rate to temperature based on elevation difference (can be applied to slope and aspect, etc)](./examples/Chapter1_E6.ipynb)
 
 The two figures show remapping of the gridded temperature from ERA5 data set to subbasin of South Saskatchewan River at Medicine Hat.
 
