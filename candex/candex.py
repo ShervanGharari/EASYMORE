@@ -52,13 +52,13 @@ class candex:
     def run_candex(self):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
-        This function runs a set of candex function which can remap from a srouce shapefile
+        This function runs a set of EASYMORE function which can remap from a srouce shapefile
         with regular, roated, irregular to a target shapefile
         """
-        # check candex input
+        # check EASYMORE input
         self.check_candex_input()
         # if remap is not provided then create the remapping file
         if self.remap_csv == '':
@@ -67,7 +67,7 @@ class candex:
             target_shp_gpd = gpd.read_file(self.target_shp)
             target_shp_gpd = self.check_target_shp(target_shp_gpd)
             # save the standard target shapefile
-            print('candex will save standard shapefile for candex claculation as:')
+            print('EASYMORE will save standard shapefile for EASYMORE claculation as:')
             print(self.temp_dir+self.case_name+'_target_shapefile.shp')
             target_shp_gpd.to_file(self.temp_dir+self.case_name+'_target_shapefile.shp') # save
             # check the source NetCDF files
@@ -82,14 +82,14 @@ class candex:
                 else:
                     self.lat_lon_SHP(self.lat, self.lon,\
                         self.temp_dir+self.case_name+'_source_shapefile.shp')
-                print('candex is creating the shapefile from the netCDF file and saving it here:')
+                print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
                 print(self.temp_dir+self.case_name+'_source_shapefile.shp')
             if (self.case == 1 or self.case == 2)  and (self.source_shp != ''):
                 source_shp_gpd = gpd.read_file(self.source_shp)
                 source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
                     self.source_shp_lon, self.source_shp_ID)
                 source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
-                print('candex detect the shapefile is provided and will resave it here:')
+                print('EASYMORE detect the shapefile is provided and will resave it here:')
                 print(self.temp_dir+self.case_name+'_source_shapefile.shp')
             # if case 3 or source shapefile is provided
             if (self.case == 3) and (self.source_shp != ''):
@@ -98,7 +98,7 @@ class candex:
                 source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
                     self.source_shp_lon, self.source_shp_ID)
                 source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
-                print('candex is creating the shapefile from the netCDF file and saving it here:')
+                print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
                 print(self.temp_dir+self.case_name+'_source_shapefile.shp')
             # expand source shapefile
             source_shp_gpd = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
@@ -167,11 +167,11 @@ class candex:
     def get_col_row(self):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function creates the dataframe with assosiated latitude and longitude or source file and
-        its location of data by column and row for candex to extract/remap data
+        its location of data by column and row for EASYMORE to extract/remap data
         """
         # find the case
         self.NetCDF_SHP_lat_lon()
@@ -192,25 +192,25 @@ class candex:
     def check_candex_input(self):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
-        the functions checkes if the necessary candex object are provided from the user
+        the functions checkes if the necessary EASYMORE object are provided from the user
         """
         if self.temp_dir != '':
             if self.temp_dir[-1] != '/':
-                sys.exit('the provided temporary folder for candex should end with (/)')
+                sys.exit('the provided temporary folder for EASYMORE should end with (/)')
             if not os.path.isdir(self.temp_dir):
                 os.mkdir(self.temp_dir)
         if self.output_dir == '':
-            sys.exit('the provided folder for candex remapped netCDF output is missing; please provide that')
+            sys.exit('the provided folder for EASYMORE remapped netCDF output is missing; please provide that')
         if self.output_dir != '':
             if self.output_dir[-1] != '/':
-                sys.exit('the provided output folder for candex should end with (/)')
+                sys.exit('the provided output folder for EASYMORE should end with (/)')
             if not os.path.isdir(self.output_dir):
                 os.mkdir(self.output_dir)
         if self.temp_dir == '':
-            print("No temporary folder is provided for candex; this will result in candex saving the files in the same directory as python script")
+            print("No temporary folder is provided for EASYMORE; this will result in EASYMORE saving the files in the same directory as python script")
         if self.author_name == '':
             print("no author name is provide and the author name is changed to (author name)!")
             self.author_name = "author name"
@@ -218,14 +218,14 @@ class candex:
             if (len(self.var_names) != len(self.fill_value_list)) and \
             (len(self.var_names) != len(self.format_list)) and \
             (len(self.format_list) == 1) and (len(self.fill_value_list) ==1):
-                print('candex is given multiple varibales to be remapped but only on format and fill value'+\
-                    'candex repeat the format and fill value for all the variables in output files')
+                print('EASYMORE is given multiple varibales to be remapped but only on format and fill value'+\
+                    'EASYMORE repeat the format and fill value for all the variables in output files')
                 self.format_list     = self.format_list     * len(self.var_names)
                 self.fill_value_list = self.fill_value_list * len(self.var_names)
             else:
                 sys.exit('number of varibales and fill values and formats do not match')
         if self.remap_csv != '':
-            print('remap file is provided; candex will use this file and skip calculation of remapping')
+            print('remap file is provided; EASYMORE will use this file and skip calculation of remapping')
         if len(self.var_names) != len(set(self.var_names)):
             sys.exit('the name of the variables you have provided from the source NetCDF file to be remapped are not unique')
         if self.var_names_remapped:
@@ -236,12 +236,12 @@ class candex:
         if not self.var_names_remapped:
             self.var_names_remapped = self.var_names
         for i in np.arange(len(self.var_names)):
-            print('candex will remap variable ',self.var_names[i],' from source file to variable ',self.var_names_remapped[i],' in remapped NeCDF file')
+            print('EASYMORE will remap variable ',self.var_names[i],' from source file to variable ',self.var_names_remapped[i],' in remapped NeCDF file')
 
     def check_target_shp (self,shp):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         this function check if target shapefile and add ID and centroid lat and lon is not provided
@@ -258,21 +258,21 @@ class candex:
         if 'epsg:4326' not in str(shp.crs).lower():
             sys.exit('please project your shapefile to WGS84 (epsg:4326)')
         else: # check if the projection is WGS84 (or epsg:4326)
-            print('candex detects that target shapefile is in WGS84 (epsg:4326)')
+            print('EASYMORE detects that target shapefile is in WGS84 (epsg:4326)')
         # check if the ID, latitude, longitude are provided
         if self.target_shp_ID == '':
-            print('candex detects that no field for ID is provided in sink/target shapefile')
+            print('EASYMORE detects that no field for ID is provided in sink/target shapefile')
             print('arbitarary values of ID are added in the field ID_t')
             shp['ID_t']  = np.arange(len(shp))+1
         else:
-            print('candex detects that the field for ID is provided in sink/target shapefile')
+            print('EASYMORE detects that the field for ID is provided in sink/target shapefile')
             # check if the provided IDs are unique
             ID_values = np.array(shp[self.target_shp_ID])
             if len(ID_values) != len(np.unique(ID_values)):
                 sys.exit('The provided IDs in shapefile are not unique; provide unique IDs or do not identify target_shp_ID')
             shp['ID_t'] = shp[self.target_shp_ID]
         if self.target_shp_lat == '' or self.target_shp_lon == '':
-            print('candex detects that either of the fields for latitude or longitude is not provided in sink/target shapefile')
+            print('EASYMORE detects that either of the fields for latitude or longitude is not provided in sink/target shapefile')
             print('calculating centroid of shapes in equal area projection')
             shp_temp = shp.to_crs ("EPSG:6933") # source shapefile to equal area
             lat_c = np.array(shp_temp.centroid.y) # centroid lat from target
@@ -291,18 +291,18 @@ class candex:
             print('point shapefile for centroid of the shapes is saves here:')
             print(self.temp_dir+self.case_name+'_centroid.shp')
         if self.target_shp_lat == '':
-            print('candex detects that no field for latitude is provided in sink/target shapefile')
+            print('EASYMORE detects that no field for latitude is provided in sink/target shapefile')
             print('latitude values are added in the field lat_t')
             shp['lat_t']  = shp_points ['lat'] # centroid lat from target
         else:
-            print('candex detects that the field latitude is provided in sink/target shapefile')
+            print('EASYMORE detects that the field latitude is provided in sink/target shapefile')
             shp['lat_t'] = shp[self.target_shp_lat]
         if self.target_shp_lon == '':
-            print('candex detects that no field for longitude is provided in sink/target shapefile')
+            print('EASYMORE detects that no field for longitude is provided in sink/target shapefile')
             print('longitude values are added in the field lon_t')
             shp['lon_t']  = shp_points ['lon'] # centroid lon from target
         else:
-            print('candex detects that the field longitude is provided in sink/target shapefile')
+            print('EASYMORE detects that the field longitude is provided in sink/target shapefile')
             shp['lon_t'] = shp[self.target_shp_lat]
         # check other geometries and add buffer if needed
         detected_points = False
@@ -328,14 +328,14 @@ class candex:
                 shp.geometry.iloc[index] = polys
         # print messages
         if detected_points:
-            print('candex detects point(s) as geometry of target shapefile and will apply small buffer to them')
+            print('EASYMORE detects point(s) as geometry of target shapefile and will apply small buffer to them')
         if detected_multipoints:
-            print('candex detected multipoint as geometry of target shapefile and will considere it as multipolygone')
-            print('hence candex will provide the average of all the point in each multipoint')
+            print('EASYMORE detected multipoint as geometry of target shapefile and will considere it as multipolygone')
+            print('hence EASYMORE will provide the average of all the point in each multipoint')
             print('if you mistakenly have given poitns as multipoints please correct the target shapefile')
         if detected_lines:
-            print('candex detected line as geometry of target shapefile and will considere it as polygon (adding small buffer)')
-        print('it seems everything is OK with the sink/target shapefile; added to candex object target_shp_gpd')
+            print('EASYMORE detected line as geometry of target shapefile and will considere it as polygon (adding small buffer)')
+        print('it seems everything is OK with the sink/target shapefile; added to EASYMORE object target_shp_gpd')
         if self.sort_ID:
             shp = shp.sort_values(by='ID_t')
             shp = shp.reset_index(drop=True)
@@ -345,7 +345,7 @@ class candex:
     def check_source_nc (self):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function checks the consistency of the dimentions and varibales for source netcdf file(s)
@@ -353,7 +353,7 @@ class candex:
         flag_do_not_match = False
         nc_names = glob.glob (self.source_nc)
         if not nc_names:
-            sys.exit('candex detects no netCDF file; check the path to the soure netCDF files')
+            sys.exit('EASYMORE detects no netCDF file; check the path to the soure netCDF files')
         else:
             ncid      = nc4.Dataset(nc_names[0])
             var_dim   = list(ncid.variables[self.var_names[0]].dimensions)
@@ -418,27 +418,27 @@ class candex:
                 ncid = nc4.Dataset(nc_name)
                 temp = ncid.variables[self.var_time].dimensions
                 if len(temp) != 1:
-                    sys.exit('candex expects 1D time varibale, it seems time varibales has more than 1 dimension')
+                    sys.exit('EASYMORE expects 1D time varibale, it seems time varibales has more than 1 dimension')
                 if str(temp[0]) != self.var_time:
-                    sys.exit('candex expects time varibale and dimension to be different, they should be the same\
+                    sys.exit('EASYMORE expects time varibale and dimension to be different, they should be the same\
                     for xarray to consider time dimension as coordinates')
         if flag_do_not_match:
-            sys.exit('candex detects that all the provided netCDF files and varibale \
+            sys.exit('EASYMORE detects that all the provided netCDF files and varibale \
 has different dimensions for the varibales or latitude and longitude')
         else:
-            print('candex detects that the varibales from the netCDF files are identical\
+            print('EASYMORE detects that the varibales from the netCDF files are identical\
 in dimensions of the varibales and latitude and longitude')
-            print('candex detects that all the varibales have dimensions of:')
+            print('EASYMORE detects that all the varibales have dimensions of:')
             print(var_dim)
-            print('candex detects that the longitude varibales has dimensions of:')
+            print('EASYMORE detects that the longitude varibales has dimensions of:')
             print(lon_dim)
-            print('candex detects that the latitude varibales has dimensions of:')
+            print('EASYMORE detects that the latitude varibales has dimensions of:')
             print(lat_dim)
 
     def check_source_nc_shp (self):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function checks the source netcdf file shapefile
@@ -458,7 +458,7 @@ in dimensions of the varibales and latitude and longitude')
         if 'epsg:4326' not in str(shp.crs).lower():
             sys.exit('please project your source shapefile and varibales in source nc files to WGS84 (epsg:4326)')
         else: # check if the projection is WGS84 (or epsg:4326)
-            print('candex detects that source shapefile is in WGS84 (epsg:4326)')
+            print('EASYMORE detects that source shapefile is in WGS84 (epsg:4326)')
         # get the lat/lon from source shapfile and nc files
         lat_shp = np.array(shp[self.source_shp_lat]); lat_shp = lat_shp.astype(float)
         lon_shp = np.array(shp[self.source_shp_lon]); lon_shp = lon_shp.astype(float)
@@ -511,7 +511,7 @@ in dimensions of the varibales and latitude and longitude')
     def NetCDF_SHP_lat_lon(self):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function checks dimension of the source shapefile and checks the case of regular, rotated, and irregular
@@ -531,7 +531,7 @@ in dimensions of the varibales and latitude and longitude')
         if (len(ncid.variables[self.var_lon].dimensions)==1) and\
         (len(ncid.variables[self.var_lon].dimensions)==1) and\
         (len(ncid.variables[self.var_names[0]].dimensions)==3):
-            print('candex detects case 1 - regular lat/lon')
+            print('EASYMORE detects case 1 - regular lat/lon')
             self.case = 1
             # get the list of dimensions for the ncid sample varibale
             list_dim_name = list(ncid.variables[self.var_names[0]].dimensions)
@@ -592,7 +592,7 @@ in dimensions of the varibales and latitude and longitude')
             self.lon_expanded = lon_expanded
         # case #2 rotated lat/lon
         if (len(ncid.variables[self.var_lat].dimensions)==2) and (len(ncid.variables[self.var_lon].dimensions)==2):
-            print('candex detects case 2 - rotated lat/lon')
+            print('EASYMORE detects case 2 - rotated lat/lon')
             self.case = 2
             lat = ncid.variables[self.var_lat][:,:]
             lon = ncid.variables[self.var_lon][:,:]
@@ -604,13 +604,13 @@ in dimensions of the varibales and latitude and longitude')
         # case #3 1-D lat/lon and 2 data for irregulat shapes
         if (len(ncid.variables[self.var_lat].dimensions)==1) and (len(ncid.variables[self.var_lon].dimensions)==1) and\
            (len(ncid.variables[self.var_names[0]].dimensions)==2):
-            print('candex detects case 3 - irregular lat/lon; shapefile should be provided')
+            print('EASYMORE detects case 3 - irregular lat/lon; shapefile should be provided')
             self.case = 3
             lat = ncid.variables[self.var_lat][:]
             lon = ncid.variables[self.var_lon][:]
             #print(lat, lon)
             if self.var_ID  == '':
-                print('candex detects that no varibale for ID of the source netCDF file; an arbitatiry ID will be provided')
+                print('EASYMORE detects that no varibale for ID of the source netCDF file; an arbitatiry ID will be provided')
                 ID =  np.arange(len(lat))+1 # pass arbitarary values
             else:
                 ID = ncid.variables[self.var_ID][:]
@@ -627,7 +627,7 @@ in dimensions of the varibales and latitude and longitude')
                     file_name):
         """
         @ author:                  Shervan Gharari, Wouter Knoben
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function creates a shapefile for the source netcdf file
@@ -702,7 +702,7 @@ in dimensions of the varibales and latitude and longitude')
                                 source_shp_ID):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function add lat, lon and ID from the source shapefile if provided
@@ -731,7 +731,7 @@ in dimensions of the varibales and latitude and longitude')
                             case_name):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function add lat, lon and ID from the source shapefile if provided
@@ -761,7 +761,7 @@ in dimensions of the varibales and latitude and longitude')
             print('it seems the source shapefile is already expanded between -180 to 360 longitude')
         else:
             if max (shp['lon_s']) > 180 and min (shp['lon_s']) > 0 and max (shp['lon_s']) < 360:
-                print('candex decides the netCDF file has longtitude values of 0 to 360; creating the extended')
+                print('EASYMORE decides the netCDF file has longtitude values of 0 to 360; creating the extended')
                 shp1 = shp [shp['lon_s'] <= 180]
                 shp2 = shp [shp['lon_s'] >  180]
                 if not shp1.empty:
@@ -785,7 +785,7 @@ in dimensions of the varibales and latitude and longitude')
                 temp.to_file(temp_dir+case_name+'_source_shapefile_expanded.shp')
             # the netcdf file has values between -180 to 180
             elif min (shp['lon_s']) > -180 and max (shp['lon_s']) < 180:
-                print('candex decides the netCDF file has longtitude values of -180 to 180; creating the extended')
+                print('EASYMORE decides the netCDF file has longtitude values of -180 to 180; creating the extended')
                 shp1 = shp [shp['lon_s'] >   0]
                 shp2 = shp [shp['lon_s'] <=  0]
                 if not shp1.empty:
@@ -808,7 +808,7 @@ in dimensions of the varibales and latitude and longitude')
                         temp = gpd.GeoDataFrame( pd.concat( [temp,shp1] , ignore_index=True )  )
                 temp.to_file(temp_dir+case_name+'_source_shapefile_expanded.shp')
             else:
-                sys.exit('candex cannot decide about the lat and lon of the shapefiles')
+                sys.exit('EASYMORE cannot decide about the lat and lon of the shapefiles')
         result = gpd.read_file(temp_dir+case_name+'_source_shapefile_expanded.shp')
         return result
 
@@ -818,7 +818,7 @@ in dimensions of the varibales and latitude and longitude')
                         lon_source):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         this function add the corresponsing row and columns from the source NetCDF file
@@ -829,7 +829,7 @@ in dimensions of the varibales and latitude and longitude')
         lon_source: numpy array of source lon
         Returns
         -------
-        int_df: dataframe, including the associated rows and cols and candex case
+        int_df: dataframe, including the associated rows and cols and EASYMORE case
         """
         # the lat lon from the intersection/remap
         lat_source_int = np.array(int_df['lat_s'])
@@ -851,7 +851,7 @@ in dimensions of the varibales and latitude and longitude')
                             lon_target_int):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         this fucntion gets the row and colomns of the source netcdf file and returns it
@@ -885,7 +885,7 @@ in dimensions of the varibales and latitude and longitude')
                              remap_df):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         this function check the remapping dataframe
@@ -902,18 +902,18 @@ in dimensions of the varibales and latitude and longitude')
                     cols
                     order
         """
-        # check if there is candex_case in the columns
+        # check if there is EASYMORE_case in the columns
         if 'candex_case' in remap_df.columns:
-            print('candex case exists in the remap file')
+            print('EASYMORE case exists in the remap file')
         else:
-            sys.exit('candex case field do not esits in the remap file; make sure to include this and take care if your do it manually!')
+            sys.exit('EASYMORE case field do not esits in the remap file; make sure to include this and take care if your do it manually!')
         # check if all the candex_case is unique for the data set
         if not (len(np.unique(np.array(remap_df['candex_case'])))==1):
-            sys.exit('the candex_case is not unique in the remapping file')
+            sys.exit('the EASYMORE_case is not unique in the remapping file')
         if not (np.unique(np.array(remap_df['candex_case'])) == 1 or\
         np.unique(np.array(remap_df['candex_case'])) == 2 or\
         np.unique(np.array(remap_df['candex_case'])) == 3):
-            sys.exit('candex case should be one of 1, 2 or 3; please refer to the documentation')
+            sys.exit('EASYMORE case should be one of 1, 2 or 3; please refer to the documentation')
         self.case = np.unique(np.array(remap_df['candex_case']))
         # check if the needed columns are existing
         if not set(['ID_t','lat_t','lon_t','order_t','ID_s','lat_s','lon_s','weight']) <= set(remap_df.columns):
@@ -923,7 +923,7 @@ in dimensions of the varibales and latitude and longitude')
     def __target_nc_creation(self):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This funciton read different grids and sum them up based on the
@@ -1027,7 +1027,7 @@ in dimensions of the varibales and latitude and longitude')
                 ncid.Author = 'The data were written by ' + self.author_name
                 ncid.License = self.license
                 ncid.History = 'Created ' + time.ctime(time.time())
-                ncid.Source = 'Case: ' +self.case_name + '; remapped by script from library of Shervan Gharari (https://github.com/ShervanGharari/candex).'
+                ncid.Source = 'Case: ' +self.case_name + '; remapped by script from library of Shervan Gharari (https://github.com/ShervanGharari/EASYMORE).'
                 # write varibales
                 for i in np.arange(len(self.var_names)):
                     var_value  = self.__weighted_average( nc_name,
@@ -1133,7 +1133,7 @@ in dimensions of the varibales and latitude and longitude')
         import shapely
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @license:                  GNU-GPLv3
         This fucntion intersect two shapefile. It keeps the fiels from the first and second shapefiles (identified by S_1_ and
@@ -1329,7 +1329,7 @@ in dimensions of the varibales and latitude and longitude')
                             crs=None):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function creates a geopandas dataframe of lat, lon and IDs provided
@@ -1362,7 +1362,7 @@ in dimensions of the varibales and latitude and longitude')
                             field_ID_2 = None):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function reads the two shapefile in WGS84 and return the percent of intersection
@@ -1420,7 +1420,7 @@ in dimensions of the varibales and latitude and longitude')
           --version     Show version.
         modified by:
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function creates a geopandas dataframe of lat, lon and IDs provided
@@ -1631,7 +1631,7 @@ in dimensions of the varibales and latitude and longitude')
         https://gis.stackexchange.com/questions/164853/reading-modifying-and-writing-a-geotiff-with-gdal-in-python
         modified by:
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function creates a raster file based on assiging single values to a given range of cell values;
@@ -1725,7 +1725,7 @@ in dimensions of the varibales and latitude and longitude')
         https://gis.stackexchange.com/questions/254410/raster-to-vector-conversion-using-gdal-python
         modified by:
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function reads a raster file in geotiff and return vector values refering to that raster
@@ -1758,7 +1758,7 @@ in dimensions of the varibales and latitude and longitude')
                         name_of_filed):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function recieve a shapefile name and its colomn to be dissolved
@@ -1787,7 +1787,7 @@ in dimensions of the varibales and latitude and longitude')
         https://gis.stackexchange.com/questions/317391/python-extract-raster-values-at-point-locations/324830
         modified by:
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function reads a raster file in geotiff and return vector values refering to cells of that raster
@@ -1821,7 +1821,7 @@ in dimensions of the varibales and latitude and longitude')
         https://towardsdatascience.com/how-to-create-voronoi-regions-with-geospatial-data-in-python-adbb6c5f2134
         modified by:
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function reads a shapefile of points and return the Thiessen or Voronoi polygons
@@ -1890,7 +1890,7 @@ in dimensions of the varibales and latitude and longitude')
                             down_IDs):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function get a 1-D array of numpy arrays of river reach ID and a similar 1-D array
@@ -1938,7 +1938,7 @@ in dimensions of the varibales and latitude and longitude')
                             NTOPO):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function gets a segmenet ID, a 1-D array of numpy arrays of river reach ID and
@@ -1985,7 +1985,7 @@ in dimensions of the varibales and latitude and longitude')
 
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This functions recives a path to a DEM raster file and create the flow direction
@@ -2006,7 +2006,7 @@ in dimensions of the varibales and latitude and longitude')
         grid = Grid.from_raster(dem_tif_in, data_name='dem')
         crs = str(grid.crs)
         if 'wgs84' in crs.lower():
-            print('easymore detect the tif file is projected in WGS84')
+            print('EASYMORE detect the tif file is projected in WGS84')
         else:
             sys.exit('the provided DEM should be in WGS84')
         grid_size = grid.cellsize
@@ -2015,12 +2015,12 @@ in dimensions of the varibales and latitude and longitude')
         if not os.path.isdir(self.output_dir):
             os.mkdir(self.output_dir)
         if dir_tif_in:
-            print('providing the acc_tif_in is not yet supported, easymore with calculate direction internally')
-            print('easymore set dir_tif_in to None')
+            print('providing the acc_tif_in is not yet supported, EASYMORE with calculate direction internally')
+            print('EASYMORE set dir_tif_in to None')
             dir_tif_in = None
         if acc_tif_in:
-            print('providing the acc_tif_in is not yet supported, easymore with calculate accumulation internally')
-            print('easymore set acc_tif_in to None')
+            print('providing the acc_tif_in is not yet supported, EASYMORE with calculate accumulation internally')
+            print('EASYMORE set acc_tif_in to None')
             acc_tif_in = None
         self.dem_processing (dem_tif_in,
                              dir_tif_in = None,
@@ -2086,7 +2086,7 @@ in dimensions of the varibales and latitude and longitude')
         https://github.com/mdbartos/pysheds
         modified by:
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function reads a dem (or also a direction file and map) and generate the dir file, and flow accumualtion
@@ -2106,8 +2106,8 @@ in dimensions of the varibales and latitude and longitude')
         # Add new dir to grid as float and save in temporary folder
         if not dir_tif_in:
             grid.flowdir(data='inflated_dem', out_name='dir', dirmap=dirmap)
-            print('direction map is not provided; candex will calculate flow direction and save in temporary file:')
-            print('candex will save the direction file here: ', self.temp_dir+self.case_name+'_dir.tif')
+            print('direction map is not provided; EASYMORE will calculate flow direction and save in temporary file:')
+            print('EASYMORE will save the direction file here: ', self.temp_dir+self.case_name+'_dir.tif')
             grid.add_gridded_data(grid.dir.astype(float), data_name='dir_new', affine=grid.affine,
                                   shape=grid.dem.shape, crs=grid.crs, nodata=grid.dir.nodata)
             grid.to_raster('dir_new', self.temp_dir+self.case_name+'_dir.tif' , view=False)
@@ -2116,7 +2116,7 @@ in dimensions of the varibales and latitude and longitude')
             # Add new dir to grid as float
             grid.add_gridded_data(grid.acc.astype(float), data_name='acc_new', affine=grid.affine,
                                   shape=grid.dem.shape, crs=grid.crs, nodata=grid.acc.nodata)
-            print('candex will save the accumulation file here: ', self.temp_dir+self.case_name+'_acc.tif')
+            print('EASYMORE will save the accumulation file here: ', self.temp_dir+self.case_name+'_acc.tif')
             grid.to_raster('acc_new', self.temp_dir+self.case_name+'_acc.tif' , view=False)
 
     def river  (self,
@@ -2134,7 +2134,7 @@ in dimensions of the varibales and latitude and longitude')
         https://github.com/mdbartos/pysheds
         modified by:
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function reads direction and flow accumulation and the most downstream point and threshold

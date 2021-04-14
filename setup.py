@@ -20,6 +20,7 @@ setup(
         'osgeos',
         'geovoronoi',
         'json5',
+        'rasterio',
     ],
     author_email='sh.gharari@gmail.com',
     description=(
