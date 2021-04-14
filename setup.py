@@ -16,6 +16,10 @@ setup(
         'datetime',
         'simpledbf',
         'pyshp',
+        'pysheds',
+        'osgeos',
+        'geovoronoi',
+        'json5',
     ],
     author_email='sh.gharari@gmail.com',
     description=(
