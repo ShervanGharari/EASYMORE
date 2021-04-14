@@ -17,7 +17,7 @@ setup(
         'simpledbf',
         'pyshp',
         'pysheds',
-        'osgeos',
+        'osgeo',
         'geovoronoi',
         'json5',
         'rasterio',
