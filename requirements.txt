@@ -21,3 +21,7 @@ zope.interface==5.2.0
 DateTime==4.3
 simpledbf==0.2.6
 pyshp==2.1.3
+osgeo==0.0.0
+pysheds==0.2.7
+geovoronoi==0.3.0
+json5==0.9.5

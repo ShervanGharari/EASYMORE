@@ -1013,7 +1013,7 @@ in dimensions of the varibales and latitude and longitude')
                 # Attributes
                 lat_varid.long_name = self.remapped_var_lat
                 lon_varid.long_name = self.remapped_var_lon
-                hruId_varid.long_name = 'subbasin ID'
+                hruId_varid.long_name = 'shape ID'
                 lat_varid.units = 'degrees_north'
                 lon_varid.units = 'degrees_east'
                 hruId_varid.units = '1'
@@ -2233,21 +2233,21 @@ in dimensions of the varibales and latitude and longitude')
             ind = list(set(indy).intersection(indx))
             # assign the list of downstream segment to the field if no downstream -9999
             if str(ind).strip('[]') != '':
-                shp['Down_ID'].loc[index] = shp['ID'].iloc[int(str(ind).strip('[]'))]
+                shp['Down_ID'].iloc[index] = shp['ID'].iloc[int(str(ind).strip('[]'))]
             else:
-                shp['Down_ID'].loc[index] = -9999
+                shp['Down_ID'].iloc[index] = -9999
         # creat a list of immidiate upstream
         for index, row in shp.iterrows():
             # get the ID of the river segment
-            ID = shp['ID'].iloc[index]
+            ID = shp['ID'].loc[index]
             # find the immidate upstream
             ind = shp.index[shp['Down_ID'] == ID]
-            indup = shp['ID'].iloc[ind].tolist()
+            indup = shp['ID'].loc[ind].tolist()
             shp['Up_ID'] = str(indup)
             # assign the upstream list
             for i in np.arange(len(indup)):
                 field_name = 'Up'+str(i+1)+'_ID'
-                shp[field_name].loc[index] = indup[i]
+                shp[field_name].iloc[index] = indup[i]
         if dem_tif_in:
             values = self.extract_value_tiff (np.array(shp['start_lon'])+grid_size/2,
                                               np.array(shp['start_lat'])-grid_size/2,
