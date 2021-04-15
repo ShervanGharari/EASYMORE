@@ -8,6 +8,7 @@ import pandas       as pd
 import xarray       as xr
 import sys
 import os
+import warnings
 from   datetime     import datetime
 
 
@@ -110,8 +111,14 @@ class candex:
             shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile_expanded.shp')
             # subset the extended shapefile based on the sink/target shapefile
             min_lon, min_lat, max_lon, max_lat = shp_1.total_bounds
+            
+            # Catch the warnings that these centroids are likely in inaccurate locations because of the projection.
+            # This doesn't matter in this particular case because the lat/lon coordinates are only used as extra IDs.
+            warnings.simplefilter('ignore')
             shp_2 ['lat_temp'] = shp_2.centroid.y
             shp_2 ['lon_temp'] = shp_2.centroid.x
+            warnings.simplefilter('default') # back to normal
+
             if (-180<min_lon) and max_lon<180:
                 shp_2 = shp_2 [shp_2['lon_temp'] <=  180]
                 shp_2 = shp_2 [-180 <= shp_2['lon_temp']]
@@ -1050,7 +1057,8 @@ in dimensions of the varibales and latitude and longitude')
                 for i in np.arange(len(self.var_names_remapped)):
                     new_list = list(self.var_names_remapped) # new lists
                     del new_list[i] # remove one value
-                    ds_temp = ds.drop(new_list) # drop all the other varibales excpet target varibale, lat, lon and time
+                    #ds_temp = ds.drop(new_list) # drop all the other varibales excpet target varibale, lat, lon and time
+                    ds_temp = ds.drop_vars(new_list) # drop all the other varibales excpet target varibale, lat, lon and time
                     if 'units' in ds[self.var_names_remapped[i]].attrs.keys():
                         dictionary = {self.var_names_remapped[i]:self.var_names_remapped[i]+' ['+ds[self.var_names_remapped[i]].attrs['units']+']'}
                         ds_temp = ds_temp.rename_vars(dictionary)
@@ -1256,11 +1264,13 @@ in dimensions of the varibales and latitude and longitude')
             for i,j in pairs.items():
                 for k in j:
                     nei.append([i,k])
-            pairs = gpd.GeoDataFrame(nei, columns=['idx1','idx2'], crs=df1.crs)
+            #pairs = gpd.GeoDataFrame(nei, columns=['idx1','idx2'], crs=df1.crs)
+            pairs = gpd.GeoDataFrame(nei, columns=['idx1','idx2'])
             pairs = pairs.merge(df1, left_on='idx1', right_index=True)
             pairs = pairs.merge(df2, left_on='idx2', right_index=True, suffixes=['_1','_2'])
             pairs['Intersection'] = pairs.apply(lambda x: (x['geometry_1'].intersection(x['geometry_2'])).buffer(0), axis=1)
-            pairs = gpd.GeoDataFrame(pairs, columns=pairs.columns, crs=df1.crs)
+            #pairs = gpd.GeoDataFrame(pairs, columns=pairs.columns, crs=df1.crs)
+            pairs = gpd.GeoDataFrame(pairs, columns=pairs.columns)
             cols = pairs.columns.tolist()
             cols.remove('geometry_1')
             cols.remove('geometry_2')
@@ -1269,7 +1279,8 @@ in dimensions of the varibales and latitude and longitude')
             cols.remove('Intersection')
             dfinter = pairs[cols+['Intersection']].copy()
             dfinter.rename(columns={'Intersection':'geometry'}, inplace=True)
-            dfinter = gpd.GeoDataFrame(dfinter, columns=dfinter.columns, crs=pairs.crs)
+            #dfinter = gpd.GeoDataFrame(dfinter, columns=dfinter.columns, crs=pairs.crs)
+            dfinter = gpd.GeoDataFrame(dfinter, columns=dfinter.columns, crs=df1.crs)
             dfinter = dfinter.loc[dfinter.geometry.is_empty==False]
             dfinter.drop(['idx1','idx2'], inplace=True, axis=1)
             return dfinter
