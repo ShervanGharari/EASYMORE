@@ -1602,7 +1602,8 @@ in dimensions of the varibales and latitude and longitude')
                 unique = np.fromstring(unique, dtype=float, sep=' ')
                 idx = np.where(frequency == np.max(frequency))
                 value = unique[idx]
-                shp['mode'].iloc[index] = str(value)
+                shp.iloc[index, shp.columns.get_loc('mode')] = str(value)
+                #shp['mode'].iloc[index] = str(value)
         return shp
 
     def bbox_to_pixel_offsets(self,gt, bbox):
@@ -2227,12 +2228,20 @@ in dimensions of the varibales and latitude and longitude')
         for index, row in shp.iterrows():
             line = np.asarray(row['geometry'])
             # populate the filed
-            shp['start_lat'].iloc[index] = line[-1,1]
-            shp['start_lon'].iloc[index] = line[-1,0]
-            shp['end_lat'].iloc[index]   = line[0,1]
-            shp['end_lon'].iloc[index]   = line[0,0]
-            shp['end_lat_b'].iloc[index] = line[1,1] # one before merged point not to include all the contributing area of confluence
-            shp['end_lon_b'].iloc[index] = line[1,0] # one before merged point not to include all the contributing area of confluence
+            shp.iloc[index, shp.columns.get_loc('start_lat')] = line[-1,1]
+            shp.iloc[index, shp.columns.get_loc('start_lon')] = line[-1,0]
+            shp.iloc[index, shp.columns.get_loc('end_lat')]   = line[0,1]
+            shp.iloc[index, shp.columns.get_loc('end_lon')]   = line[0,0]
+            shp.iloc[index, shp.columns.get_loc('end_lat_b')] = line[1,1] # one before merged point not to include all the contributing area of confluence
+            shp.iloc[index, shp.columns.get_loc('end_lon_b')] = line[1,0] # one before merged point not to include all the contributing area of confluence
+            
+            # --- old code that uses 'chained indexing' - cleaner to use iloc[] to find both row and column
+            #shp['start_lat'].iloc[index] = line[-1,1]
+            #shp['start_lon'].iloc[index] = line[-1,0]
+            #shp['end_lat'].iloc[index]   = line[0,1]
+            #shp['end_lon'].iloc[index]   = line[0,0]
+            #shp['end_lat_b'].iloc[index] = line[1,1] # one before merged point not to include all the contributing area of confluence
+            #shp['end_lon_b'].iloc[index] = line[1,0] # one before merged point not to include all the contributing area of confluence
         for index, row in shp.iterrows():
             # get the end lat, lon of a river segment
             end_lat = shp['end_lat'].iloc[index]
@@ -2244,9 +2253,13 @@ in dimensions of the varibales and latitude and longitude')
             ind = list(set(indy).intersection(indx))
             # assign the list of downstream segment to the field if no downstream -9999
             if str(ind).strip('[]') != '':
-                shp['Down_ID'].iloc[index] = shp['ID'].iloc[int(str(ind).strip('[]'))]
+                shp.iloc[index, shp.columns.get_loc('Down_ID')] = shp['ID'].iloc[int(str(ind).strip('[]'))]
+                # --- old code that uses 'chained indexing' - cleaner to use iloc[] to find both row and column
+                #shp['Down_ID'].iloc[index] = shp['ID'].iloc[int(str(ind).strip('[]'))]
             else:
-                shp['Down_ID'].iloc[index] = -9999
+                shp.iloc[index, shp.columns.get_loc('Down_ID')] = -9999
+                # --- old code that uses 'chained indexing' - cleaner to use iloc[] to find both row and column
+                #shp['Down_ID'].iloc[index] = -9999
         # creat a list of immidiate upstream
         for index, row in shp.iterrows():
             # get the ID of the river segment
@@ -2258,7 +2271,9 @@ in dimensions of the varibales and latitude and longitude')
             # assign the upstream list
             for i in np.arange(len(indup)):
                 field_name = 'Up'+str(i+1)+'_ID'
-                shp[field_name].iloc[index] = indup[i]
+                shp.iloc[index, shp.columns.get_loc(field_name)] = indup[i]
+                # --- old code that uses 'chained indexing' - cleaner to use iloc[] to find both row and column
+                #shp[field_name].iloc[index] = indup[i]
         if dem_tif_in:
             values = self.extract_value_tiff (np.array(shp['start_lon'])+grid_size/2,
                                               np.array(shp['start_lat'])-grid_size/2,
