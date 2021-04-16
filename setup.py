@@ -1,7 +1,7 @@
 from setuptools import find_packages, setup
 
 setup(
-    name='candex',
+    name='easymore',
     version='1.0.0',
     license='GPLv3',
     author=('Shervan Gharari', 'Wouter Knoben', 'Kasra Keshavarz',
@@ -44,5 +44,5 @@ setup(
         'Operating System :: OS Independent',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
-    scripts=['candex/candex.py']
+    scripts=['easymore/easymore.py']
 )

@@ -12,7 +12,7 @@ import warnings
 from   datetime     import datetime
 
 
-class candex:
+class easymore:
 
     def __init__(self):
         self.case_name                 =  'case_temp' # name of the case
@@ -50,7 +50,7 @@ class candex:
     #### NetCDF remapping
     ##############################################################
 
-    def run_candex(self):
+    def nc_remapper(self):
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
@@ -60,7 +60,7 @@ class candex:
         with regular, roated, irregular to a target shapefile
         """
         # check EASYMORE input
-        self.check_candex_input()
+        self.check_easymore_input()
         # if remap is not provided then create the remapping file
         if self.remap_csv == '':
             import geopandas as gpd
@@ -111,7 +111,7 @@ class candex:
             shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile_expanded.shp')
             # subset the extended shapefile based on the sink/target shapefile
             min_lon, min_lat, max_lon, max_lat = shp_1.total_bounds
-            
+
             # Catch the warnings that these centroids are likely in inaccurate locations because of the projection.
             # This doesn't matter in this particular case because the lat/lon coordinates are only used as extra IDs.
             warnings.simplefilter('ignore')
@@ -166,7 +166,7 @@ class candex:
         else:
             # check the remap file if provided
             int_df  = pd.read_csv(self.remap_csv)
-            self.check_candex_remap(int_df)
+            self.check_easymore_remap(int_df)
             # check the source nc file
             self.check_source_nc()
         self.__target_nc_creation()
@@ -196,7 +196,7 @@ class candex:
         lat_lon_row_col.to_csv(self.temp_dir+self.case_name+'_row_col_lat_lon.csv')
         self.col_row_name = self.temp_dir+self.case_name+'_row_col_lat_lon.csv'
 
-    def check_candex_input(self):
+    def check_easymore_input(self):
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
@@ -847,7 +847,7 @@ in dimensions of the varibales and latitude and longitude')
         int_df['rows'] = rows
         int_df['cols'] = cols
         # pass the case to the remap_df
-        int_df['candex_case'] = self.case
+        int_df['easymore_case'] = self.case
         # save remap_df as csv for future use
         return int_df
 
@@ -888,7 +888,7 @@ in dimensions of the varibales and latitude and longitude')
         # pass to class
         return rows, cols
 
-    def check_candex_remap(  self,
+    def check_easymore_remap(  self,
                              remap_df):
         """
         @ author:                  Shervan Gharari
@@ -910,18 +910,18 @@ in dimensions of the varibales and latitude and longitude')
                     order
         """
         # check if there is EASYMORE_case in the columns
-        if 'candex_case' in remap_df.columns:
+        if 'easymore_case' in remap_df.columns:
             print('EASYMORE case exists in the remap file')
         else:
             sys.exit('EASYMORE case field do not esits in the remap file; make sure to include this and take care if your do it manually!')
-        # check if all the candex_case is unique for the data set
-        if not (len(np.unique(np.array(remap_df['candex_case'])))==1):
+        # check if all the easymore_case is unique for the data set
+        if not (len(np.unique(np.array(remap_df['easymore_case'])))==1):
             sys.exit('the EASYMORE_case is not unique in the remapping file')
-        if not (np.unique(np.array(remap_df['candex_case'])) == 1 or\
-        np.unique(np.array(remap_df['candex_case'])) == 2 or\
-        np.unique(np.array(remap_df['candex_case'])) == 3):
+        if not (np.unique(np.array(remap_df['easymore_case'])) == 1 or\
+        np.unique(np.array(remap_df['easymore_case'])) == 2 or\
+        np.unique(np.array(remap_df['easymore_case'])) == 3):
             sys.exit('EASYMORE case should be one of 1, 2 or 3; please refer to the documentation')
-        self.case = np.unique(np.array(remap_df['candex_case']))
+        self.case = np.unique(np.array(remap_df['easymore_case']))
         # check if the needed columns are existing
         if not set(['ID_t','lat_t','lon_t','order_t','ID_s','lat_s','lon_s','weight']) <= set(remap_df.columns):
             sys.exit('provided remapping file does not have one of the needed fields: \n'+\
@@ -1087,7 +1087,7 @@ in dimensions of the varibales and latitude and longitude')
                            mapping_df):
         """
         @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/candex
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function reads the data for a given time and calculates the weighted average
@@ -2234,7 +2234,7 @@ in dimensions of the varibales and latitude and longitude')
             shp.iloc[index, shp.columns.get_loc('end_lon')]   = line[0,0]
             shp.iloc[index, shp.columns.get_loc('end_lat_b')] = line[1,1] # one before merged point not to include all the contributing area of confluence
             shp.iloc[index, shp.columns.get_loc('end_lon_b')] = line[1,0] # one before merged point not to include all the contributing area of confluence
-            
+
             # --- old code that uses 'chained indexing' - cleaner to use iloc[] to find both row and column
             #shp['start_lat'].iloc[index] = line[-1,1]
             #shp['start_lon'].iloc[index] = line[-1,0]
