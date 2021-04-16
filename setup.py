@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='easymore',
-    version='1.0.0',
+    version='0.0.0',
     license='GPLv3',
     author=('Shervan Gharari', 'Wouter Knoben', 'Kasra Keshavarz',
         'Martyn P. Clark', 'Berend Weel'),
