@@ -1,1 +1,1 @@
-from candex.candex import candex
+from easymore.easymore import easymore
