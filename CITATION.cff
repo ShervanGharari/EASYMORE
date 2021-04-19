@@ -1,0 +1,13 @@
+cff-version: 1.0.3
+message: If you use this software, please cite it as below.
+authors:
+  - family-names: Gharari
+    given-names: Shervan
+    orcid: https://orcid.org/0000-0002-5358-5714
+  - family-names: Knoben
+    given-names: Wouter
+    orcid: https://orcid.org/0000-0001-8301-3787
+title: easymore
+version: 0.0.0
+doi: 10.5281/zenodo.2628350
+date-released: 2019-04-4
