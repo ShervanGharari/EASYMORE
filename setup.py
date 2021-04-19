@@ -7,7 +7,7 @@ setup(
     author=('Shervan Gharari', 'Wouter Knoben'),
     author_email = 'sh.gharari@gmail.com',
     url = 'https://github.com/ShervanGharari/EASYMORE',
-    download_url = 'https://github.com/ShervanGharari/EASYMORE/archive/refs/tags/v0.0.0.tar.gz',
+    download_url = 'https://github.com/ShervanGharari/EASYMORE/archive/refs/tags/v0.0.01.tar.gz',
     keywords = ['remapping', 'NetCDF',
         'shapefile','geotif',
         'geo-spatial processing',
