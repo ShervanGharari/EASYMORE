@@ -5,6 +5,13 @@ setup(
     version='0.0.0',
     license='GPLv3',
     author=('Shervan Gharari', 'Wouter Knoben'),
+    author_email = 'sh.gharari@gmail.com',  
+    url = 'https://github.com/ShervanGharari/EASYMORE',  
+    download_url = 'https://github.com/ShervanGharari/EASYMORE/archive/refs/tags/v0.0.0.tar.gz',    
+    keywords = ['remapping', 'NetCDF',
+        'shapefile','geotif',
+        'geo-spatial processing',
+        'environmental modeling'],
     install_requires=[
         'numpy',
         'geopandas >= 0.8.1',
@@ -21,12 +28,11 @@ setup(
         'json5',
         'rasterio',
     ],
-    author_email='sh.gharari@gmail.com',
     description=(
-        'Extract catchment data from netcdf file based on a catchment shapefile'
+        'geo-spatial processing of the input data for environmental and hydrological modeling'
     ),
     long_description=(
-        'Extract catchment data from netcdf file based on a catchment shapefile'
+        'Extract data from netcdf file from any shape to any shape (such as catchments), geo-spatial processes such as creating subbains and river network topology, zonl statistics'
     ),
     packages=find_packages(),
     include_package_data=True,
