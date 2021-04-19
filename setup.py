@@ -5,9 +5,9 @@ setup(
     version='0.0.0',
     license='GPLv3',
     author=('Shervan Gharari', 'Wouter Knoben'),
-    author_email = 'sh.gharari@gmail.com',      # Type in your E-Mail
-    url = 'https://github.com/ShervanGharari/EASYMORE',   # Provide either the link to your github or to your website
-    download_url = 'https://github.com/user/reponame/archive/v_01.tar.gz',    # I explain this later on
+    author_email = 'sh.gharari@gmail.com',  
+    url = 'https://github.com/ShervanGharari/EASYMORE',  
+    download_url = 'https://github.com/ShervanGharari/EASYMORE/archive/refs/tags/v0.0.0.tar.gz',    
     keywords = ['remapping', 'NetCDF',
         'shapefile','geotif',
         'geo-spatial processing',
