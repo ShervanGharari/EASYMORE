@@ -38,7 +38,7 @@ go to the EASYMORE folder, where `setup.py` is located and install EASYMORE loca
 
 ## Flexibilities:
 
-1. EASYMORE allow for commbination of the remapping on local computer or remote high performance computer. For example, the the GIS steps of creating remapp file can be done locally on a sample file that contains few time step of the data (but all the domain). EASYMORE can then be directed to remapping file on the HPC and will skip all the needed GIS steps and directly start remapping process of bulk of the data.
+1. EASYMORE allow for commbination of the remapping of NetCDF on local computer or remote high performance computer. For example, the the GIS steps of creating remapping file can be done locally on a sample file that contains few time step of the data (but all the domain). EASYMORE can then be directed to remapping file on the HPC and will skip all the needed GIS steps and directly start remapping process of bulk of the data.
 
 ## Examples:
 
