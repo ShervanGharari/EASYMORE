@@ -1390,9 +1390,15 @@ in dimensions of the varibales and latitude and longitude')
         """
         import geopandas as gpd
         shp_1 = gpd.read_file(vector_path_1)
-        shp_1 = shp_1.to_crs ("EPSG:6933") # project to equal area
+        if not shp_1.crs:
+            sys.exit('first shapefile does not have a projection')
+        if "epsg:6933" not in str(shp_1.crs).lower():
+            shp_1 = shp_1.to_crs ("EPSG:6933") # project to equal area
         shp_2 = gpd.read_file(vector_path_2)
-        shp_2 = shp_2.to_crs ("EPSG:6933") # project to equal area
+        if not shp_2.crs:
+            sys.exit('second shapefile does not have a projection')
+        if "epsg:6933" not in str(shp_2.crs).lower():
+            shp_2 = shp_2.to_crs ("EPSG:6933") # project to equal area
         shp_int = self.intersection_shp(shp_1, shp_2)
         # rename dictionary
         dict_rename = {'S_1_'+field_ID_1: field_ID_1+'_1',
@@ -1408,7 +1414,7 @@ in dimensions of the varibales and latitude and longitude')
         shp_int = shp_int[column_list]
         shp_int['percent']   = shp_int['percent'] * 100 # to perent
         shp_int['percent_N'] = shp_int['percent_N'] * 100 # to perent
-        shp_int = shp_int.to_crs("EPSG:4326")
+        shp_int = shp_int.to_crs(shp_1.crs) # project to the first shapefile crs
         return shp_int
 
     def zonal_stat(self,
@@ -2013,6 +2019,7 @@ in dimensions of the varibales and latitude and longitude')
         """
         import geopandas as gpd
         import numpy as np
+        import pandas as pd
         from pysheds.grid import Grid
         import os
         grid = Grid.from_raster(dem_tif_in, data_name='dem')
@@ -2050,12 +2057,20 @@ in dimensions of the varibales and latitude and longitude')
                             dem_tif_in = dem_tif_in,
                             acc_tif_in = self.temp_dir+self.case_name+'_acc.tif',
                             grid_size = grid_size)
+        # calculate length of river segments
         shp = gpd.read_file(self.temp_dir+self.case_name+'_river_NTOPO.shp')
         shp_t = shp.to_crs ("EPSG:6933")
         shp['length'] = shp_t.geometry.length
         shp.to_file(self.temp_dir+self.case_name+'_river_NTOPO.shp')
+        # create the virtual gauges from the shp
+        df_gauge = pd.DataFrame()
+        df_gauge ['lat'] = shp['end_lat_b'].astype(float)
+        df_gauge ['lon'] = shp['end_lon_b'].astype(float)
+        df_gauge ['ID'] = shp['ID'].astype(float)
+        virtual_gauges = self.make_shape_point(df_gauge, 'lon', 'lat')
+        virtual_gauges.to_file(self.temp_dir+self.case_name+'_virtual_gauges.shp')
         self.subbasin_creation(  self.temp_dir+self.case_name+'_dir.tif',
-                                 self.temp_dir+self.case_name+'_river_NTOPO.shp',
+                                 self.temp_dir+self.case_name+'_virtual_gauges.shp',
                                  self.temp_dir+self.case_name+'_subbasin.tif')
         self.geotif2shp(   self.temp_dir+self.case_name+'_subbasin.tif',
                            self.temp_dir+self.case_name+'_subbasin.shp',
@@ -2234,14 +2249,6 @@ in dimensions of the varibales and latitude and longitude')
             shp.iloc[index, shp.columns.get_loc('end_lon')]   = line[0,0]
             shp.iloc[index, shp.columns.get_loc('end_lat_b')] = line[1,1] # one before merged point not to include all the contributing area of confluence
             shp.iloc[index, shp.columns.get_loc('end_lon_b')] = line[1,0] # one before merged point not to include all the contributing area of confluence
-
-            # --- old code that uses 'chained indexing' - cleaner to use iloc[] to find both row and column
-            #shp['start_lat'].iloc[index] = line[-1,1]
-            #shp['start_lon'].iloc[index] = line[-1,0]
-            #shp['end_lat'].iloc[index]   = line[0,1]
-            #shp['end_lon'].iloc[index]   = line[0,0]
-            #shp['end_lat_b'].iloc[index] = line[1,1] # one before merged point not to include all the contributing area of confluence
-            #shp['end_lon_b'].iloc[index] = line[1,0] # one before merged point not to include all the contributing area of confluence
         for index, row in shp.iterrows():
             # get the end lat, lon of a river segment
             end_lat = shp['end_lat'].iloc[index]
@@ -2298,24 +2305,25 @@ in dimensions of the varibales and latitude and longitude')
 
     def subbasin_creation(  self,
                             dir_tif_in,
-                            river_shp_in,
+                            gauges_shp_in,
                             subbasin_tiff_out,
                             dirmap = (64,  128,  1,   2,    4,   8,    16,  32)):#N, NE, E, SE, S, SW, W, NW
         from pysheds.grid import Grid
         import geopandas as gpd
         import numpy as np
-
         grid = Grid.from_raster(dir_tif_in, data_name='dir')
-        A = gpd.read_file(river_shp_in)
+        A = gpd.read_file(gauges_shp_in)
         # sort based on accumulation
-        A['end_lat_b'] = A['end_lat_b'].astype(float)
-        A['end_lon_b'] = A['end_lon_b'].astype(float)
+        warnings.simplefilter('ignore')
+        A['lat'] = A.centroid.y
+        A['lon'] = A.centroid.x
+        warnings.simplefilter('default')
         # initializing the sub_basin raster
         z1 = np.zeros(grid.shape)
         # loop over each segment of the river
         for index, row in A.iterrows():
             cat_ID = A['ID'].iloc[index] # get the ID of that river segment
-            c = grid.catchment(A['end_lon_b'].iloc[index], A['end_lat_b'].iloc[index], \
+            c = grid.catchment(A['lon'].iloc[index], A['lat'].iloc[index], \
                                data='dir', dirmap=dirmap, xytype='label', inplace=False)
             z1 += cat_ID * (c != 0).astype(int)
             idx = np.where(c != 0)

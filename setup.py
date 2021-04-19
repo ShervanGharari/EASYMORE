@@ -4,8 +4,7 @@ setup(
     name='easymore',
     version='0.0.0',
     license='GPLv3',
-    author=('Shervan Gharari', 'Wouter Knoben', 'Kasra Keshavarz',
-        'Martyn P. Clark', 'Berend Weel'),
+    author=('Shervan Gharari', 'Wouter Knoben'),
     install_requires=[
         'numpy',
         'geopandas >= 0.8.1',
