@@ -1,4 +1,4 @@
- [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2628350.svg)](https://doi.org/10.5281/zenodo.2628350)
+[![DOI](https://zenodo.org/badge/316842913.svg)](https://zenodo.org/badge/latestdoi/316842913)
 
 # EASYMORE; EArth SYstem MOdeling REmapper:
 
