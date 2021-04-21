@@ -1,5 +1,5 @@
 EASYMORE  object,Type,Explanation,Default,Examples
-case_name,String,It defines the name of the case. This string will be the starting name of all the generated temporary files and output files.,Ôcase_tempÕ,ÔERA5_SaskatchewanÕ
+case_name,String,It defines the name of the case. This string will be the starting name of all the generated temporary files and output files.,"case_tempÕ,ÔERA5_Saskatchewan"
 source_nc,String,"The string that the name of files that are used as source file to be remapped (including path). If there are multiple files, it can be shared part of the file names including the * character. ",,`/Users/username/nc/ERA_5*.nc`
 var_names,List of strings,List of names of variables from the source NetCDF file(s) that are required to be remapped to the sink/target shapes.,,"[Ôair_tempÕ,Õ pptrateÕ]"
 var_lon,String,"Variable of NetCDF, and not dimension, that hold the longitude values. NOT the dimension",,ÔlongituteÕ
