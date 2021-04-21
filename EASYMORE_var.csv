@@ -27,7 +27,7 @@ fill_value_list ,List of strings,Fill values for the variables to be saved in th
 remap_csv,String,Location of the remapping file if available; if remapping file is provided EASYMORE will skip all the GIS processing required to create the remapping file.,,'User/EASYMORE/tmp/remap.csv'
 authour_name,String,The author's name that is going to be printed in the remapped NetCDF files.,'author name','Shervan Gharari'
 license,String,The license of the source NetCDF file; if not provided and exists in the source shapefile will be passed to the remapped NetCDF,,''
-tolerance,Float,The tolerance used to find the index of the source element in contributing to the sink.,03-Oct,05-Oct
+tolerance,Float,The tolerance used to find the index of the source element in contributing to the sink.,0.00005,0.00005
 get_col_row_flag,logical,Corresponding flag to get the values of latitude and longitude and corresponding rows and columns for each pair of latitude and longitude for remapping purposes,FALSE,True or False
 save_csv,logical,If set to True EASYMORE will output a single csv file with remapped values for each variable in addition to the remapped csv,FALSE,True or False
 sort_ID,logical,If set to True EASYMORE will sort based on target_shp_ID otherwise keep the sequence of the target_shp_ID in the target shapefile order (not ordered),FALSE,True or False
