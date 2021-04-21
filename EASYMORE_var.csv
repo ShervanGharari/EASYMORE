@@ -15,14 +15,13 @@ source_shp,String,The shapefile that holds the information of the spatial extend
 source_shp_lat,String,Name of the field that holds latitude from the source shapefile (and should exist in the source NetCDF file),,ÔÕ
 source_shp_lon,String,Name of the field that holds latitude from the source shapefile (and should exist in the source NetCDF file),,ÔÕ
 source_shp_ID,String,Name of the field that holds ID from the source shapefile (is not used in EASYMORE calculation),,ÔÕ
-remapped_var_id,String,The name of variable that holds the ID of each target shapefile,,ÔIDÕ
-remapped_var_lat,,,,
-remapped_var_lon,,,,
-remapped_dim_id,String,The name of dimension for elements of the target shapefile,,ÔIDÕ
+remapped_var_id,String,The name of variable that holds the ID in the remapped NetCDF files,,ÔIDÕ
+remapped_var_lat,String,The name of variable that holds the lat in the remapped NetCDF files,,
+remapped_var_lon,String,The name of variable that holds the lon in the remapped NetCDF files,,
+remapped_dim_id,String,The name of dimension of shapes in the remapped NetCDF,,ÔIDÕ
 output_dir,String,The output folder where EASYMORE saves the remapped NetCDF files will be stored. It should include the Ò/Ó at the end.,ÔÕ,Ô/User/EASYMORE/output/Õ
 temp_dir,String,Temporary folder where EASYMORE saves the intermediate shapefile and remapping files. The string should end with Ò/Ó,ÔÕ,ÔUser/EASYMORE/tmp/Õ
 name_of_target_shp,String,The name of the target shapefile to which the shapefile is needed to be remapped.,,ÔUsers/username/Desktop/sink_target.shpÕ
-,,,,
 format_list,List of strings,Format of the variables to be saved in the remapped NetCDF files,,"[Ôf8Õ,Õf8Õ]"
 fill_value_list ,List of strings,Fill values for the variables to be saved in the remapped NetCDF files,,"[Ô-9999.00Õ,Õ-9999.00Õ]"
 remap_csv,String,Location of the remapping file if available; if remapping file is provided EASYMORE will skip all the GIS processing required to create the remapping file.,,ÔUser/EASYMORE/tmp/remap.csvÕ
