@@ -1,0 +1,33 @@
+EASYMORE  object,Type,Explanation,Default,Examples
+case_name,String,It defines the name of the case. This string will be the starting name of all the generated temporary files and output files.,'case_temp','ERA5_Saskatchewan'
+source_nc,String,"The string that the name of files that are used as source file to be remapped (including path). If there are multiple files, it can be shared part of the file names including the * character. ",,`/Users/username/nc/ERA_5*.nc`
+var_names,List of strings,List of names of variables from the source NetCDF file(s) that are required to be remapped to the sink/target shapes.,,"['air_temp',' pptrate']"
+var_lon,String,"Variable of NetCDF, and not dimension, that hold the longitude values. NOT the dimension",,'longitute'
+var_lat,String,"Variable of NetCDF, and not dimension, that hold the longitude values. NOT the dimension",,'latitude'
+var_time,String,Variable that holds the time.,,'time'
+var_ID,String,Variable that holds the ID of the source shapefile. Currently not used for any calculation and not needed to be provided.,,
+Var_name_remapped,List of strings,List of renamed variables in the remapped file. If not provided by the user EASYMORE carries original variable names from source file specified by var_names.,[],"['temperature','precipitation']"
+target_shp,String,Name of the sink/target shapefile that holds the shapes that the variables should be remapped to.,,
+target_shp_ID,String,Name of the field that holds the ID of each shape in the shapefile. Should be integer and if not provided then EASYMORE will allocate by itself.,'','ID_S'
+target_shp_lat,String,Name of the filed that holds the latitude of the sink/target shape,'','lat_S'
+target_shp_lon,String,Name of the filed that holds the longitude of the sink/target shape,'','lon_S'
+source_shp,String,The shapefile that holds the information of the spatial extend for the source NetCDF in irregular shape to irregular shape,,'/Users/username/Desktop/shapefile_source.shp'
+source_shp_lat,String,Name of the field that holds latitude from the source shapefile (and should exist in the source NetCDF file),,''
+source_shp_lon,String,Name of the field that holds latitude from the source shapefile (and should exist in the source NetCDF file),,''
+source_shp_ID,String,Name of the field that holds ID from the source shapefile (is not used in EASYMORE calculation),,''
+remapped_var_id,String,The name of variable that holds the ID in the remapped NetCDF files,,'ID'
+remapped_var_lat,String,The name of variable that holds the lat in the remapped NetCDF files,,
+remapped_var_lon,String,The name of variable that holds the lon in the remapped NetCDF files,,
+remapped_dim_id,String,The name of dimension of shapes in the remapped NetCDF,,'ID'
+output_dir,String,The output folder where EASYMORE saves the remapped NetCDF files will be stored. It should include the Ò/Ó at the end.,'','/User/EASYMORE/output/'
+temp_dir,String,Temporary folder where EASYMORE saves the intermediate shapefile and remapping files. The string should end with Ò/Ó,'','User/EASYMORE/tmp/'
+name_of_target_shp,String,The name of the target shapefile to which the shapefile is needed to be remapped.,,'Users/username/Desktop/sink_target.shp'
+format_list,List of strings,Format of the variables to be saved in the remapped NetCDF files,,"['f8','f8']"
+fill_value_list ,List of strings,Fill values for the variables to be saved in the remapped NetCDF files,,"['-9999.00','-9999.00']"
+remap_csv,String,Location of the remapping file if available; if remapping file is provided EASYMORE will skip all the GIS processing required to create the remapping file.,,'User/EASYMORE/tmp/remap.csv'
+authour_name,String,The author's name that is going to be printed in the remapped NetCDF files.,'author name','Shervan Gharari'
+license,String,The license of the source NetCDF file; if not provided and exists in the source shapefile will be passed to the remapped NetCDF,,''
+tolerance,Float,The tolerance used to find the index of the source element in contributing to the sink.,0.00005,0.00005
+get_col_row_flag,logical,Corresponding flag to get the values of latitude and longitude and corresponding rows and columns for each pair of latitude and longitude for remapping purposes,FALSE,True or False
+save_csv,logical,If set to True EASYMORE will output a single csv file with remapped values for each variable in addition to the remapped csv,FALSE,True or False
+sort_ID,logical,If set to True EASYMORE will sort based on target_shp_ID otherwise keep the sequence of the target_shp_ID in the target shapefile order (not ordered),FALSE,True or False
