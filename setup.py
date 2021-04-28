@@ -14,20 +14,21 @@ setup(
         'environmental modeling'],
     install_requires=[
         'numpy',
-        'geopandas >= 0.8.1',
         'xarray',
         'pandas',
-        'shapely',
         'netCDF4',
         'datetime',
-        'simpledbf',
-        'pyshp',
-        'pysheds',
-        'osgeo',
-        'geovoronoi',
-        'json5',
-        'rasterio',
     ],
+    extras_require={
+    ":python_version>'3.6'":['geopandas >= 0.8.1',
+    'shapely',
+    'pyshp',
+    'pysheds',
+    'osgeo',
+    'geovoronoi',
+    'json5',
+    'rasterio']
+    },
     description=(
         'geo-spatial processing of the input data for environmental and hydrological modeling'
     ),
