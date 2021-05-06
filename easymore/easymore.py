@@ -78,8 +78,12 @@ class easymore:
             # create the source shapefile for case 1 and 2 if shapefile is not provided
             if (self.case == 1 or self.case == 2)  and (self.source_shp == ''):
                 if self.case == 1:
-                    self.lat_lon_SHP(self.lat_expanded, self.lon_expanded,\
-                        self.temp_dir+self.case_name+'_source_shapefile.shp')
+                    if hasattr(self, 'lat_expanded') and hasattr(self, 'lon_expanded'):
+                        self.lat_lon_SHP(self.lat_expanded, self.lon_expanded,\
+                            self.temp_dir+self.case_name+'_source_shapefile.shp')
+                    else:
+                        self.lat_lon_SHP(self.lat, self.lon,\
+                            self.temp_dir+self.case_name+'_source_shapefile.shp')
                 else:
                     self.lat_lon_SHP(self.lat, self.lon,\
                         self.temp_dir+self.case_name+'_source_shapefile.shp')
@@ -574,6 +578,11 @@ in dimensions of the varibales and latitude and longitude')
             lon_temp_diff_unique = np.unique(lon_temp_diff)
             #print(lon_temp_diff_unique)
             #print(lon_temp_diff_unique.shape)
+            # save lat, lon into the object
+            lat      = np.array(lat).astype(float)
+            lon      = np.array(lon).astype(float)
+            self.lat = lat
+            self.lon = lon
             # expanding just for the the creation of shapefile with first last rows and columns
             if (len(lat_temp_diff_unique)==1) and (len(lon_temp_diff_unique)==1): # then lat lon are spaced equal
                 # create expanded lat
@@ -590,13 +599,9 @@ in dimensions of the varibales and latitude and longitude')
                 lon_expanded [:,-1]  = lon_expanded [:,-2] + (lon_expanded [:,-2] - lon_expanded [:,-3]) # populate right column
                 lon_expanded [0, :]  = lon_expanded [1, :] + (lon_expanded [1, :] - lon_expanded [2, :]) # populate top row
                 lon_expanded [-1,:]  = lon_expanded [-2,:] + (lon_expanded [-2,:] - lon_expanded [-3,:]) # populate bottom row
-            #
-            lat      = np.array(lat).astype(float)
-            lon      = np.array(lon).astype(float)
-            self.lat = lat
-            self.lon = lon
-            self.lat_expanded = lat_expanded
-            self.lon_expanded = lon_expanded
+                # pass to the lat, lon extended
+                self.lat_expanded = lat_expanded
+                self.lon_expanded = lon_expanded
         # case #2 rotated lat/lon
         if (len(ncid.variables[self.var_lat].dimensions)==2) and (len(ncid.variables[self.var_lon].dimensions)==2):
             print('EASYMORE detects case 2 - rotated lat/lon')
