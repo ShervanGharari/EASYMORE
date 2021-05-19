@@ -35,6 +35,7 @@ class easymore:
         self.remapped_var_lat          =  'latitude' # name of the latitude variable in the new nc file; default 'latitude'
         self.remapped_var_lon          =  'longitude' # name of the longitude variable in the new nc file; default 'longitude'
         self.remapped_dim_id           =  'ID' # name of the ID dimension in the new nc file; default 'ID'
+        self.overwrite_existing_remap  = True # Flag to automatically overwrite existing remapping files. If 'False', aborts the remapping procedure if a file is detected
         self.temp_dir                  =  './temp/' # temp_dir
         self.output_dir                =  './output/' # output directory
         self.format_list               =  ['f8'] # float for the remapped values
@@ -992,8 +993,12 @@ in dimensions of the varibales and latitude and longitude')
             self.length_of_time = len(time_var)
             target_date_times = nc4.num2date(time_var,units = time_unit,calendar = time_cal)
             target_name = self.output_dir + self.case_name + '_remapped_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.nc'
-            if os.path.exists(target_name): # remove file if exists
+            if os.path.exists(target_name) and self.overwrite_existing_remap: # remove file if exists
+                print('Removing existing remapped .nc file.')
                 os.remove(target_name)
+            elif os.path.exists(target_name) and not self.overwrite_existing_remap: # do not overwrite existing file
+                print('Remapped .nc file already exists. Going to next file.')
+                continue # skip to next file
             for var in ncids.variables.values():
                 if var.name == self.var_time:
                     time_dtype =  str(var.dtype)
