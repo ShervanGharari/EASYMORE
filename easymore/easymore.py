@@ -993,12 +993,13 @@ in dimensions of the varibales and latitude and longitude')
             self.length_of_time = len(time_var)
             target_date_times = nc4.num2date(time_var,units = time_unit,calendar = time_cal)
             target_name = self.output_dir + self.case_name + '_remapped_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.nc'
-            if os.path.exists(target_name) and self.overwrite_existing_remap: # remove file if exists
-                print('Removing existing remapped .nc file.')
-                os.remove(target_name)
-            elif os.path.exists(target_name) and not self.overwrite_existing_remap: # do not overwrite existing file
-                print('Remapped .nc file already exists. Going to next file.')
-                continue # skip to next file
+            if os.path.exists(target_name):
+                if self.overwrite_existing_remap: 
+                    print('Removing existing remapped .nc file.')
+                    os.remove(target_name)
+                else:
+                    print('Remapped .nc file already exists. Going to next file.')
+                    continue # skip to next file
             for var in ncids.variables.values():
                 if var.name == self.var_time:
                     time_dtype =  str(var.dtype)
