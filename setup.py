@@ -24,7 +24,7 @@ setup(
     'shapely',
     'pyshp',
     'pysheds',
-    'osgeo',
+    'gdal',
     'geovoronoi',
     'json5',
     'rasterio']
