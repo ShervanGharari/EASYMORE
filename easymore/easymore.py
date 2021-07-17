@@ -46,6 +46,7 @@ class easymore:
         self.tolerance                 =  10**-5 # tolerance
         self.save_csv                  =  False # save csv
         self.sort_ID                   =  False # to sort the remapped based on the target shapfile ID; self.target_shp_ID should be given
+        self.complevel                 = 4 # netcdf compression level from 1 to 9. Any other value or object will mean no compression.
 
     ##############################################################
     #### NetCDF remapping
@@ -964,6 +965,15 @@ in dimensions of the varibales and latitude and longitude')
         #
         nc_names = glob.glob(self.source_nc)
         nc_names = sorted(nc_names)
+        # check compression choice
+        if isinstance(self.complevel, int) and (self.complevel >=1) and (self.complevel<=9):
+            compflag = True
+            complevel = self.complevel
+            print('netcdf output file will be compressed at level', complevel)
+        else:
+            compflag = False
+            complevel = 0
+            print('netcdf output file will not be compressed.')
         for nc_name in nc_names:
             # get the time unit and time var from source
             ncids = nc4.Dataset(nc_name)
@@ -1016,7 +1026,7 @@ in dimensions of the varibales and latitude and longitude')
                 dimid_N = ncid.createDimension(self.remapped_dim_id, len(hruID_var))  # limited dimensiton equal the number of hruID
                 dimid_T = ncid.createDimension('time', None)   # unlimited dimensiton
                 # Variable time
-                time_varid = ncid.createVariable('time', time_dtype_code, ('time', ))
+                time_varid = ncid.createVariable('time', time_dtype_code, ('time', ), zlib=compflag, complevel=complevel)
                 # Attributes
                 time_varid.long_name = self.var_time
                 time_varid.units = time_unit  # e.g. 'days since 2000-01-01 00:00' should change accordingly
@@ -1025,9 +1035,9 @@ in dimensions of the varibales and latitude and longitude')
                 time_varid.axis = 'T'
                 time_varid[:] = time_var
                 # Variables lat, lon, subbasin_ID
-                lat_varid = ncid.createVariable(self.remapped_var_lat, 'f8', (self.remapped_dim_id, ))
-                lon_varid = ncid.createVariable(self.remapped_var_lon, 'f8', (self.remapped_dim_id, ))
-                hruId_varid = ncid.createVariable(self.remapped_var_id, 'f8', (self.remapped_dim_id, ))
+                lat_varid = ncid.createVariable(self.remapped_var_lat, 'f8', (self.remapped_dim_id, ), zlib=compflag, complevel=complevel)
+                lon_varid = ncid.createVariable(self.remapped_var_lon, 'f8', (self.remapped_dim_id, ), zlib=compflag, complevel=complevel)
+                hruId_varid = ncid.createVariable(self.remapped_var_id, 'f8', (self.remapped_dim_id, ), zlib=compflag, complevel=complevel)
                 # Attributes
                 lat_varid.long_name = self.remapped_var_lat
                 lon_varid.long_name = self.remapped_var_lon
@@ -1053,7 +1063,7 @@ in dimensions of the varibales and latitude and longitude')
                                                           self.var_names[i],
                                                           remap)
                     # Variables writing
-                    varid = ncid.createVariable(self.var_names_remapped[i], self.format_list[i], ('time',self.remapped_dim_id ), fill_value = self.fill_value_list[i])
+                    varid = ncid.createVariable(self.var_names_remapped[i], self.format_list[i], ('time',self.remapped_dim_id ), fill_value = self.fill_value_list[i], zlib=compflag, complevel=complevel)
                     varid [:] = var_value
                     # Pass attributes
                     if 'long_name' in ncids.variables[self.var_names[i]].ncattrs():
