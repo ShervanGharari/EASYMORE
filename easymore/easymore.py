@@ -316,7 +316,7 @@ class easymore:
             shp['lon_t']  = shp_points ['lon'] # centroid lon from target
         else:
             print('EASYMORE detects that the field longitude is provided in sink/target shapefile')
-            shp['lon_t'] = shp[self.target_shp_lat]
+            shp['lon_t'] = shp[self.target_shp_lon]
         # check other geometries and add buffer if needed
         detected_points = False
         detected_multipoints = False
