@@ -1004,7 +1004,7 @@ in dimensions of the varibales and latitude and longitude')
             target_date_times = nc4.num2date(time_var,units = time_unit,calendar = time_cal)
             target_name = self.output_dir + self.case_name + '_remapped_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.nc'
             if os.path.exists(target_name):
-                if self.overwrite_existing_remap: 
+                if self.overwrite_existing_remap:
                     print('Removing existing remapped .nc file.')
                     os.remove(target_name)
                 else:
@@ -1148,6 +1148,100 @@ in dimensions of the varibales and latitude and longitude')
             weighted_value [m,:] = np.array(df_temp['values_w'])
             m += 1
         return weighted_value
+
+
+    # def shp_lon_correction (shp_name): # the name of SHP including path with WGS1984 projection
+    # import geopandas as gpd
+    # import pandas as pd
+    # from shapely.geometry import Polygon
+    # from easymore.easymore import easymore
+    # esmr = easymore() # initializing easymore
+    # import shapely
+
+    # # read the shapefile
+    # shp = gpd.read_file(shp_name)
+
+    # # get the maximum and minimum bound of the total bound
+    # min_lon, min_lat, max_lon, max_lat = shp.total_bounds
+
+    # # if no crs set to epsg:4326
+    # if not shp.crs:
+    #     print('no crs is provided for the shapefile; EASYMORE will allocate WGS84 to correct for lon above 180')
+    #     shp = shp.set_crs("epsg:4326")
+
+    # # create a empty data frame
+    # shp_int1 = pd.DataFrame()
+    # shp_int2 = pd.DataFrame()
+
+
+    # # intersection if shp has a larger lon of 180 so it is 0 to 360,
+    # if max_lon > 180:
+    #     # shapefile with 180 to 360 lon
+    #     gdf1 = {'geometry': [Polygon([( 180.00001, -89.99999), ( 180.00001,  89.99999),\
+    #                                   ( 359.99999,  89.99999), ( 359.99999, -89.99999)])]}
+    #     gdf1 = gpd.GeoDataFrame(gdf1)
+    #     gdf1 = gdf1.set_crs ("epsg:4326")
+    #     shp_int1 = esmr.intersection_shp(shp, gdf1)
+    #     col_names = shp_int1.columns
+    #     col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
+    #     col_names.append('geometry')
+    #     shp_int1 = shp_int1[shp_int1.columns.intersection(col_names)]
+    #     col_names.remove('geometry')
+    #     # rename columns without S_1_
+    #     for col_name in col_names:
+    #         col_name = str(col_name)
+    #         col_name_n = col_name.replace("S_1_","");
+    #         shp_int1 = shp_int1.rename(columns={col_name: col_name_n})
+    #     #
+    #     for index, _ in shp_int1.iterrows():
+    #         polys = shp_int1.geometry.iloc[index] # get the shape
+    #         polys = shapely.affinity.translate(polys, xoff=-360.0, yoff=0.0, zoff=0.0)
+    #         shp_int1.geometry.iloc[index] = polys
+    #     print(shp_int1)
+
+    # if min_lon < 180:
+    #     # shapefile with -180 to 180 lon
+    #     gdf2 = {'geometry': [Polygon([(-179.99999, -89.99999), (-179.99999,  89.99999),\
+    #                                   ( 179.99999,  89.99999), ( 179.99999, -89.99999)])]}
+    #     gdf2 = gpd.GeoDataFrame(gdf2)
+    #     gdf2 = gdf2.set_crs ("epsg:4326")
+    #     shp_int2 = esmr.intersection_shp(shp, gdf2)
+    #     col_names = shp_int2.columns
+    #     col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
+    #     col_names.append('geometry')
+    #     shp_int2 = shp_int2[shp_int2.columns.intersection(col_names)]
+    #     col_names.remove('geometry')
+    #     # rename columns without S_1_
+    #     for col_name in col_names:
+    #         col_name = str(col_name)
+    #         col_name_n = col_name.replace("S_1_","");
+    #         shp_int2 = shp_int2.rename(columns={col_name: col_name_n})
+    #     print(shp_int2)
+
+    # # merging the two shapefiles
+    # if not shp_int1.empty and not shp_int2.empty:
+    #     shp_final = pd.concat([shp_int1,shp_int2])
+    # elif not shp_int1.empty:
+    #     shp_final = shp_int1
+    # elif not shp_int2.empty:
+    #     shp_final = shp_int2
+
+    # # put back the pandas into geopandas
+    # shp_final = shp_final.set_geometry('geometry')
+
+    # # dissolve based on the values to merge the similar polygons from +180 and close to -180
+    # col_names = list(shp_final.columns)
+    # col_names.remove('geometry')
+    # shp_final = shp_final.dissolve(by=col_names, as_index=False)
+
+    # # return the shapefile
+    # return shp_final
+
+    # # call the function
+    # shp_name = 'source.shp'
+    # shp_final = shp_lon_correction (shp_name)
+    # shp_final.plot()
+    # shp_final.to_file('test.shp')
 
     ##############################################################
     #### GIS section
