@@ -107,33 +107,15 @@ class easymore:
                 source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
                 print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
                 print(self.temp_dir+self.case_name+'_source_shapefile.shp')
-            # expand source shapefile
-            source_shp_gpd = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
-            source_shp_gpd = source_shp_gpd.set_crs("EPSG:4326")
-            expanded_source = self.expand_source_SHP(source_shp_gpd, self.temp_dir, self.case_name)
-            expanded_source.to_file(self.temp_dir+self.case_name+'_source_shapefile_expanded.shp')
             # intersection of the source and sink/target shapefile
             shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_target_shapefile.shp')
-            shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile_expanded.shp')
-            # subset the extended shapefile based on the sink/target shapefile
-            min_lon, min_lat, max_lon, max_lat = shp_1.total_bounds
-
-            # Catch the warnings that these centroids are likely in inaccurate locations because of the projection.
-            # This doesn't matter in this particular case because the lat/lon coordinates are only used as extra IDs.
-            warnings.simplefilter('ignore')
-            shp_2 ['lat_temp'] = shp_2.centroid.y
-            shp_2 ['lon_temp'] = shp_2.centroid.x
-            warnings.simplefilter('default') # back to normal
-
-            if (-180<min_lon) and max_lon<180:
-                shp_2 = shp_2 [shp_2['lon_temp'] <=  180]
-                shp_2 = shp_2 [-180 <= shp_2['lon_temp']]
-            if (0<min_lon) and max_lon<360:
-                shp_2 = shp_2 [shp_2['lon_temp'] <=  360]
-                shp_2 = shp_2 [0    <= shp_2['lon_temp']]
-            shp_2.drop(columns=['lat_temp', 'lon_temp'])
-            # shp_2 = shp_2.reset_index(inplace=True, drop=True)
-            # reprojections
+            shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
+            # correction of the source and target shapefile to frame of -180 to 180
+            shp_1 = self.shp_lon_correction(shp_1)
+            shp_2 = self.shp_lon_correction(shp_2)
+            shp_1.to_file(self.temp_dir+self.case_name+'_target_shapefile_corrected_frame.shp')
+            shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_corrected_frame.shp')
+            # reprojections to equal area
             if (str(shp_1.crs).lower() == str(shp_2.crs).lower()) and ('epsg:4326' in str(shp_1.crs).lower()):
                 shp_1 = shp_1.to_crs ("EPSG:6933") # project to equal area
                 shp_1.to_file(self.temp_dir+self.case_name+'test.shp')
@@ -145,6 +127,8 @@ class easymore:
                 removeThese = glob.glob(self.temp_dir+self.case_name+'test.*')
                 for file in removeThese:
                     os.remove(file)
+            else:
+                sys.exit('The projection for source and target shapefile are not WGS84, please revise, assign')
             shp_int = self.intersection_shp(shp_1, shp_2)
             shp_int = shp_int.sort_values(by=['S_1_ID_t']) # sort based on ID_t
             shp_int = shp_int.to_crs ("EPSG:4326") # project back to WGS84
@@ -286,34 +270,25 @@ class easymore:
             shp['ID_t'] = shp[self.target_shp_ID]
         if self.target_shp_lat == '' or self.target_shp_lon == '':
             print('EASYMORE detects that either of the fields for latitude or longitude is not provided in sink/target shapefile')
-            print('calculating centroid of shapes in equal area projection')
-            shp_temp = shp.to_crs ("EPSG:6933") # source shapefile to equal area
-            lat_c = np.array(shp_temp.centroid.y) # centroid lat from target
-            lon_c = np.array(shp_temp.centroid.x) # centroid lon from target
-            ID = np.array(shp['ID_t'])
+            # in WGS84
+            print('calculating centroid of shapes in WGS84 projection;')
+            print('for better appximation use the easymore equal area centroid function to preprocess target shapefile')
             df_point = pd.DataFrame()
-            df_point ['lat'] = lat_c
-            df_point ['lon'] = lon_c
-            df_point ['ID']  = ID
-            shp_points = self.make_shape_point(df_point, 'lon', 'lat', crs="EPSG:6933")
-            shp_points = shp_points.to_crs("EPSG:4326") # to WGS
-            shp_points = shp_points.drop(columns=['lat','lon'])
-            shp_points ['lat'] = shp_points.geometry.y
-            shp_points ['lon'] = shp_points.geometry.x
-            shp_points.to_file(self.temp_dir+self.case_name+'_centroid.shp') # save
-            print('point shapefile for centroid of the shapes is saves here:')
-            print(self.temp_dir+self.case_name+'_centroid.shp')
+            warnings.simplefilter('ignore') # silent the warning
+            df_point ['lat'] = shp.centroid.y
+            df_point ['lon'] = shp.centroid.x
+            warnings.simplefilter('default') # back to normal
         if self.target_shp_lat == '':
             print('EASYMORE detects that no field for latitude is provided in sink/target shapefile')
             print('latitude values are added in the field lat_t')
-            shp['lat_t']  = shp_points ['lat'] # centroid lat from target
+            shp['lat_t']  = df_point ['lat'] # centroid lat from target
         else:
             print('EASYMORE detects that the field latitude is provided in sink/target shapefile')
             shp['lat_t'] = shp[self.target_shp_lat]
         if self.target_shp_lon == '':
             print('EASYMORE detects that no field for longitude is provided in sink/target shapefile')
             print('longitude values are added in the field lon_t')
-            shp['lon_t']  = shp_points ['lon'] # centroid lon from target
+            shp['lon_t']  = df_point ['lon'] # centroid lon from target
         else:
             print('EASYMORE detects that the field longitude is provided in sink/target shapefile')
             shp['lon_t'] = shp[self.target_shp_lon]
@@ -571,22 +546,21 @@ in dimensions of the varibales and latitude and longitude')
             # check if lat and lon are spaced equally
             lat_temp = np.array(ncid.variables[self.var_lat][:])
             lat_temp_diff = np.diff(lat_temp)
-            lat_temp_diff_unique = np.unique(lat_temp_diff)
-            #print(lat_temp_diff_unique)
-            #print(lat_temp_diff_unique.shape)
-            #
+            lat_temp_diff_2 = np.diff(lat_temp_diff)
+            max_lat_temp_diff_2 = max(abs(lat_temp_diff_2))
+            print('max difference of lat values in source nc files are : ', max_lat_temp_diff_2)
             lon_temp = np.array(ncid.variables[self.var_lon][:])
             lon_temp_diff = np.diff(lon_temp)
-            lon_temp_diff_unique = np.unique(lon_temp_diff)
-            #print(lon_temp_diff_unique)
-            #print(lon_temp_diff_unique.shape)
+            lon_temp_diff_2 = np.diff(lon_temp_diff)
+            max_lon_temp_diff_2 = max(abs(lon_temp_diff_2))
+            print('max difference of lon values in source nc files are : ', max_lon_temp_diff_2)
             # save lat, lon into the object
             lat      = np.array(lat).astype(float)
             lon      = np.array(lon).astype(float)
             self.lat = lat
             self.lon = lon
             # expanding just for the the creation of shapefile with first last rows and columns
-            if (len(lat_temp_diff_unique)==1) and (len(lon_temp_diff_unique)==1): # then lat lon are spaced equal
+            if (max_lat_temp_diff_2<self.tolerance) and (max_lon_temp_diff_2<self.tolerance): # then lat lon are spaced equal
                 # create expanded lat
                 lat_expanded = np.zeros(np.array(lat.shape)+2)
                 lat_expanded [1:-1,1:-1] = lat
@@ -1150,98 +1124,143 @@ in dimensions of the varibales and latitude and longitude')
         return weighted_value
 
 
-    # def shp_lon_correction (shp_name): # the name of SHP including path with WGS1984 projection
-    # import geopandas as gpd
-    # import pandas as pd
-    # from shapely.geometry import Polygon
-    # from easymore.easymore import easymore
-    # esmr = easymore() # initializing easymore
-    # import shapely
+    def shp_lon_correction (self,
+                            shp): # the name of SHP including path with WGS1984 projection
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function reads a shapefile and for longitude of model than 180 it correct it to a frame of -180 to 180
+        ---------
+        shp: geopandas shapefile
+        Returns
+        -------
+        shp_final: geopandas shapefile corrected in the frame of -180 to 180
+        """
+        # loading the needed packaged
+        import geopandas as gpd
+        import pandas as pd
+        from   shapely.geometry import Polygon
+        import shapely
 
-    # # read the shapefile
-    # shp = gpd.read_file(shp_name)
+        # get the maximum and minimum bound of the total bound
+        min_lon, min_lat, max_lon, max_lat = shp.total_bounds
 
-    # # get the maximum and minimum bound of the total bound
-    # min_lon, min_lat, max_lon, max_lat = shp.total_bounds
+        # if no crs set to epsg:4326
+        if not shp.crs:
+            print('inside shp_lon_correction, no crs is provided for the shapefile; EASYMORE will allocate WGS84 \
+to correct for lon above 180')
+            shp = shp.set_crs("epsg:4326")
 
-    # # if no crs set to epsg:4326
-    # if not shp.crs:
-    #     print('no crs is provided for the shapefile; EASYMORE will allocate WGS84 to correct for lon above 180')
-    #     shp = shp.set_crs("epsg:4326")
+        # create a empty data frame
+        shp_int1 = pd.DataFrame()
+        shp_int2 = pd.DataFrame()
 
-    # # create a empty data frame
-    # shp_int1 = pd.DataFrame()
-    # shp_int2 = pd.DataFrame()
+        # intersection if shp has a larger lon of 180 so it is 0 to 360,
+        if max_lon > 180:
+            # shapefile with 180 to 360 lon
+            gdf1 = {'geometry': [Polygon([( 180.00001, -89.99999), ( 180.00001,  89.99999),\
+                                          ( 359.99999,  89.99999), ( 359.99999, -89.99999)])]}
+            gdf1 = gpd.GeoDataFrame(gdf1)
+            gdf1 = gdf1.set_crs ("epsg:4326")
+            warnings.simplefilter('ignore')
+            shp_int1 = self.intersection_shp(shp, gdf1)
+            warnings.simplefilter('default')
+            col_names = shp_int1.columns
+            col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
+            col_names.append('geometry')
+            shp_int1 = shp_int1[shp_int1.columns.intersection(col_names)]
+            col_names.remove('geometry')
+            # rename columns without S_1_
+            for col_name in col_names:
+                col_name = str(col_name)
+                col_name_n = col_name.replace("S_1_","");
+                shp_int1 = shp_int1.rename(columns={col_name: col_name_n})
+            #
+            for index, _ in shp_int1.iterrows():
+                polys = shp_int1.geometry.iloc[index] # get the shape
+                polys = shapely.affinity.translate(polys, xoff=-360.0, yoff=0.0, zoff=0.0)
+                shp_int1.geometry.iloc[index] = polys
+
+        if min_lon < 180:
+            # shapefile with -180 to 180 lon
+            gdf2 = {'geometry': [Polygon([(-179.99999, -89.99999), (-179.99999,  89.99999),\
+                                          ( 179.99999,  89.99999), ( 179.99999, -89.99999)])]}
+            gdf2 = gpd.GeoDataFrame(gdf2)
+            gdf2 = gdf2.set_crs ("epsg:4326")
+            warnings.simplefilter('ignore')
+            shp_int2 = self.intersection_shp(shp, gdf2)
+            warnings.simplefilter('default')
+            col_names = shp_int2.columns
+            col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
+            col_names.append('geometry')
+            shp_int2 = shp_int2[shp_int2.columns.intersection(col_names)]
+            col_names.remove('geometry')
+            # rename columns without S_1_
+            for col_name in col_names:
+                col_name = str(col_name)
+                col_name_n = col_name.replace("S_1_","");
+                shp_int2 = shp_int2.rename(columns={col_name: col_name_n})
+
+        # merging the two shapefiles
+        if not shp_int1.empty and not shp_int2.empty:
+            shp_final = pd.concat([shp_int1,shp_int2])
+        elif not shp_int1.empty:
+            shp_final = shp_int1
+        elif not shp_int2.empty:
+            shp_final = shp_int2
+
+        # put back the pandas into geopandas
+        shp_final = shp_final.set_geometry('geometry')
+
+        # dissolve based on the values to merge the similar polygons from +180 and close to -180
+        col_names = list(shp_final.columns)
+        col_names.remove('geometry')
+        shp_final = shp_final.dissolve(by=col_names, as_index=False)
+
+        # return the shapefile
+        return shp_final
 
 
-    # # intersection if shp has a larger lon of 180 so it is 0 to 360,
-    # if max_lon > 180:
-    #     # shapefile with 180 to 360 lon
-    #     gdf1 = {'geometry': [Polygon([( 180.00001, -89.99999), ( 180.00001,  89.99999),\
-    #                                   ( 359.99999,  89.99999), ( 359.99999, -89.99999)])]}
-    #     gdf1 = gpd.GeoDataFrame(gdf1)
-    #     gdf1 = gdf1.set_crs ("epsg:4326")
-    #     shp_int1 = esmr.intersection_shp(shp, gdf1)
-    #     col_names = shp_int1.columns
-    #     col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
-    #     col_names.append('geometry')
-    #     shp_int1 = shp_int1[shp_int1.columns.intersection(col_names)]
-    #     col_names.remove('geometry')
-    #     # rename columns without S_1_
-    #     for col_name in col_names:
-    #         col_name = str(col_name)
-    #         col_name_n = col_name.replace("S_1_","");
-    #         shp_int1 = shp_int1.rename(columns={col_name: col_name_n})
-    #     #
-    #     for index, _ in shp_int1.iterrows():
-    #         polys = shp_int1.geometry.iloc[index] # get the shape
-    #         polys = shapely.affinity.translate(polys, xoff=-360.0, yoff=0.0, zoff=0.0)
-    #         shp_int1.geometry.iloc[index] = polys
-    #     print(shp_int1)
+    def shp_centroid_equal_area (self,
+                                 shp):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function calcultes the centroid in equal area projection for shapefile bound between -180 to 180.
+        ---------
+        shp: geopandas shapefile
+        Returns
+        -------
+        shp: geopandas shapefile with centroid in equal arae
+        shp_points: geopandas shapefile (points) with location in WGS84 corresponsing to the centroid in equal area
+        """
+        # in equal projection
+        print('calculating centroid of shapes in equal area projection')
+        if "epsg:4326" not in str(shp.crs).lower():
+            sys.exit('shapefile should be in WGS84 projection');
+        minx, miny, maxx, maxy = shp.total_bounds
+        if maxx > 180:
+            sys.exit('it seems that the shapefile has longitude values of more than 180 degree which might make \
+            problem in equal area projection; other software can be used');
+        shp_temp = shp.to_crs ("EPSG:6933") # source shapefile to equal area
+        lat_c = np.array(shp_temp.centroid.y) # centroid lat from target
+        lon_c = np.array(shp_temp.centroid.x) # centroid lon from target
+        df_point = pd.DataFrame()
+        df_point ['lat'] = lat_c
+        df_point ['lon'] = lon_c
+        shp_points = self.make_shape_point(df_point, 'lon', 'lat', crs="EPSG:6933")
+        shp_points = shp_points.to_crs("EPSG:4326") # to WGS
+        shp_points = shp_points.drop(columns=['lat','lon'])
+        shp_points ['lat'] = shp_points.geometry.y
+        shp_points ['lon'] = shp_points.geometry.x
+        shp ['lat_cent'] = shp_points ['lat']
+        shp ['lon_cent'] = shp_points ['lon']
+        return shp, shp_points
 
-    # if min_lon < 180:
-    #     # shapefile with -180 to 180 lon
-    #     gdf2 = {'geometry': [Polygon([(-179.99999, -89.99999), (-179.99999,  89.99999),\
-    #                                   ( 179.99999,  89.99999), ( 179.99999, -89.99999)])]}
-    #     gdf2 = gpd.GeoDataFrame(gdf2)
-    #     gdf2 = gdf2.set_crs ("epsg:4326")
-    #     shp_int2 = esmr.intersection_shp(shp, gdf2)
-    #     col_names = shp_int2.columns
-    #     col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
-    #     col_names.append('geometry')
-    #     shp_int2 = shp_int2[shp_int2.columns.intersection(col_names)]
-    #     col_names.remove('geometry')
-    #     # rename columns without S_1_
-    #     for col_name in col_names:
-    #         col_name = str(col_name)
-    #         col_name_n = col_name.replace("S_1_","");
-    #         shp_int2 = shp_int2.rename(columns={col_name: col_name_n})
-    #     print(shp_int2)
-
-    # # merging the two shapefiles
-    # if not shp_int1.empty and not shp_int2.empty:
-    #     shp_final = pd.concat([shp_int1,shp_int2])
-    # elif not shp_int1.empty:
-    #     shp_final = shp_int1
-    # elif not shp_int2.empty:
-    #     shp_final = shp_int2
-
-    # # put back the pandas into geopandas
-    # shp_final = shp_final.set_geometry('geometry')
-
-    # # dissolve based on the values to merge the similar polygons from +180 and close to -180
-    # col_names = list(shp_final.columns)
-    # col_names.remove('geometry')
-    # shp_final = shp_final.dissolve(by=col_names, as_index=False)
-
-    # # return the shapefile
-    # return shp_final
-
-    # # call the function
-    # shp_name = 'source.shp'
-    # shp_final = shp_lon_correction (shp_name)
-    # shp_final.plot()
-    # shp_final.to_file('test.shp')
 
     ##############################################################
     #### GIS section
