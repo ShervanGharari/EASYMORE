@@ -48,7 +48,7 @@ class easymore:
         self.sort_ID                   =  False # to sort the remapped based on the target shapfile ID; self.target_shp_ID should be given
         self.complevel                 =  4 # netcdf compression level from 1 to 9. Any other value or object will mean no compression.
         self.version                   =  '0.0.2' # version of the easymore
-        print(self.version)
+        print('EASYMORE version '+self.version+ ' is initiated.')
 
     ##############################################################
     #### NetCDF remapping
@@ -1082,6 +1082,7 @@ in dimensions of the varibales and latitude and longitude')
                     # df = df.transpose()
                     # if 'units' in ds[self.var_names_remapped[i]].attrs.keys():
                     #     df = df.replace(self.var_names_remapped[i], self.var_names_remapped[i]+' '+ds[self.var_names_remapped[i]].attrs['units'])
+                    #######
                     df.to_csv(target_name_csv)
                     print('Converting variable '+ self.var_names_remapped[i] +' from remapped file of '+target_name+\
                         ' to '+target_name_csv)
