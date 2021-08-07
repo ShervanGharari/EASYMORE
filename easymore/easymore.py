@@ -48,6 +48,7 @@ class easymore:
         self.sort_ID                   =  False # to sort the remapped based on the target shapfile ID; self.target_shp_ID should be given
         self.complevel                 =  4 # netcdf compression level from 1 to 9. Any other value or object will mean no compression.
         self.version                   =  '0.0.2' # version of the easymore
+        print(self.version)
 
     ##############################################################
     #### NetCDF remapping
@@ -1062,15 +1063,25 @@ in dimensions of the varibales and latitude and longitude')
                      '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.csv'
                     if os.path.exists(target_name_csv): # remove file if exists
                         os.remove(target_name_csv)
-                    ds_temp = ds_temp.set_coords([self.remapped_var_lat,self.remapped_var_lon])
+                    # ds_temp = ds_temp.set_coords([self.remapped_var_lat,self.remapped_var_lon])
+                    ds_temp = ds_temp.reset_index(['time',self.remapped_var_id])
+                    ds_temp = ds_temp.reset_coords()
                     df = ds_temp.to_dataframe()
-                    df['ID'] = df.index.get_level_values(level=0)
-                    df['time'] = df.index.get_level_values(level=1)
-                    df = df.set_index(['ID','time',self.remapped_var_lat,self.remapped_var_lon])
-                    df = df.unstack(level=-3)
-                    df = df.transpose()
-                    if 'units' in ds[self.var_names_remapped[i]].attrs.keys():
-                        df = df.replace(self.var_names_remapped[i], self.var_names_remapped[i]+' '+ds[self.var_names_remapped[i]].attrs['units'])
+                    df = df.reset_index()
+                    df = df.drop(columns=['time'])
+                    df ['time'] = df ['time_']
+                    df = df.drop(columns=['time_'])
+                    df = df.drop(columns=[self.remapped_var_id])
+                    df [self.remapped_var_id] = df [self.remapped_var_id+'_']
+                    df = df.drop(columns=[self.remapped_var_id+'_'])
+                    #######
+                    # df['ID'] = df.index.get_level_values(level=0)
+                    # df['time'] = df.index.get_level_values(level=1)
+                    # df = df.set_index(['ID','time',self.remapped_var_lat,self.remapped_var_lon])
+                    # df = df.unstack(level=-3)
+                    # df = df.transpose()
+                    # if 'units' in ds[self.var_names_remapped[i]].attrs.keys():
+                    #     df = df.replace(self.var_names_remapped[i], self.var_names_remapped[i]+' '+ds[self.var_names_remapped[i]].attrs['units'])
                     df.to_csv(target_name_csv)
                     print('Converting variable '+ self.var_names_remapped[i] +' from remapped file of '+target_name+\
                         ' to '+target_name_csv)
