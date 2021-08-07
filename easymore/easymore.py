@@ -35,7 +35,7 @@ class easymore:
         self.remapped_var_lat          =  'latitude' # name of the latitude variable in the new nc file; default 'latitude'
         self.remapped_var_lon          =  'longitude' # name of the longitude variable in the new nc file; default 'longitude'
         self.remapped_dim_id           =  'ID' # name of the ID dimension in the new nc file; default 'ID'
-        self.overwrite_existing_remap  = True # Flag to automatically overwrite existing remapping files. If 'False', aborts the remapping procedure if a file is detected
+        self.overwrite_existing_remap  =  True # Flag to automatically overwrite existing remapping files. If 'False', aborts the remapping procedure if a file is detected
         self.temp_dir                  =  './temp/' # temp_dir
         self.output_dir                =  './output/' # output directory
         self.format_list               =  ['f8'] # float for the remapped values
@@ -46,7 +46,8 @@ class easymore:
         self.tolerance                 =  10**-5 # tolerance
         self.save_csv                  =  False # save csv
         self.sort_ID                   =  False # to sort the remapped based on the target shapfile ID; self.target_shp_ID should be given
-        self.complevel                 = 4 # netcdf compression level from 1 to 9. Any other value or object will mean no compression.
+        self.complevel                 =  4 # netcdf compression level from 1 to 9. Any other value or object will mean no compression.
+        self.version                   =  '0.0.2' # version of the easymore
 
     ##############################################################
     #### NetCDF remapping
