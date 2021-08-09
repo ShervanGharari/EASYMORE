@@ -1064,10 +1064,10 @@ in dimensions of the varibales and latitude and longitude')
                         unit_name = ds[self.var_names_remapped[i]].attrs['units']
                     target_name_csv = self.output_dir + self.case_name + '_remapped_'+ self.var_names_remapped[i] +\
                      '_' + unit_name +\
-                     '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+ '.cvs'
+                     '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+ '.csv'
                     target_name_map = self.output_dir + 'Mapping_' + self.case_name + '_remapped_'+ self.var_names_remapped[i] +\
                      '_' + unit_name +\
-                     '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+ '.cvs'
+                     '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+ '.csv'
                     if os.path.exists(target_name_csv): # remove file if exists
                         os.remove(target_name_csv)
                     if os.path.exists(target_name_map): # remove file if exists
