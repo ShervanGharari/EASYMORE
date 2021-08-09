@@ -1052,28 +1052,54 @@ in dimensions of the varibales and latitude and longitude')
             if self.save_csv:
                 ds = xr.open_dataset(target_name)
                 for i in np.arange(len(self.var_names_remapped)):
-                    new_list = list(self.var_names_remapped) # new lists
-                    del new_list[i] # remove one value
-                    #ds_temp = ds.drop(new_list) # drop all the other varibales excpet target varibale, lat, lon and time
-                    ds_temp = ds.drop_vars(new_list) # drop all the other varibales excpet target varibale, lat, lon and time
+                    # assign the variable to the data frame with the ID column name
+                    column_name = list(map(str,list(np.array(ds[self.remapped_var_id]))))
+                    column_name = ['ID_'+s for s in column_name]
+                    df = pd.DataFrame(data=np.array(ds[self.var_names_remapped[i]]), columns=column_name)
+                    # df ['time'] = ds.time
+                    df.insert(loc=0, column='time', value=ds.time)
+                    # get the unit for the varibale if exists
+                    unit_name = ''
                     if 'units' in ds[self.var_names_remapped[i]].attrs.keys():
-                        dictionary = {self.var_names_remapped[i]:self.var_names_remapped[i]+' ['+ds[self.var_names_remapped[i]].attrs['units']+']'}
-                        ds_temp = ds_temp.rename_vars(dictionary)
-                    target_name_csv = self.output_dir + self.case_name + '_remapped_'+ self.var_names_remapped[i] +\
-                     '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.csv'
+                        unit_name = ds[self.var_names_remapped[i]].attrs['units']
+                    target_name     = self.output_dir + self.case_name + '_remapped_'+ self.var_names_remapped[i] +\
+                     '_' + unit_name +\
+                     '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")
+                    target_name_map = target_name + '_ID_lat_lon.cvs'
+                    target_name_csv = target_name + '.csv'
                     if os.path.exists(target_name_csv): # remove file if exists
                         os.remove(target_name_csv)
-                    # ds_temp = ds_temp.set_coords([self.remapped_var_lat,self.remapped_var_lon])
-                    ds_temp = ds_temp.reset_index(['time',self.remapped_var_id])
-                    ds_temp = ds_temp.reset_coords()
-                    df = ds_temp.to_dataframe()
-                    df = df.reset_index()
-                    df = df.drop(columns=['time'])
-                    df ['time'] = df ['time_']
-                    df = df.drop(columns=['time_'])
-                    df = df.drop(columns=[self.remapped_var_id])
-                    df [self.remapped_var_id] = df [self.remapped_var_id+'_']
-                    df = df.drop(columns=[self.remapped_var_id+'_'])
+                    if os.path.exists(target_name_map): # remove file if exists
+                        os.remove(target_name_map)
+                    lat_data = np.squeeze(np.array(ds[self.remapped_var_lat])); lat_data = lat_data.flatten()
+                    lon_data = np.squeeze(np.array(ds[self.remapped_var_lon])); lon_data = lon_data.flatten()
+                    maps = np.zeros([2,len(lat_data)])
+                    maps [0,:] = lat_data
+                    maps [1,:] = lon_data
+                    df_map = pd.DataFrame(data=maps, index=["lat","lon"], columns=column_name)
+                    #######
+                    # new_list = list(self.var_names_remapped) # new lists
+                    # del new_list[i] # remove one value
+                    # #ds_temp = ds.drop(new_list) # drop all the other varibales excpet target varibale, lat, lon and time
+                    # ds_temp = ds.drop_vars(new_list) # drop all the other varibales excpet target varibale, lat, lon and time
+                    # if 'units' in ds[self.var_names_remapped[i]].attrs.keys():
+                    #     dictionary = {self.var_names_remapped[i]:self.var_names_remapped[i]+' ['+ds[self.var_names_remapped[i]].attrs['units']+']'}
+                    #     ds_temp = ds_temp.rename_vars(dictionary)
+                    # target_name_csv = self.output_dir + self.case_name + '_remapped_'+ self.var_names_remapped[i] +\
+                    #  '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.csv'
+                    # if os.path.exists(target_name_csv): # remove file if exists
+                    #     os.remove(target_name_csv)
+                    # # ds_temp = ds_temp.set_coords([self.remapped_var_lat,self.remapped_var_lon])
+                    # ds_temp = ds_temp.reset_index(['time',self.remapped_var_id])
+                    # ds_temp = ds_temp.reset_coords()
+                    # df = ds_temp.to_dataframe()
+                    # df = df.reset_index()
+                    # df = df.drop(columns=['time'])
+                    # df ['time'] = df ['time_']
+                    # df = df.drop(columns=['time_'])
+                    # df = df.drop(columns=[self.remapped_var_id])
+                    # df [self.remapped_var_id] = df [self.remapped_var_id+'_']
+                    # df = df.drop(columns=[self.remapped_var_id+'_'])
                     #######
                     # df['ID'] = df.index.get_level_values(level=0)
                     # df['time'] = df.index.get_level_values(level=1)
@@ -1086,6 +1112,8 @@ in dimensions of the varibales and latitude and longitude')
                     df.to_csv(target_name_csv)
                     print('Converting variable '+ self.var_names_remapped[i] +' from remapped file of '+target_name+\
                         ' to '+target_name_csv)
+                    df_map.to_csv(target_name_map)
+                    print('Saving the ID, lat, lon map at '+target_name_csv)
                 print('------')
 
     def __weighted_average(self,
