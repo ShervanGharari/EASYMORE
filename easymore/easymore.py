@@ -1209,7 +1209,7 @@ to correct for lon above 180')
             shp_int1 = pd.DataFrame()
             shp_int2 = pd.DataFrame()
             # intersection if shp has a larger lon of 180 so it is 0 to 360,
-            if (180 < max_lon) and (0 < min_lon):
+            if (180 < max_lon) and (-180 < min_lon):
                 print('EASYMORE detects that shapefile longitude is between 0 and 360, correction is performed to transfer to -180 to 180')
                 # shapefile with 180 to 360 lon
                 gdf1 = {'geometry': [Polygon([(  180.0+self.tolerance, -90.0+self.tolerance), ( 180.0+self.tolerance,  90.0-self.tolerance),\
@@ -1234,7 +1234,6 @@ to correct for lon above 180')
                     polys = shp_int1.geometry.iloc[index] # get the shape
                     polys = shapely.affinity.translate(polys, xoff=-360.0, yoff=0.0, zoff=0.0)
                     shp_int1.geometry.iloc[index] = polys
-                #
                 # shapefile with -180 to 180 lon
                 gdf2 = {'geometry': [Polygon([( -180.0+self.tolerance, -90.0+self.tolerance), (-180.0+self.tolerance,  90.0-self.tolerance),\
                                               (  180.0-self.tolerance,  90.0-self.tolerance), ( 180.0-self.tolerance, -90.0+self.tolerance)])]}
@@ -1304,16 +1303,16 @@ to correct for lon above 180')
                 shp_final = shp_int1
             elif not shp_int2.empty:
                 shp_final = shp_int2
-            # put back the pandas into geopandas
-            shp_final = shp_final.set_geometry('geometry')
-            shp_final = shp_final.dissolve(by='ID', as_index=False)
-            shp_final = shp_final.sort_values(by='ID')
-            shp_final = shp_final.drop(columns='ID')
-            if not df_attribute.empty: # add attributes
-                shp_final = pd.concat([shp_final, df_attribute], axis=1)
-            # check if the output has the same number of elements
-            if len(shp) != len(shp_final):
-                sys.exit('the element of input shapefile and corrected shapefile area not the same')
+        # put back the pandas into geopandas
+        shp_final = shp_final.set_geometry('geometry')
+        shp_final = shp_final.dissolve(by='ID', as_index=False)
+        shp_final = shp_final.sort_values(by='ID')
+        shp_final = shp_final.drop(columns='ID')
+        if not df_attribute.empty: # add attributes
+            shp_final = pd.concat([shp_final, df_attribute], axis=1)
+        # check if the output has the same number of elements
+        if len(shp) != len(shp_final):
+            sys.exit('the element of input shapefile and corrected shapefile area not the same')
         # return the shapefile
         return shp_final
 
