@@ -35,7 +35,7 @@ class easymore:
         self.remapped_var_lat          =  'latitude' # name of the latitude variable in the new nc file; default 'latitude'
         self.remapped_var_lon          =  'longitude' # name of the longitude variable in the new nc file; default 'longitude'
         self.remapped_dim_id           =  'ID' # name of the ID dimension in the new nc file; default 'ID'
-        self.overwrite_existing_remap  = True # Flag to automatically overwrite existing remapping files. If 'False', aborts the remapping procedure if a file is detected
+        self.overwrite_existing_remap  =  True # Flag to automatically overwrite existing remapping files. If 'False', aborts the remapping procedure if a file is detected
         self.temp_dir                  =  './temp/' # temp_dir
         self.output_dir                =  './output/' # output directory
         self.format_list               =  ['f8'] # float for the remapped values
@@ -46,6 +46,9 @@ class easymore:
         self.tolerance                 =  10**-5 # tolerance
         self.save_csv                  =  False # save csv
         self.sort_ID                   =  False # to sort the remapped based on the target shapfile ID; self.target_shp_ID should be given
+        self.complevel                 =  4 # netcdf compression level from 1 to 9. Any other value or object will mean no compression.
+        self.version                   =  '0.0.2' # version of the easymore
+        print('EASYMORE version '+self.version+ ' is initiated.')
 
     ##############################################################
     #### NetCDF remapping
@@ -106,33 +109,15 @@ class easymore:
                 source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
                 print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
                 print(self.temp_dir+self.case_name+'_source_shapefile.shp')
-            # expand source shapefile
-            source_shp_gpd = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
-            source_shp_gpd = source_shp_gpd.set_crs("EPSG:4326")
-            expanded_source = self.expand_source_SHP(source_shp_gpd, self.temp_dir, self.case_name)
-            expanded_source.to_file(self.temp_dir+self.case_name+'_source_shapefile_expanded.shp')
             # intersection of the source and sink/target shapefile
             shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_target_shapefile.shp')
-            shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile_expanded.shp')
-            # subset the extended shapefile based on the sink/target shapefile
-            min_lon, min_lat, max_lon, max_lat = shp_1.total_bounds
-
-            # Catch the warnings that these centroids are likely in inaccurate locations because of the projection.
-            # This doesn't matter in this particular case because the lat/lon coordinates are only used as extra IDs.
-            warnings.simplefilter('ignore')
-            shp_2 ['lat_temp'] = shp_2.centroid.y
-            shp_2 ['lon_temp'] = shp_2.centroid.x
-            warnings.simplefilter('default') # back to normal
-
-            if (-180<min_lon) and max_lon<180:
-                shp_2 = shp_2 [shp_2['lon_temp'] <=  180]
-                shp_2 = shp_2 [-180 <= shp_2['lon_temp']]
-            if (0<min_lon) and max_lon<360:
-                shp_2 = shp_2 [shp_2['lon_temp'] <=  360]
-                shp_2 = shp_2 [0    <= shp_2['lon_temp']]
-            shp_2.drop(columns=['lat_temp', 'lon_temp'])
-            # shp_2 = shp_2.reset_index(inplace=True, drop=True)
-            # reprojections
+            shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
+            # correction of the source and target shapefile to frame of -180 to 180
+            shp_1 = self.shp_lon_correction(shp_1)
+            shp_2 = self.shp_lon_correction(shp_2)
+            shp_1.to_file(self.temp_dir+self.case_name+'_target_shapefile_corrected_frame.shp')
+            shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_corrected_frame.shp')
+            # reprojections to equal area
             if (str(shp_1.crs).lower() == str(shp_2.crs).lower()) and ('epsg:4326' in str(shp_1.crs).lower()):
                 shp_1 = shp_1.to_crs ("EPSG:6933") # project to equal area
                 shp_1.to_file(self.temp_dir+self.case_name+'test.shp')
@@ -144,6 +129,8 @@ class easymore:
                 removeThese = glob.glob(self.temp_dir+self.case_name+'test.*')
                 for file in removeThese:
                     os.remove(file)
+            else:
+                sys.exit('The projection for source and target shapefile are not WGS84, please revise, assign')
             shp_int = self.intersection_shp(shp_1, shp_2)
             shp_int = shp_int.sort_values(by=['S_1_ID_t']) # sort based on ID_t
             shp_int = shp_int.to_crs ("EPSG:4326") # project back to WGS84
@@ -285,34 +272,25 @@ class easymore:
             shp['ID_t'] = shp[self.target_shp_ID]
         if self.target_shp_lat == '' or self.target_shp_lon == '':
             print('EASYMORE detects that either of the fields for latitude or longitude is not provided in sink/target shapefile')
-            print('calculating centroid of shapes in equal area projection')
-            shp_temp = shp.to_crs ("EPSG:6933") # source shapefile to equal area
-            lat_c = np.array(shp_temp.centroid.y) # centroid lat from target
-            lon_c = np.array(shp_temp.centroid.x) # centroid lon from target
-            ID = np.array(shp['ID_t'])
+            # in WGS84
+            print('calculating centroid of shapes in WGS84 projection;')
+            print('for better appximation use the easymore equal area centroid function to preprocess target shapefile')
             df_point = pd.DataFrame()
-            df_point ['lat'] = lat_c
-            df_point ['lon'] = lon_c
-            df_point ['ID']  = ID
-            shp_points = self.make_shape_point(df_point, 'lon', 'lat', crs="EPSG:6933")
-            shp_points = shp_points.to_crs("EPSG:4326") # to WGS
-            shp_points = shp_points.drop(columns=['lat','lon'])
-            shp_points ['lat'] = shp_points.geometry.y
-            shp_points ['lon'] = shp_points.geometry.x
-            shp_points.to_file(self.temp_dir+self.case_name+'_centroid.shp') # save
-            print('point shapefile for centroid of the shapes is saves here:')
-            print(self.temp_dir+self.case_name+'_centroid.shp')
+            warnings.simplefilter('ignore') # silent the warning
+            df_point ['lat'] = shp.centroid.y
+            df_point ['lon'] = shp.centroid.x
+            warnings.simplefilter('default') # back to normal
         if self.target_shp_lat == '':
             print('EASYMORE detects that no field for latitude is provided in sink/target shapefile')
             print('latitude values are added in the field lat_t')
-            shp['lat_t']  = shp_points ['lat'] # centroid lat from target
+            shp['lat_t']  = df_point ['lat'] # centroid lat from target
         else:
             print('EASYMORE detects that the field latitude is provided in sink/target shapefile')
             shp['lat_t'] = shp[self.target_shp_lat]
         if self.target_shp_lon == '':
             print('EASYMORE detects that no field for longitude is provided in sink/target shapefile')
             print('longitude values are added in the field lon_t')
-            shp['lon_t']  = shp_points ['lon'] # centroid lon from target
+            shp['lon_t']  = df_point ['lon'] # centroid lon from target
         else:
             print('EASYMORE detects that the field longitude is provided in sink/target shapefile')
             shp['lon_t'] = shp[self.target_shp_lon]
@@ -570,22 +548,21 @@ in dimensions of the varibales and latitude and longitude')
             # check if lat and lon are spaced equally
             lat_temp = np.array(ncid.variables[self.var_lat][:])
             lat_temp_diff = np.diff(lat_temp)
-            lat_temp_diff_unique = np.unique(lat_temp_diff)
-            #print(lat_temp_diff_unique)
-            #print(lat_temp_diff_unique.shape)
-            #
+            lat_temp_diff_2 = np.diff(lat_temp_diff)
+            max_lat_temp_diff_2 = max(abs(lat_temp_diff_2))
+            print('max difference of lat values in source nc files are : ', max_lat_temp_diff_2)
             lon_temp = np.array(ncid.variables[self.var_lon][:])
             lon_temp_diff = np.diff(lon_temp)
-            lon_temp_diff_unique = np.unique(lon_temp_diff)
-            #print(lon_temp_diff_unique)
-            #print(lon_temp_diff_unique.shape)
+            lon_temp_diff_2 = np.diff(lon_temp_diff)
+            max_lon_temp_diff_2 = max(abs(lon_temp_diff_2))
+            print('max difference of lon values in source nc files are : ', max_lon_temp_diff_2)
             # save lat, lon into the object
             lat      = np.array(lat).astype(float)
             lon      = np.array(lon).astype(float)
             self.lat = lat
             self.lon = lon
             # expanding just for the the creation of shapefile with first last rows and columns
-            if (len(lat_temp_diff_unique)==1) and (len(lon_temp_diff_unique)==1): # then lat lon are spaced equal
+            if (max_lat_temp_diff_2<self.tolerance) and (max_lon_temp_diff_2<self.tolerance): # then lat lon are spaced equal
                 # create expanded lat
                 lat_expanded = np.zeros(np.array(lat.shape)+2)
                 lat_expanded [1:-1,1:-1] = lat
@@ -964,6 +941,15 @@ in dimensions of the varibales and latitude and longitude')
         #
         nc_names = glob.glob(self.source_nc)
         nc_names = sorted(nc_names)
+        # check compression choice
+        if isinstance(self.complevel, int) and (self.complevel >=1) and (self.complevel<=9):
+            compflag = True
+            complevel = self.complevel
+            print('netcdf output file will be compressed at level', complevel)
+        else:
+            compflag = False
+            complevel = 0
+            print('netcdf output file will not be compressed.')
         for nc_name in nc_names:
             # get the time unit and time var from source
             ncids = nc4.Dataset(nc_name)
@@ -994,7 +980,7 @@ in dimensions of the varibales and latitude and longitude')
             target_date_times = nc4.num2date(time_var,units = time_unit,calendar = time_cal)
             target_name = self.output_dir + self.case_name + '_remapped_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.nc'
             if os.path.exists(target_name):
-                if self.overwrite_existing_remap: 
+                if self.overwrite_existing_remap:
                     print('Removing existing remapped .nc file.')
                     os.remove(target_name)
                 else:
@@ -1016,7 +1002,7 @@ in dimensions of the varibales and latitude and longitude')
                 dimid_N = ncid.createDimension(self.remapped_dim_id, len(hruID_var))  # limited dimensiton equal the number of hruID
                 dimid_T = ncid.createDimension('time', None)   # unlimited dimensiton
                 # Variable time
-                time_varid = ncid.createVariable('time', time_dtype_code, ('time', ))
+                time_varid = ncid.createVariable('time', time_dtype_code, ('time', ), zlib=compflag, complevel=complevel)
                 # Attributes
                 time_varid.long_name = self.var_time
                 time_varid.units = time_unit  # e.g. 'days since 2000-01-01 00:00' should change accordingly
@@ -1025,9 +1011,9 @@ in dimensions of the varibales and latitude and longitude')
                 time_varid.axis = 'T'
                 time_varid[:] = time_var
                 # Variables lat, lon, subbasin_ID
-                lat_varid = ncid.createVariable(self.remapped_var_lat, 'f8', (self.remapped_dim_id, ))
-                lon_varid = ncid.createVariable(self.remapped_var_lon, 'f8', (self.remapped_dim_id, ))
-                hruId_varid = ncid.createVariable(self.remapped_var_id, 'f8', (self.remapped_dim_id, ))
+                lat_varid = ncid.createVariable(self.remapped_var_lat, 'f8', (self.remapped_dim_id, ), zlib=compflag, complevel=complevel)
+                lon_varid = ncid.createVariable(self.remapped_var_lon, 'f8', (self.remapped_dim_id, ), zlib=compflag, complevel=complevel)
+                hruId_varid = ncid.createVariable(self.remapped_var_id, 'f8', (self.remapped_dim_id, ), zlib=compflag, complevel=complevel)
                 # Attributes
                 lat_varid.long_name = self.remapped_var_lat
                 lon_varid.long_name = self.remapped_var_lon
@@ -1053,7 +1039,7 @@ in dimensions of the varibales and latitude and longitude')
                                                           self.var_names[i],
                                                           remap)
                     # Variables writing
-                    varid = ncid.createVariable(self.var_names_remapped[i], self.format_list[i], ('time',self.remapped_dim_id ), fill_value = self.fill_value_list[i])
+                    varid = ncid.createVariable(self.var_names_remapped[i], self.format_list[i], ('time',self.remapped_dim_id ), fill_value = self.fill_value_list[i], zlib=compflag, complevel=complevel)
                     varid [:] = var_value
                     # Pass attributes
                     if 'long_name' in ncids.variables[self.var_names[i]].ncattrs():
@@ -1066,29 +1052,69 @@ in dimensions of the varibales and latitude and longitude')
             if self.save_csv:
                 ds = xr.open_dataset(target_name)
                 for i in np.arange(len(self.var_names_remapped)):
-                    new_list = list(self.var_names_remapped) # new lists
-                    del new_list[i] # remove one value
-                    #ds_temp = ds.drop(new_list) # drop all the other varibales excpet target varibale, lat, lon and time
-                    ds_temp = ds.drop_vars(new_list) # drop all the other varibales excpet target varibale, lat, lon and time
+                    # assign the variable to the data frame with the ID column name
+                    column_name = list(map(str,list(np.array(ds[self.remapped_var_id]))))
+                    column_name = ['ID_'+s for s in column_name]
+                    df = pd.DataFrame(data=np.array(ds[self.var_names_remapped[i]]), columns=column_name)
+                    # df ['time'] = ds.time
+                    df.insert(loc=0, column='time', value=ds.time)
+                    # get the unit for the varibale if exists
+                    unit_name = ''
                     if 'units' in ds[self.var_names_remapped[i]].attrs.keys():
-                        dictionary = {self.var_names_remapped[i]:self.var_names_remapped[i]+' ['+ds[self.var_names_remapped[i]].attrs['units']+']'}
-                        ds_temp = ds_temp.rename_vars(dictionary)
+                        unit_name = ds[self.var_names_remapped[i]].attrs['units']
                     target_name_csv = self.output_dir + self.case_name + '_remapped_'+ self.var_names_remapped[i] +\
-                     '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.csv'
+                     '_' + unit_name +\
+                     '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+ '.csv'
+                    target_name_map = self.output_dir + 'Mapping_' + self.case_name + '_remapped_'+ self.var_names_remapped[i] +\
+                     '_' + unit_name +\
+                     '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+ '.csv'
                     if os.path.exists(target_name_csv): # remove file if exists
                         os.remove(target_name_csv)
-                    ds_temp = ds_temp.set_coords([self.remapped_var_lat,self.remapped_var_lon])
-                    df = ds_temp.to_dataframe()
-                    df['ID'] = df.index.get_level_values(level=0)
-                    df['time'] = df.index.get_level_values(level=1)
-                    df = df.set_index(['ID','time',self.remapped_var_lat,self.remapped_var_lon])
-                    df = df.unstack(level=-3)
-                    df = df.transpose()
-                    if 'units' in ds[self.var_names_remapped[i]].attrs.keys():
-                        df = df.replace(self.var_names_remapped[i], self.var_names_remapped[i]+' '+ds[self.var_names_remapped[i]].attrs['units'])
+                    if os.path.exists(target_name_map): # remove file if exists
+                        os.remove(target_name_map)
+                    lat_data = np.squeeze(np.array(ds[self.remapped_var_lat])); lat_data = lat_data.flatten()
+                    lon_data = np.squeeze(np.array(ds[self.remapped_var_lon])); lon_data = lon_data.flatten()
+                    maps = np.zeros([2,len(lat_data)])
+                    maps [0,:] = lat_data
+                    maps [1,:] = lon_data
+                    df_map = pd.DataFrame(data=maps, index=["lat","lon"], columns=column_name)
+                    #######
+                    # new_list = list(self.var_names_remapped) # new lists
+                    # del new_list[i] # remove one value
+                    # #ds_temp = ds.drop(new_list) # drop all the other varibales excpet target varibale, lat, lon and time
+                    # ds_temp = ds.drop_vars(new_list) # drop all the other varibales excpet target varibale, lat, lon and time
+                    # if 'units' in ds[self.var_names_remapped[i]].attrs.keys():
+                    #     dictionary = {self.var_names_remapped[i]:self.var_names_remapped[i]+' ['+ds[self.var_names_remapped[i]].attrs['units']+']'}
+                    #     ds_temp = ds_temp.rename_vars(dictionary)
+                    # target_name_csv = self.output_dir + self.case_name + '_remapped_'+ self.var_names_remapped[i] +\
+                    #  '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.csv'
+                    # if os.path.exists(target_name_csv): # remove file if exists
+                    #     os.remove(target_name_csv)
+                    # # ds_temp = ds_temp.set_coords([self.remapped_var_lat,self.remapped_var_lon])
+                    # ds_temp = ds_temp.reset_index(['time',self.remapped_var_id])
+                    # ds_temp = ds_temp.reset_coords()
+                    # df = ds_temp.to_dataframe()
+                    # df = df.reset_index()
+                    # df = df.drop(columns=['time'])
+                    # df ['time'] = df ['time_']
+                    # df = df.drop(columns=['time_'])
+                    # df = df.drop(columns=[self.remapped_var_id])
+                    # df [self.remapped_var_id] = df [self.remapped_var_id+'_']
+                    # df = df.drop(columns=[self.remapped_var_id+'_'])
+                    #######
+                    # df['ID'] = df.index.get_level_values(level=0)
+                    # df['time'] = df.index.get_level_values(level=1)
+                    # df = df.set_index(['ID','time',self.remapped_var_lat,self.remapped_var_lon])
+                    # df = df.unstack(level=-3)
+                    # df = df.transpose()
+                    # if 'units' in ds[self.var_names_remapped[i]].attrs.keys():
+                    #     df = df.replace(self.var_names_remapped[i], self.var_names_remapped[i]+' '+ds[self.var_names_remapped[i]].attrs['units'])
+                    #######
                     df.to_csv(target_name_csv)
                     print('Converting variable '+ self.var_names_remapped[i] +' from remapped file of '+target_name+\
                         ' to '+target_name_csv)
+                    df_map.to_csv(target_name_map)
+                    print('Saving the ID, lat, lon map at '+target_name_csv)
                 print('------')
 
     def __weighted_average(self,
@@ -1138,6 +1164,197 @@ in dimensions of the varibales and latitude and longitude')
             weighted_value [m,:] = np.array(df_temp['values_w'])
             m += 1
         return weighted_value
+
+
+    def shp_lon_correction (self,
+                            shp): # the name of SHP including path with WGS1984 projection
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function reads a shapefile and for longitude of model than 180 it correct it to a frame of -180 to 180
+        ---------
+        shp: geopandas shapefile
+        Returns
+        -------
+        shp_final: geopandas shapefile corrected in the frame of -180 to 180
+        """
+        # loading the needed packaged
+        import geopandas as gpd
+        import pandas as pd
+        from   shapely.geometry import Polygon
+        import shapely
+        # if no crs set to epsg:4326
+        if not shp.crs:
+            print('inside shp_lon_correction, no crs is provided for the shapefile; EASYMORE will allocate WGS84 \
+to correct for lon above 180')
+            shp = shp.set_crs("epsg:4326")
+        #
+        col_names = shp.columns.to_list()
+        col_names.remove('geometry')
+        df_attribute = pd.DataFrame()
+        if col_names:
+            df_attribute = shp.drop(columns = 'geometry')
+        shp = shp.drop(columns = col_names)
+        shp['ID'] = np.arange(len(shp))+1
+        # get the maximum and minimum bound of the total bound
+        min_lon, min_lat, max_lon, max_lat = shp.total_bounds
+        if (360 < max_lon) and (min_lon<0):
+            sys.exit('The minimum longitude is higher than 360 while the minimum longitude is lower that 0')
+        if (max_lon < 180) and (-180 < min_lon):
+            print('EASYMORE detects that shapefile longitude is between -180 and 180, no correction is performed')
+            shp_final = shp
+        else:
+            shp_int1 = pd.DataFrame()
+            shp_int2 = pd.DataFrame()
+            # intersection if shp has a larger lon of 180 so it is 0 to 360,
+            if (180 < max_lon) and (-180 < min_lon):
+                print('EASYMORE detects that shapefile longitude is between 0 and 360, correction is performed to transfer to -180 to 180')
+                # shapefile with 180 to 360 lon
+                gdf1 = {'geometry': [Polygon([(  180.0+self.tolerance, -90.0+self.tolerance), ( 180.0+self.tolerance,  90.0-self.tolerance),\
+                                              (  360.0-self.tolerance,  90.0-self.tolerance), ( 360.0-self.tolerance, -90.0+self.tolerance)])]}
+                gdf1 = gpd.GeoDataFrame(gdf1)
+                gdf1 = gdf1.set_crs ("epsg:4326")
+                warnings.simplefilter('ignore')
+                shp_int1 = self.intersection_shp(shp, gdf1)
+                warnings.simplefilter('default')
+                col_names = shp_int1.columns
+                col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
+                col_names.append('geometry')
+                shp_int1 = shp_int1[shp_int1.columns.intersection(col_names)]
+                col_names.remove('geometry')
+                # rename columns without S_1_
+                for col_name in col_names:
+                    col_name = str(col_name)
+                    col_name_n = col_name.replace("S_1_","");
+                    shp_int1 = shp_int1.rename(columns={col_name: col_name_n})
+                #
+                for index, _ in shp_int1.iterrows():
+                    polys = shp_int1.geometry.iloc[index] # get the shape
+                    polys = shapely.affinity.translate(polys, xoff=-360.0, yoff=0.0, zoff=0.0)
+                    shp_int1.geometry.iloc[index] = polys
+                # shapefile with -180 to 180 lon
+                gdf2 = {'geometry': [Polygon([( -180.0+self.tolerance, -90.0+self.tolerance), (-180.0+self.tolerance,  90.0-self.tolerance),\
+                                              (  180.0-self.tolerance,  90.0-self.tolerance), ( 180.0-self.tolerance, -90.0+self.tolerance)])]}
+                gdf2 = gpd.GeoDataFrame(gdf2)
+                gdf2 = gdf2.set_crs ("epsg:4326")
+                warnings.simplefilter('ignore')
+                shp_int2 = self.intersection_shp(shp, gdf2)
+                warnings.simplefilter('default')
+                col_names = shp_int2.columns
+                col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
+                col_names.append('geometry')
+                shp_int2 = shp_int2[shp_int2.columns.intersection(col_names)]
+                col_names.remove('geometry')
+                # rename columns without S_1_
+                for col_name in col_names:
+                    col_name = str(col_name)
+                    col_name_n = col_name.replace("S_1_","");
+                    shp_int2 = shp_int2.rename(columns={col_name: col_name_n})
+            #
+            if (max_lon < 180) and (min_lon < -180):
+                print('EASYMORE detects that shapefile longitude is between 0 and 360, correction is performed to transfer to -180 to 180')
+                # shapefile with -180 to -360 lon
+                gdf1 = {'geometry': [Polygon([( -360.0+self.tolerance, -90.0+self.tolerance), (-360.0+self.tolerance,  90.0-self.tolerance),\
+                                              ( -180.0+self.tolerance,  90.0-self.tolerance), (-180.0+self.tolerance, -90.0+self.tolerance)])]}
+                gdf1 = gpd.GeoDataFrame(gdf1)
+                gdf1 = gdf1.set_crs ("epsg:4326")
+                warnings.simplefilter('ignore')
+                shp_int1 = self.intersection_shp(shp, gdf1)
+                warnings.simplefilter('default')
+                col_names = shp_int1.columns
+                col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
+                col_names.append('geometry')
+                shp_int1 = shp_int1[shp_int1.columns.intersection(col_names)]
+                col_names.remove('geometry')
+                # rename columns without S_1_
+                for col_name in col_names:
+                    col_name = str(col_name)
+                    col_name_n = col_name.replace("S_1_","");
+                    shp_int1 = shp_int1.rename(columns={col_name: col_name_n})
+                #
+                for index, _ in shp_int1.iterrows():
+                    polys = shp_int1.geometry.iloc[index] # get the shape
+                    polys = shapely.affinity.translate(polys, xoff=+360.0, yoff=0.0, zoff=0.0)
+                    shp_int1.geometry.iloc[index] = polys
+                # shapefile with -180 to 180 lon
+                gdf2 = {'geometry': [Polygon([( -180.0+self.tolerance, -90.0+self.tolerance), (-180.0+self.tolerance,  90.0-self.tolerance),\
+                                              (  180.0-self.tolerance,  90.0-self.tolerance), ( 180.0-self.tolerance, -90.0+self.tolerance)])]}
+                gdf2 = gpd.GeoDataFrame(gdf2)
+                gdf2 = gdf2.set_crs ("epsg:4326")
+                warnings.simplefilter('ignore')
+                shp_int2 = self.intersection_shp(shp, gdf2)
+                warnings.simplefilter('default')
+                col_names = shp_int2.columns
+                col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
+                col_names.append('geometry')
+                shp_int2 = shp_int2[shp_int2.columns.intersection(col_names)]
+                col_names.remove('geometry')
+                # rename columns without S_1_
+                for col_name in col_names:
+                    col_name = str(col_name)
+                    col_name_n = col_name.replace("S_1_","");
+                    shp_int2 = shp_int2.rename(columns={col_name: col_name_n})
+            # merging the two shapefiles
+            if not shp_int1.empty and not shp_int2.empty:
+                shp_final = pd.concat([shp_int1,shp_int2])
+            elif not shp_int1.empty:
+                shp_final = shp_int1
+            elif not shp_int2.empty:
+                shp_final = shp_int2
+        # put back the pandas into geopandas
+        shp_final = shp_final.set_geometry('geometry')
+        shp_final = shp_final.dissolve(by='ID', as_index=False)
+        shp_final = shp_final.sort_values(by='ID')
+        shp_final = shp_final.drop(columns='ID')
+        if not df_attribute.empty: # add attributes
+            shp_final = pd.concat([shp_final, df_attribute], axis=1)
+        # check if the output has the same number of elements
+        if len(shp) != len(shp_final):
+            sys.exit('the element of input shapefile and corrected shapefile area not the same')
+        # return the shapefile
+        return shp_final
+
+
+    def shp_centroid_equal_area (self,
+                                 shp):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function calcultes the centroid in equal area projection for shapefile bound between -180 to 180.
+        ---------
+        shp: geopandas shapefile
+        Returns
+        -------
+        shp: geopandas shapefile with centroid in equal arae
+        shp_points: geopandas shapefile (points) with location in WGS84 corresponsing to the centroid in equal area
+        """
+        # in equal projection
+        print('calculating centroid of shapes in equal area projection')
+        if "epsg:4326" not in str(shp.crs).lower():
+            sys.exit('shapefile should be in WGS84 projection');
+        minx, miny, maxx, maxy = shp.total_bounds
+        if maxx > 180:
+            sys.exit('it seems that the shapefile has longitude values of more than 180 degree which might make \
+            problem in equal area projection; other software can be used');
+        shp_temp = shp.to_crs ("EPSG:6933") # source shapefile to equal area
+        lat_c = np.array(shp_temp.centroid.y) # centroid lat from target
+        lon_c = np.array(shp_temp.centroid.x) # centroid lon from target
+        df_point = pd.DataFrame()
+        df_point ['lat'] = lat_c
+        df_point ['lon'] = lon_c
+        shp_points = self.make_shape_point(df_point, 'lon', 'lat', crs="EPSG:6933")
+        shp_points = shp_points.to_crs("EPSG:4326") # to WGS
+        shp_points = shp_points.drop(columns=['lat','lon'])
+        shp_points ['lat'] = shp_points.geometry.y
+        shp_points ['lon'] = shp_points.geometry.x
+        shp ['lat_cent'] = shp_points ['lat']
+        shp ['lon_cent'] = shp_points ['lon']
+        return shp, shp_points
+
 
     ##############################################################
     #### GIS section
