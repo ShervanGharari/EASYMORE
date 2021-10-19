@@ -84,13 +84,13 @@ class easymore:
                 if self.case == 1:
                     if hasattr(self, 'lat_expanded') and hasattr(self, 'lon_expanded'):
                         self.lat_lon_SHP(self.lat_expanded, self.lon_expanded,\
-                            self.temp_dir+self.case_name+'_source_shapefile.shp')
+                            self.temp_dir+self.case_name+'_source_shapefile.gpkg')
                     else:
                         self.lat_lon_SHP(self.lat, self.lon,\
-                            self.temp_dir+self.case_name+'_source_shapefile.shp')
+                            self.temp_dir+self.case_name+'_source_shapefile.gpkg')
                 else:
                     self.lat_lon_SHP(self.lat, self.lon,\
-                        self.temp_dir+self.case_name+'_source_shapefile.shp')
+                        self.temp_dir+self.case_name+'_source_shapefile.gpkg')
                 print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
                 print(self.temp_dir+self.case_name+'_source_shapefile.shp')
             if (self.case == 1 or self.case == 2)  and (self.source_shp != ''):
@@ -630,24 +630,25 @@ in dimensions of the varibales and latitude and longitude')
         # check if lat/lon that are taken in has the same dimension
         import geopandas as gpd
         from   shapely.geometry import Polygon
-        import shapefile # pyshed library
-        import shapely
+        from numba import jit
+        # import shapefile # pyshed library
+        # import shapely
         #
         lat_lon_shape = lat.shape
         # write the shapefile
-        with shapefile.Writer(file_name) as w:
-            w.autoBalance = 1 # turn on function that keeps file stable if number of shapes and records don't line up
-            w.field("ID_s",'N') # create (N)umerical attribute fields, integer
-            w.field("lat_s",'F',decimal=4) # float with 4 decimals
-            w.field("lon_s",'F',decimal=4) # float with 4 decimals
-            # preparing the m whcih is a couter for the shapefile arbitrary ID
-            m = 0.00
-            # itterating to create the shapes of the result shapefile ignoring the first and last rows and columns
+        @jit(nopython=True)
+        def bottleneck(lat: np.ndarray, lon: np.ndarray) -> tuple:
+            '''
+            replace two for-loop with C++
+            '''
+            lat_lon_shape= lon.shape
+            geometry = []
+            records= []
+            m=0
             for i in range(1, lat_lon_shape[0] - 1):
                 for j in range(1, lat_lon_shape[1] - 1):
                     # checking is lat and lon is located inside the provided bo
                     # empty the polygon variable
-                    parts = []
                     # update records
                     m += 1 # ID
                     center_lat = lat[i,j] # lat value of data point in source .nc file
@@ -670,8 +671,7 @@ in dimensions of the varibales and latitude and longitude')
                     Lon_LowLeft  = (lon[i, j - 1] + lon[i + 1, j - 1] + lon[i + 1, j] + lon[i, j]) / 4
                     Lon_Left     = (lon[i, j - 1] + lon[i, j]) / 2
                     Lon_UpLeft   = (lon[i - 1, j - 1] + lon[i - 1, j] + lon[i, j - 1] + lon[i, j]) / 4
-                    # creating the polygon given the lat and lon
-                    parts.append([ (Lon_Up,        Lat_Up),\
+                    geometry.append([ (Lon_Up,        Lat_Up),\
                                    (Lon_UpRright,  Lat_UpRright), \
                                    (Lon_Right,     Lat_Right), \
                                    (Lon_LowRight,  Lat_LowRight), \
@@ -680,10 +680,19 @@ in dimensions of the varibales and latitude and longitude')
                                    (Lon_Left,      Lat_Left), \
                                    (Lon_UpLeft,    Lat_UpLeft), \
                                    (Lon_Up,        Lat_Up)])
-                    # store polygon
-                    w.poly(parts)
-                    # update records/fields for the polygon
-                    w.record(m, center_lat, center_lon)
+                    records.append([m, center_lat, center_lon])
+
+            return (geometry, records)
+
+        geometry, records= bottleneck(lat, lon)
+        records= np.stack(records)
+        gdf= gpd.GeoDataFrame(geometry=[Polygon(_geom) for _geom in geometry])
+        gdf['ID_s']= records[:,0].astype(np.int32)
+        gdf['lat_s']= records[:,1].astype(np.float32)
+        gdf['lon_s']= records[:,2].astype(np.float32)
+        gdf.to_file(file_name)
+
+        return gdf
 
     def add_lat_lon_source_SHP( self,
                                 shp,
@@ -1365,8 +1374,9 @@ to correct for lon above 180')
                             shp_2):
         import geopandas as gpd
         from   shapely.geometry import Polygon
-        import shapefile # pyshed library
-        import shapely
+        from numba import jit
+        # import shapefile # pyshed library
+        # import shapely
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
@@ -1389,6 +1399,15 @@ to correct for lon above 180')
         result: a geo data frame that includes the intersected shapefile and area, percent and normalized percent of each shape
         elements in another one
         """
+        @jit(nopython=True)
+        def normalize(ids: np.ndarray, unique_ids: np.ndarray,
+                         ap: np.ndarray) -> np.ndarray:
+            ap_new= ap.copy()
+            for i in unique_ids:
+                idx= np.where(ids==i)
+                ap_new[idx]= ap[idx]/ap[idx].sum()
+            return ap_new
+
         # get the column name of shp_1
         column_names = shp_1.columns
         column_names = list(column_names)
@@ -1425,18 +1444,22 @@ to correct for lon above 180')
         AP1 = np.array(result['AP1'])
         AP1N = AP1 # creating the nnormalized percent area
         ID_S1_unique = np.unique(ID_S1) #unique idea
-        for i in ID_S1_unique:
-            INDX = np.where(ID_S1==i) # getting the indeces
-            AP1N[INDX] = AP1[INDX] / AP1[INDX].sum() # normalizing for that sum
+        AP1N=normalize(ID_S1, ID_S1_unique, AP1)
+        #replace computationally expensive part with C++
+        # for i in ID_S1_unique:
+        #     INDX = np.where(ID_S1==i) # getting the indeces
+        #     AP1N[INDX] = AP1[INDX] / AP1[INDX].sum() # normalizing for that sum
         # taking the part of data frame as the numpy to incread the spead
         # finding the IDs from shapefile one
         ID_S2 = np.array (result['IDS2'])
         AP2 = np.array(result['AP2'])
         AP2N = AP2 # creating the nnormalized percent area
         ID_S2_unique = np.unique(ID_S2) #unique idea
-        for i in ID_S2_unique:
-            INDX = np.where(ID_S2==i) # getting the indeces
-            AP2N[INDX] = AP2[INDX] / AP2[INDX].sum() # normalizing for that sum
+        AP2N= normalize(ID_S2, ID_S2_unique, AP2)
+        # replace computationally expensive part with C++
+        # for i in ID_S2_unique:
+        #     INDX = np.where(ID_S2==i) # getting the indeces
+        #     AP2N[INDX] = AP2[INDX] / AP2[INDX].sum() # normalizing for that sum
         result ['AP1N'] = AP1N
         result ['AP2N'] = AP2N
         return result
