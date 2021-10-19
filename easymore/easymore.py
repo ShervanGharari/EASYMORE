@@ -45,6 +45,7 @@ class easymore:
         self.license                   =  '' # data license
         self.tolerance                 =  10**-5 # tolerance
         self.save_csv                  =  False # save csv
+        self.save_temp                 =  False # option to save temporary shape file
         self.sort_ID                   =  False # to sort the remapped based on the target shapfile ID; self.target_shp_ID should be given
         self.complevel                 =  4 # netcdf compression level from 1 to 9. Any other value or object will mean no compression.
         self.version                   =  '0.0.2' # version of the easymore
@@ -83,48 +84,54 @@ class easymore:
             if (self.case == 1 or self.case == 2)  and (self.source_shp == ''):
                 if self.case == 1:
                     if hasattr(self, 'lat_expanded') and hasattr(self, 'lon_expanded'):
-                        self.lat_lon_SHP(self.lat_expanded, self.lon_expanded,\
-                            self.temp_dir+self.case_name+'_source_shapefile.gpkg')
+                        source_shp_gpd= self.lat_lon_SHP(self.lat_expanded, self.lon_expanded,\
+                            self.temp_dir+self.case_name+'_source_shapefile.shp')
                     else:
-                        self.lat_lon_SHP(self.lat, self.lon,\
-                            self.temp_dir+self.case_name+'_source_shapefile.gpkg')
+                        source_shp_gpd= self.lat_lon_SHP(self.lat, self.lon,\
+                            self.temp_dir+self.case_name+'_source_shapefile.shp')
                 else:
-                    self.lat_lon_SHP(self.lat, self.lon,\
-                        self.temp_dir+self.case_name+'_source_shapefile.gpkg')
-                print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
-                print(self.temp_dir+self.case_name+'_source_shapefile.shp')
+                    source_shp_gpd= self.lat_lon_SHP(self.lat, self.lon,\
+                        self.temp_dir+self.case_name+'_source_shapefile.shp')
+                if self.save_temp:
+                    print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
+                    print(self.temp_dir+self.case_name+'_source_shapefile.shp')
             if (self.case == 1 or self.case == 2)  and (self.source_shp != ''):
                 source_shp_gpd = gpd.read_file(self.source_shp)
                 source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
                     self.source_shp_lon, self.source_shp_ID)
-                source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
-                print('EASYMORE detect the shapefile is provided and will resave it here:')
-                print(self.temp_dir+self.case_name+'_source_shapefile.shp')
+                if self.save_temp:
+                    source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
+                    print('EASYMORE detect the shapefile is provided and will resave it here:')
+                    print(self.temp_dir+self.case_name+'_source_shapefile.shp')
             # if case 3 or source shapefile is provided
             if (self.case == 3) and (self.source_shp != ''):
                 self.check_source_nc_shp() # check the lat lon in soure shapefile and nc file
                 source_shp_gpd = gpd.read_file(self.source_shp)
                 source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
                     self.source_shp_lon, self.source_shp_ID)
-                source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
-                print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
-                print(self.temp_dir+self.case_name+'_source_shapefile.shp')
+                if self.save_temp:
+                    source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
+                    print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
+                    print(self.temp_dir+self.case_name+'_source_shapefile.shp')
             # intersection of the source and sink/target shapefile
-            shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_target_shapefile.shp')
-            shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
+            shp_1 = target_shp_gpd
+            shp_2 = source_shp_gpd
             # correction of the source and target shapefile to frame of -180 to 180
             shp_1 = self.shp_lon_correction(shp_1)
             shp_2 = self.shp_lon_correction(shp_2)
-            shp_1.to_file(self.temp_dir+self.case_name+'_target_shapefile_corrected_frame.shp')
-            shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_corrected_frame.shp')
+            if self.save_temp:
+                shp_1.to_file(self.temp_dir+self.case_name+'_target_shapefile_corrected_frame.shp')
+                shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_corrected_frame.shp')
             # reprojections to equal area
             if (str(shp_1.crs).lower() == str(shp_2.crs).lower()) and ('epsg:4326' in str(shp_1.crs).lower()):
                 shp_1 = shp_1.to_crs ("EPSG:6933") # project to equal area
-                shp_1.to_file(self.temp_dir+self.case_name+'test.shp')
-                shp_1 = gpd.read_file(self.temp_dir+self.case_name+'test.shp')
+                if self.save_temp:
+                    shp_1.to_file(self.temp_dir+self.case_name+'test.shp')
+                    shp_1 = gpd.read_file(self.temp_dir+self.case_name+'test.shp')
                 shp_2 = shp_2.to_crs ("EPSG:6933") # project to equal area
-                shp_2.to_file(self.temp_dir+self.case_name+'test.shp')
-                shp_2 = gpd.read_file(self.temp_dir+self.case_name+'test.shp')
+                if self.save_temp:
+                    shp_2.to_file(self.temp_dir+self.case_name+'test.shp')
+                    shp_2 = gpd.read_file(self.temp_dir+self.case_name+'test.shp')
                 # remove test files
                 removeThese = glob.glob(self.temp_dir+self.case_name+'test.*')
                 for file in removeThese:
@@ -134,7 +141,8 @@ class easymore:
             shp_int = self.intersection_shp(shp_1, shp_2)
             shp_int = shp_int.sort_values(by=['S_1_ID_t']) # sort based on ID_t
             shp_int = shp_int.to_crs ("EPSG:4326") # project back to WGS84
-            shp_int.to_file(self.temp_dir+self.case_name+'_intersected_shapefile.shp') # save the intersected files
+            if self.save_temp:
+                shp_int.to_file(self.temp_dir+self.case_name+'_intersected_shapefile.shp') # save the intersected files
             shp_int = shp_int.drop(columns=['geometry']) # remove the geometry
             # rename dictionary
             dict_rename = {'S_1_ID_t' : 'ID_t',
@@ -690,7 +698,8 @@ in dimensions of the varibales and latitude and longitude')
         gdf['ID_s']= records[:,0].astype(np.int32)
         gdf['lat_s']= records[:,1].astype(np.float32)
         gdf['lon_s']= records[:,2].astype(np.float32)
-        gdf.to_file(file_name)
+        if self.save_temp:
+            gdf.to_file(file_name)
 
         return gdf
 
