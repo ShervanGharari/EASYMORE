@@ -27,7 +27,8 @@ setup(
     'gdal',
     'geovoronoi',
     'json5',
-    'rasterio']
+    'rasterio',
+    'rtree',]
     },
     description=(
         'geo-spatial processing of the input data for environmental and hydrological modeling'
