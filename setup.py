@@ -1,4 +1,17 @@
 from setuptools import find_packages, setup
+import subprocess
+
+def get_installed_gdal_version():
+    try:
+        version = subprocess.run(["gdal-config","--version"], stdout=subprocess.PIPE).stdout.decode()
+        version = version.replace('\n', '')
+        version = "=="+version+".*"
+        return version
+    except FileNotFoundError as e:
+        raise(""" ERROR: Could not find the system install of GDAL. 
+                  Please install it via your package manage of choice.
+                """
+            )
 
 setup(
     name='easymore',
@@ -24,7 +37,7 @@ setup(
     'shapely',
     'pyshp',
     'pysheds',
-    'gdal',
+    'gdal'+get_installed_gdal_version(),
     'geovoronoi',
     'json5',
     'rasterio',
