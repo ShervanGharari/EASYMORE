@@ -20,7 +20,7 @@ setup(
         'datetime',
     ],
     extras_require={
-    ":python_version>'3.6'":['geopandas >= 0.8.1',
+    "complete":['geopandas >= 0.8.1',
     'shapely',
     'pyshp',
     'pysheds',
