@@ -35,6 +35,7 @@ class easymore:
         self.remapped_var_lat          =  'latitude' # name of the latitude variable in the new nc file; default 'latitude'
         self.remapped_var_lon          =  'longitude' # name of the longitude variable in the new nc file; default 'longitude'
         self.remapped_dim_id           =  'ID' # name of the ID dimension in the new nc file; default 'ID'
+        self.remapped_chunk_size       =  200 # chunksize of remapped variables in the non-time (i.e. limited) dimension. Default 200 is a reasonable approach for data with a large limited dimension (500,000+). Use 'None' for netCDF4 defaults
         self.overwrite_existing_remap  =  True # Flag to automatically overwrite existing remapping files. If 'False', aborts the remapping procedure if a file is detected
         self.temp_dir                  =  './temp/' # temp_dir
         self.output_dir                =  './output/' # output directory
@@ -950,6 +951,7 @@ in dimensions of the varibales and latitude and longitude')
             compflag = False
             complevel = 0
             print('netcdf output file will not be compressed.')
+        # start processing all input netCDF files
         for nc_name in nc_names:
             # get the time unit and time var from source
             ncids = nc4.Dataset(nc_name)
@@ -1038,8 +1040,14 @@ in dimensions of the varibales and latitude and longitude')
                                                           target_date_times,
                                                           self.var_names[i],
                                                           remap)
+                    # check chunking choice
+                    if self.remapped_chunk_size == None:
+                        chunk_sizes = None # Use netCDF4 default values, i.e. (1,n) chunk lengths for (unlimited,limited) dimensions, where n is the length of the limited dim
+                    else:
+                        chunk_length = min(self.remapped_chunk_size, len(var_value)) # don't make a chunk > data length
+                        chunk_sizes = (1,chunk_length) # (time,remap_dim)
                     # Variables writing
-                    varid = ncid.createVariable(self.var_names_remapped[i], self.format_list[i], ('time',self.remapped_dim_id ), fill_value = self.fill_value_list[i], zlib=compflag, complevel=complevel)
+                    varid = ncid.createVariable(self.var_names_remapped[i], self.format_list[i], ('time',self.remapped_dim_id ), fill_value = self.fill_value_list[i], zlib=compflag, complevel=complevel, chunksizes=chunk_sizes)
                     varid [:] = var_value
                     # Pass attributes
                     if 'long_name' in ncids.variables[self.var_names[i]].ncattrs():
