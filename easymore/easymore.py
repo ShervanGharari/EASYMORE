@@ -1397,34 +1397,35 @@ to correct for lon above 180')
         names = None # list
         """
 
-        #
+        # read the data csv
         data_frame = pd.read_csv(station_data_name)
         # convert the data time of the data_frame to index
         data_frame[time_column] = pd.to_datetime(data_frame[time_column], infer_datetime_format=True)
         data_frame = data_frame.set_index(time_column) # set as index
-        # get the column name
-        column_names_main = list (data_frame.columns)
-        IDs = np.arange(len(column_names_main))+1
-        station_names = np.array(data_frame.columns, dtype='object')
 
         #
         if station_info_name:
-            station_info_name = pd.read_csv('station_info_name')
-            station_info_name = station_info_name.set_index('Unnamed: 0')
-            station_info_name.index.names = [None]
-            column_names_info = list (station_info_name.columns)
+            station_info = pd.read_csv(station_info_name)
+            station_info = station_info.set_index('Unnamed: 0')
+            station_info.index.names = [None]
             # check if the two list are exatcly the same
-            if set(column_names_main) <= set(column_names_info):
+            if not set(data_frame.columns) <= set(station_info.columns):
                 sys.exit('there are colomn name in the data that do not have info in the information file')
             # get the station_info_names in order of the data
-            station_info_name = station_info_name[column_names_main.columns]
-            list_index = list (station_info_name.index)
+            station_info = station_info[data_frame.columns]
+            list_index = list (station_info.index)
             if 'ID' in list_index:
-                IDs = np.array(df.loc['ID'])
+                IDs = np.array(station_info.loc['ID'])
             if 'lat' in list_index:
-                lats = np.array(df.loc['lat'])
+                lats = np.array(station_info.loc['lat'])
             if 'lon' in list_index:
-                lons = np.array(df.loc['lon'])
+                lons = np.array(station_info.loc['lon'])
+
+        #
+        if IDs is None:
+            IDs = np.arange(len(data_frame.columns))+1
+        if station_names is None:
+            station_names = np.array(data_frame.columns, dtype='object')
 
         # get the first string of the datetime as the starting point of the time
         start_time_unit = str(data_frame.index[0])
@@ -1481,30 +1482,30 @@ to correct for lon above 180')
             Station_ID_varid.units = '1'
             Station_ID_varid [:] =  np.array(list(data_frame.columns), dtype='object')
             # variable ID, from 1 to n
-            if IDs:
+            if IDs is not None:
                 ID_varid = ncid.createVariable('ID','i4',('n',))
                 ID_varid.long_name = 'ID'
                 ID_varid.units = '1'
                 ID_varid [:] =  IDs
             # variable lat
-            if lats:
+            if lats is not None:
                 lat_varid = ncid.createVariable('latitude','f8',('n',), fill_value = -9999)
                 lat_varid.long_name = 'latitude'
                 lat_varid.units = 'degrees_north'
                 lat_varid[:] = lats
             # variable lon
-            if lons:
+            if lons is not None:
                 lon_varid = ncid.createVariable('longitude','f8',('n',), fill_value = -9999)
                 lon_varid.long_name = 'longitude'
                 lon_varid.units = 'degrees_east'
                 lon_varid[:] = lons
-            if names:
-                Station_ID_varid = ncid.createVariable('Station_ID',str,('n',))
-                Station_ID_varid.long_name     = 'Station ID'
-                Station_ID_varid.units         = '1'
-                Station_ID_varidcf_role        = 'timeseries_id'
+            if station_names is not None:
+                Station_names_varid = ncid.createVariable('Station_ID',str,('n',))
+                Station_names_varid.long_name     = 'Station ID'
+                Station_names_varid.units         = '1'
+                Station_names_varidcf_role        = 'timeseries_id'
                 # Write data
-                Station_ID_varid [:] = names
+                Station_names_varid [:] = station_names
 
             #
             ncid.Conventions = 'CF-1.6'
