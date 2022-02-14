@@ -1457,6 +1457,7 @@ to correct for lon above 180')
         else: # there is float
             time_dtype_code = 'f8'
 
+        os.remove(file_name)
         # write the netcdf file
         with nc4.Dataset(file_name, "w", format="NETCDF4") as ncid: # creating the NetCDF file
             # define the dimensions
