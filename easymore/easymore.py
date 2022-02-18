@@ -2293,7 +2293,8 @@ to correct for lon above 180')
 
     def get_all_downstream (self,
                             seg_IDs,
-                            down_IDs):
+                            down_IDs,
+                            max_itter = 10000):
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
@@ -2314,7 +2315,7 @@ to correct for lon above 180')
         #
         seg_IDs = np.array(seg_IDs)
         down_IDs = np.array(down_IDs)
-        NTOPO = np.empty([len(seg_IDs),10000]) # create the empty array with length of seg_IDs and 10000
+        NTOPO = np.empty([len(seg_IDs),max_itter]) # create the empty array with length of seg_IDs and 10000
         NTOPO [:] = np.nan # populate with nan
         NTOPO [:,0] = seg_IDs # assign the first colomn as seg id
         # loop over the seg_IDs
@@ -2337,6 +2338,8 @@ to correct for lon above 180')
                     down_stream_exists = False
                 NTOPO[i,m] = ID
                 m += 1
+                if m > max_itter:
+                    sys.exit('check element with ',ID, ' for circular network topology; maximume nmber of itteration reached for all downstream function')
         return NTOPO
 
     def get_all_upstream(   self,
