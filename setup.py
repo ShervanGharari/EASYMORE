@@ -8,14 +8,14 @@ def get_installed_gdal_version():
         version = "=="+version+".*"
         return version
     except FileNotFoundError as e:
-        raise(""" ERROR: Could not find the system install of GDAL. 
+        raise(""" ERROR: Could not find the system install of GDAL.
                   Please install it via your package manage of choice.
                 """
             )
 
 setup(
     name='easymore',
-    version='0.0.2',
+    version='0.0.3',
     license='GPLv3',
     author=('Shervan Gharari', 'Wouter Knoben'),
     author_email = 'sh.gharari@gmail.com',
