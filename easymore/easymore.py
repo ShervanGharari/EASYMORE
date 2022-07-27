@@ -1264,7 +1264,7 @@ to correct for lon above 180')
                 print('EASYMORE detects that shapefile longitude is between 0 and 360, correction is performed to transfer to -180 to 180')
                 # shapefile with -180 to -360 lon
                 gdf1 = {'geometry': [Polygon([( -360.0+self.tolerance, -90.0+self.tolerance), (-360.0+self.tolerance,  90.0-self.tolerance),\
-                                              ( -180.0+self.tolerance,  90.0-self.tolerance), (-180.0+self.tolerance, -90.0+self.tolerance)])]}
+                                              ( -180.0-self.tolerance,  90.0-self.tolerance), (-180.0-self.tolerance, -90.0+self.tolerance)])]}
                 gdf1 = gpd.GeoDataFrame(gdf1)
                 gdf1 = gdf1.set_crs ("epsg:4326")
                 warnings.simplefilter('ignore')
