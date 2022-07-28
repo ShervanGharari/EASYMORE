@@ -65,9 +65,9 @@ The two figures show remapping of the gridded temperature from ERA5 data set to 
 
 Authors
 
-Shervan Gharari, Inne Vanderkelen, Andrew Tefs, Naoki Mizukami, Tricia A. Stadnyk, David Lawrence, Martyn P. Clark: A Flexible Multi-Scale Framework to Simulate Lakes and Reservoirs in Earth System Models, Earth and Space Science Open Archive, 24, https://doi.org/10.1002/essoar.10510902.1, 2022
-
 Wouter J.M. Knoben, Martyn P. Clark, Jerad Bales, Andrew Bennett, Shervan Gharari, Christopher B. Marsh, Bart Nijssen, Alain Pietroniro, Raymond J. Spiteri, David G. Tarboton, Andrew W Wood: Community Workflows to Advance Reproducibility in Hydrologic Modeling: Separating model-agnostic and model-specific configuration steps in applications of large-domain hydrologic models, Earth and Space Science Open Archive, 42, https://doi.org/10.1002/essoar.10509195.1, 2021
+
+Shervan Gharari, Inne Vanderkelen, Andrew Tefs, Naoki Mizukami, Tricia A. Stadnyk, David Lawrence, Martyn P. Clark: A Flexible Multi-Scale Framework to Simulate Lakes and Reservoirs in Earth System Models, Earth and Space Science Open Archive, 24, https://doi.org/10.1002/essoar.10510902.1, 2022
 
 Gharari, S., Clark, M. P., Mizukami, N., Knoben, W. J. M., Wong, J. S., and Pietroniro, A.: Flexible vector-based spatial configurations in land models, Hydrol. Earth Syst. Sci., 24, 5953–5971, https://doi.org/10.5194/hess-24-5953-2020, 2020
 
