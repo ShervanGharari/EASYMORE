@@ -48,6 +48,8 @@ class easymore:
         self.sort_ID                   =  False # to sort the remapped based on the target shapfile ID; self.target_shp_ID should be given
         self.complevel                 =  4 # netcdf compression level from 1 to 9. Any other value or object will mean no compression.
         self.version                   =  '0.0.3' # version of the easymore
+        self.flag_smooth_lat_lon       =  True # check the lat lon smooth
+        self.smooth_lat_lon_tolerance  =  2 # 2 degrees
         print('EASYMORE version '+self.version+ ' is initiated.')
 
     ##############################################################
@@ -81,6 +83,9 @@ class easymore:
             self.NetCDF_SHP_lat_lon()
             # create the source shapefile for case 1 and 2 if shapefile is not provided
             if (self.case == 1 or self.case == 2)  and (self.source_shp == ''):
+                # first check if there is uniformity in  lat/lon for example jump from lon or -180 to +180 is not accepcted
+                if self.flag_smooth_lat_lon:
+                    self.lat_lon_smooth_test()
                 if self.case == 1:
                     if hasattr(self, 'lat_expanded') and hasattr(self, 'lon_expanded'):
                         self.lat_lon_SHP(self.lat_expanded, self.lon_expanded,\
@@ -109,6 +114,10 @@ class easymore:
                 source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
                 print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
                 print(self.temp_dir+self.case_name+'_source_shapefile.shp')
+            # if case 3 and source shapefile is not provided; EASYMORE will use Voronoi diagram
+            if (self.case == 3) and (self.source_shp == ''):
+                ####
+                print(' ')
             # intersection of the source and sink/target shapefile
             shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_target_shapefile.shp')
             shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
@@ -497,6 +506,28 @@ in dimensions of the varibales and latitude and longitude')
         #     coord_nc_temp = coord_nc_temp[idx_target:] # cut the
         # if multi_source:
         #     print('There are multiple shape in source shapefile that is closer to provided netCDF latitude and longitude')
+
+    def lat_lon_smooth_test(self):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function checks the smoothness of lat and lon variable in the netcdf file to avoid sharp jump such as -180 to +180
+        """
+
+        lat_max = abs(self.lat[:-1,:-1]-self.lat[1:,1:]).max()
+        lon_max = abs(self.lon[:-1,:-1]-self.lon[1:,1:]).max()
+        lat_lon_max = max(lat_max, lon_max)
+        print(lat_lon_max)
+        if lat_lon_max > self.smooth_lat_lon_tolerance:
+            sys.exit('The difference between grid latitude and longitude are more than tolerance. '+\
+                'This means that the adjacent grid may have jump in lon for example from -180 to +180. '+\
+                'It is best to Adjust the lat lon varibale in the netcdf file and then apply EASYMORE ' +\
+                'to the amended netcdf.')
+        else:
+            print('EASYMORE detects that lat lon variable are smooth and will create the source shapefile')
+
 
     def NetCDF_SHP_lat_lon(self):
         """

@@ -1,0 +1,25 @@
+Metadata-Version: 2.1
+Name: easymore
+Version: 0.0.3
+Summary: geo-spatial processing of the input data for environmental and hydrological modeling
+Home-page: https://github.com/ShervanGharari/EASYMORE
+Author: ('Shervan Gharari', 'Wouter Knoben')
+Author-email: sh.gharari@gmail.com
+License: GPLv3
+Keywords: remapping,NetCDF,shapefile,geotif,geo-spatial processing,environmental modeling
+Platform: any
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Natural Language :: English
+Classifier: Intended Audience :: Developers
+Classifier: Operating System :: OS Independent
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Provides-Extra: complete
+License-File: LICENSE
+
+Extract data from netcdf file from any shape to any shape (such as catchments), geo-spatial processes such as creating subbains and river network topology, zonl statistics
+
