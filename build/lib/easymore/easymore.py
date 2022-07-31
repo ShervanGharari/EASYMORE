@@ -116,7 +116,7 @@ class easymore:
                 print(self.temp_dir+self.case_name+'_source_shapefile.shp')
             # if case 3 and source shapefile is not provided; EASYMORE will use Voronoi diagram
             if (self.case == 3) and (self.source_shp == ''):
-                ####
+                # Create the source shapefile using Voronio diagram
                 print(' ')
             # intersection of the source and sink/target shapefile
             shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_target_shapefile.shp')
@@ -513,8 +513,7 @@ in dimensions of the varibales and latitude and longitude')
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
-        This function checks dimension of the source shapefile and checks the case of regular, rotated, and irregular
-        also created the 2D array of lat and lon for creating the shapefile
+        This function checks the smoothness of lat and lon variable in the netcdf file to avoid sharp jump such as -180 to +180
         """
 
         lat_max = abs(self.lat[:-1,:-1]-self.lat[1:,1:]).max()
@@ -2282,7 +2281,7 @@ to correct for lon above 180')
             stations = points_shp_in # geodataframe
         # get the crs from the point shapefile
         crs_org = stations.crs
-        print(crs_org)
+        print('crs from the point: ', crs_org)
         # add the ID_t to the point shapefiles
         stations ['ID_s'] = np.arange(len(stations))+1
         stations ['ID_s'] = stations ['ID_s'].astype(float)
