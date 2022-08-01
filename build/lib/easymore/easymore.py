@@ -1756,6 +1756,7 @@ to correct for lon above 180')
                             dataframe,
                             lon_field,
                             lat_field,
+                            point_shp_file_name=None,
                             crs=None):
         """
         @ author:                  Shervan Gharari
@@ -1783,6 +1784,8 @@ to correct for lon above 180')
         else:
             print('no crs is provided for the point shapefiles; EASYMORE will allocate WGS84')
             shp = shp.set_crs ('EPSG:4326')
+        if not (point_shp_file_name is None):
+            shp.to_file(point_shp_file_name)
         return shp
 
     def zonal_stat_vector ( self,
@@ -2250,7 +2253,9 @@ to correct for lon above 180')
 
     def voronoi_diagram(self,
                         points_shp_in,
-                        voronoi_shp_out,
+                        lon_field_name,
+                        lat_field_name,
+                        voronoi_shp_file_name=None,
                         buffer = 2):
         """
         original code by:
@@ -2281,7 +2286,7 @@ to correct for lon above 180')
             stations = points_shp_in # geodataframe
         # get the crs from the point shapefile
         crs_org = stations.crs
-        print('crs from the point: ', crs_org)
+        print('crs from the point geopandas: ', crs_org)
         # add the ID_t to the point shapefiles
         stations ['ID_s'] = np.arange(len(stations))+1
         stations ['ID_s'] = stations ['ID_s'].astype(float)
@@ -2290,28 +2295,28 @@ to correct for lon above 180')
         minx, miny, maxx, maxy = stations_buffert.total_bounds
         # create the bounding shapefile
         parts = []
-        with shapefile.Writer('test.shp') as w:
+        with shapefile.Writer(self.temp_dir+'test.shp') as w:
             w.autoBalance = 1 # turn on function that keeps file stable if number of shapes and records don't line up
             w.field("ID_bounding",'N') # create (N)umerical attribute fields, integer
             # creating the polygon given the lat and lon
             parts.append([ (minx, miny),\
-                           (minx, maxy), \
-                           (maxx, maxy), \
-                           (maxx, miny), \
+                           (minx, maxy),\
+                           (maxx, maxy),\
+                           (maxx, miny),\
                            (minx, miny)])
             # store polygon
             w.poly(parts)
             # update records/fields for the polygon
             w.record(1)
-        boundary = gpd.read_file('test.shp')
-        os.remove('test.dbf');os.remove('test.shx');os.remove('test.shp')
+        boundary = gpd.read_file(self.temp_dir+'test.shp')
+        os.system('rm '+self.temp_dir+'test.*')
         # create the voroni diagram for given point shapefile
         coords = geovoronoi.points_to_coords(stations.geometry)
         poly_shapes, location = \
         geovoronoi.voronoi_regions_from_coords(coords, boundary.iloc[0].geometry)
         # pass te polygons to shapefile
         Thiessen = gpd.GeoDataFrame()
-        Thiessen['ID'] = None
+        Thiessen['ID'] = 1 #None
         for i in np.arange(len(poly_shapes)):
             Thiessen.loc[i, 'geometry'] = Polygon(poly_shapes[i])
             Thiessen.loc[i, 'ID_s']     = stations.iloc[location[i][0]].ID_s.astype(float)
@@ -2320,7 +2325,10 @@ to correct for lon above 180')
         Thiessen = pd.merge_asof(Thiessen, stations, on='ID_s') #, direction='nearest')
         Thiessen = Thiessen.set_geometry('geometry') #bring back the geometry filed; pd to gpd
         Thiessen = Thiessen.set_crs(crs_org)
-        Thiessen.to_file(voronoi_shp_out)
+        print(Thiessen)
+        if not (voronoi_shp_file_name is None):
+            Thiessen.to_file(voronoi_shp_file_name)
+        return Thiessen
 
     def get_all_downstream (self,
                             seg_IDs,
