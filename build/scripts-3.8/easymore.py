@@ -1784,7 +1784,7 @@ to correct for lon above 180')
         else:
             print('no crs is provided for the point shapefiles; EASYMORE will allocate WGS84')
             shp = shp.set_crs ('EPSG:4326')
-        if not (point_shp_file_name is None):
+        if point_shp_file_name:
             shp.to_file(point_shp_file_name)
         return shp
 
@@ -2255,6 +2255,7 @@ to correct for lon above 180')
                         points_shp_in,
                         lon_field_name,
                         lat_field_name,
+                        ID_field_name=None,
                         voronoi_shp_file_name=None,
                         buffer = 2):
         """
@@ -2288,8 +2289,12 @@ to correct for lon above 180')
         crs_org = stations.crs
         print('crs from the point geopandas: ', crs_org)
         # add the ID_t to the point shapefiles
-        stations ['ID_s'] = np.arange(len(stations))+1
-        stations ['ID_s'] = stations ['ID_s'].astype(float)
+        if not ID_field_name:
+            stations ['ID_s'] = np.arange(len(stations))+1
+            stations ['ID_s'] = stations ['ID_s'].astype(int)
+        else:
+            stations ['ID_s'] = stations[ID_field_name].astype(int)
+        ID_s = stations ['ID_s']
         # get the total boundary of the shapefile
         stations_buffert = stations.buffer(buffer) # add a buffer
         minx, miny, maxx, maxy = stations_buffert.total_bounds
@@ -2316,16 +2321,20 @@ to correct for lon above 180')
         geovoronoi.voronoi_regions_from_coords(coords, boundary.iloc[0].geometry)
         # pass te polygons to shapefile
         Thiessen = gpd.GeoDataFrame()
-        Thiessen['ID'] = 1 #None
         for i in np.arange(len(poly_shapes)):
             Thiessen.loc[i, 'geometry'] = Polygon(poly_shapes[i])
-            Thiessen.loc[i, 'ID_s']     = stations.iloc[location[i][0]].ID_s.astype(float)
+            Thiessen.loc[i, 'ID_s']     = stations.iloc[location[i][0]].ID_s
+        Thiessen['ID_s'] = Thiessen['ID_s'].astype(int)
         Thiessen = Thiessen.sort_values(by='ID_s')# sort on values
         stations = stations.drop(columns='geometry')
         Thiessen = pd.merge_asof(Thiessen, stations, on='ID_s') #, direction='nearest')
         Thiessen = Thiessen.set_geometry('geometry') #bring back the geometry filed; pd to gpd
         Thiessen = Thiessen.set_crs(crs_org)
-        print(Thiessen)
+        ID_s_V = Thiessen['ID_s']
+        diff = np.setdiff1d(ID_s, ID_s_V, assume_unique=False)
+        if diff.size !=0 :
+            print(diff)
+            sys.exit('It seems the input points with the following ID do have identical lon, lat ')
         if not (voronoi_shp_file_name is None):
             Thiessen.to_file(voronoi_shp_file_name)
         return Thiessen
