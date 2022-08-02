@@ -23,8 +23,9 @@ class easymore:
         self.var_names                 =  [] # list of varibale names to be remapped from the source NetCDF file
         self.var_lon                   =  '' # name of varibale longitude in the source NetCDF file
         self.var_lat                   =  '' # name of varibale latitude in the source NetCDF file
-        self.var_time                  =  'time' # name of varibale time in the source NetCDF file
-        self.var_ID                    =  '' # name of vriable ID in the source NetCDF file
+        self.var_time                  =  'time' # name of variable time in the source NetCDF file
+        self.var_ID                    =  '' # name of variable ID in the source NetCDF file
+        self.var_station               =  '' # name of variable station name in the source NetCDF file
         self.var_names_remapped        =  [] # list of varibale names that will be replaced in the remapped file
         self.source_shp                =  '' # name of source shapefile (essential for case-3)
         self.source_shp_lat            =  '' # name of column latitude in the source shapefile
@@ -117,7 +118,11 @@ class easymore:
             # if case 3 and source shapefile is not provided; EASYMORE will use Voronoi diagram
             if (self.case == 3) and (self.source_shp == ''):
                 # Create the source shapefile using Voronio diagram
-                print(' ')
+                print('EASYMORE detect that source shapefile is not provided for irregulat lat lon source NetCDF')
+                print('EASYMORE will create the source shapefile based on the lat lon')
+                voronoi = self.shp_from_irregular_nc ()
+                print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
+                voronoi.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
             # intersection of the source and sink/target shapefile
             shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_target_shapefile.shp')
             shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
@@ -1787,6 +1792,66 @@ to correct for lon above 180')
         if point_shp_file_name:
             shp.to_file(point_shp_file_name)
         return shp
+
+    def shp_from_irregular_nc (self,
+                               station_shp_file_name = None,
+                               voronoi_shp_file_name = None,
+                               buffer = 2,
+                               crs = None,
+                               tolerance = 0.000001):
+
+        # read the file (or the first file)
+        nc_names = glob.glob(self.source_nc)
+        ncid     = nc4.Dataset(nc_names[0])
+
+        # create the data frame
+        points = pd.DataFrame()
+        points['lon'] = ncid.variables[self.var_lon][:]
+        points['lat'] = ncid.variables[self.var_lat][:]
+        points['ID_s'] = 1 + np.arange(len(points))
+        points['ID_test'] = points['ID_s']
+        if self.var_ID != '':
+            points['ID_s'] = ncid.variables[self.var_ID][:]
+            points['ID_test'] = points['ID_s']
+        if self.var_station != '':
+            points['station_name'] = ncid.variables[self.var_station][:]
+
+        # check if two points fall on each other
+        points = points.sort_values(by=['lat','lon'])
+        points['lon_next'] = np.roll(points['lon'],1)
+        points['lat_next'] = np.roll(points['lat'],1)
+        points['ID_test_next'] = np.roll(points['ID_test'], 1)
+        points['distance'] = np.power(points['lon_next']-points['lon'], 2)+\
+                             np.power(points['lat_next']-points['lat'], 2)
+        points['distance'] = np.power(points['distance'], 0.5)
+        idx = points.index[points['distance']<tolerance]
+        if not (idx.empty):
+            print('EASYMORE detects that the lat lon values are for 2 or'+\
+                  'more points are identical given tolerance =',str(tolerance))
+            print('ID of those are:')
+            print(points['ID_s'].loc[idx].values)
+        points['lat'].loc[idx]=points['lat'].loc[idx]+tolerance
+        points['lon'].loc[idx]=points['lon'].loc[idx]+tolerance
+        points = points.sort_values(by='ID_s')
+        points = points.drop(columns=['lon_next','lat_next','ID_test','ID_test_next','distance'])
+
+        # making points
+        points = self.make_shape_point(points,
+                                       'lon',
+                                       'lat',
+                                        point_shp_file_name = station_shp_file_name,
+                                        crs = crs)
+
+        # creating the voronoi
+        voronoi = self.voronoi_diagram(points,
+                                       'lon',
+                                       'lat',
+                                       ID_field_name = 'ID_s',
+                                       voronoi_shp_file_name = voronoi_shp_file_name,
+                                       buffer = buffer)
+
+        # return the shapefile
+        return voronoi
 
     def zonal_stat_vector ( self,
                             vector_path_1,
