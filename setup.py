@@ -1,13 +1,25 @@
 from setuptools import find_packages, setup
+import subprocess
+
+def get_installed_gdal_version():
+    try:
+        version = subprocess.run(["gdal-config","--version"], stdout=subprocess.PIPE).stdout.decode()
+        version = version.replace('\n', '')
+        version = "=="+version+".*"
+        return version
+    except FileNotFoundError as e:
+        raise(""" ERROR: Could not find the system install of GDAL.
+                  Please install it via your package manage of choice.
+                """
+            )
 
 setup(
     name='easymore',
-    version='0.0.2',
+    version='0.0.3',
     license='GPLv3',
     author=('Shervan Gharari', 'Wouter Knoben'),
     author_email = 'sh.gharari@gmail.com',
     url = 'https://github.com/ShervanGharari/EASYMORE',
-    download_url = 'https://github.com/ShervanGharari/EASYMORE/archive/refs/tags/v0.0.01.tar.gz',
     keywords = ['remapping', 'NetCDF',
         'shapefile','geotif',
         'geo-spatial processing',
@@ -20,14 +32,15 @@ setup(
         'datetime',
     ],
     extras_require={
-    ":python_version>'3.6'":['geopandas >= 0.8.1',
+    "complete":['geopandas >= 0.8.1',
     'shapely',
     'pyshp',
     'pysheds',
-    'gdal',
+    'gdal'+get_installed_gdal_version(),
     'geovoronoi',
     'json5',
-    'rasterio']
+    'rasterio',
+    'rtree',]
     },
     description=(
         'geo-spatial processing of the input data for environmental and hydrological modeling'

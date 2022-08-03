@@ -47,7 +47,7 @@ class easymore:
         self.save_csv                  =  False # save csv
         self.sort_ID                   =  False # to sort the remapped based on the target shapfile ID; self.target_shp_ID should be given
         self.complevel                 =  4 # netcdf compression level from 1 to 9. Any other value or object will mean no compression.
-        self.version                   =  '0.0.2' # version of the easymore
+        self.version                   =  '0.0.3' # version of the easymore
         print('EASYMORE version '+self.version+ ' is initiated.')
 
     ##############################################################
@@ -1257,7 +1257,7 @@ to correct for lon above 180')
                 print('EASYMORE detects that shapefile longitude is between 0 and 360, correction is performed to transfer to -180 to 180')
                 # shapefile with -180 to -360 lon
                 gdf1 = {'geometry': [Polygon([( -360.0+self.tolerance, -90.0+self.tolerance), (-360.0+self.tolerance,  90.0-self.tolerance),\
-                                              ( -180.0+self.tolerance,  90.0-self.tolerance), (-180.0+self.tolerance, -90.0+self.tolerance)])]}
+                                              ( -180.0-self.tolerance,  90.0-self.tolerance), (-180.0-self.tolerance, -90.0+self.tolerance)])]}
                 gdf1 = gpd.GeoDataFrame(gdf1)
                 gdf1 = gdf1.set_crs ("epsg:4326")
                 warnings.simplefilter('ignore')
