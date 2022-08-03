@@ -15,7 +15,7 @@ def get_installed_gdal_version():
 
 setup(
     name='easymore',
-    version='0.0.3',
+    version='0.0.4',
     license='GPLv3',
     author=('Shervan Gharari', 'Wouter Knoben'),
     author_email = 'sh.gharari@gmail.com',
