@@ -120,7 +120,7 @@ class easymore:
                 # Create the source shapefile using Voronio diagram
                 print('EASYMORE detect that source shapefile is not provided for irregulat lat lon source NetCDF')
                 print('EASYMORE will create the source shapefile based on the lat lon')
-                voronoi = self.shp_from_irregular_nc ()
+                voronoi = self.shp_from_irregular_nc (station_shp_file_name = self.temp_dir+self.case_name+'_source_shapefile_points.shp')
                 print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
                 voronoi.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
             # intersection of the source and sink/target shapefile
@@ -1398,20 +1398,15 @@ to correct for lon above 180')
         shp ['lon_cent'] = shp_points ['lon']
         return shp, shp_points
 
-    def dataframe_to_netcdf(self,
-                            station_data_name,
-                            time_column,
-                            file_name,
-                            varibale_name,
-                            unit_of_variable,
-                            variable_long_name,
-                            time_step = 'seconds', # minutes, hours, or days
-                            calendar = 'standard',
-                            station_info_name = None,
-                            IDs  = None, # array of int values; numpy array
-                            lats = None, # array of lat values; numpy array
-                            lons = None,
-                            station_names = None): # array of lon values; numpy array
+    def dataframe_to_netcdf_xr (self,
+                                data_frame,
+                                variable_name = None,
+                                unit_of_variable = None,
+                                variable_long_name = None,
+                                station_info_data = None,
+                                station_info_column = None,
+                                nc_file_name = None,
+                                data_frame_DateTime_column = None): # array of lon values; numpy array
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
@@ -1433,123 +1428,231 @@ to correct for lon above 180')
         names = None # list
         """
 
-        # read the data csv
-        data_frame = pd.read_csv(station_data_name)
-        # convert the data time of the data_frame to index
-        data_frame[time_column] = pd.to_datetime(data_frame[time_column], infer_datetime_format=True)
-        data_frame = data_frame.set_index(time_column) # set as index
-
-        #
-        if station_info_name:
-            station_info = pd.read_csv(station_info_name)
-            station_info = station_info.set_index('Unnamed: 0')
-            station_info.index.names = [None]
-            # check if the two list are exatcly the same
-            if not set(data_frame.columns) <= set(station_info.columns):
-                sys.exit('there are colomn name in the data that do not have info in the information file')
-            # get the station_info_names in order of the data
-            station_info = station_info[data_frame.columns]
-            list_index = list (station_info.index)
-            if 'ID' in list_index:
-                IDs = np.array(station_info.loc['ID'])
-            if 'lat' in list_index:
-                lats = np.array(station_info.loc['lat'])
-            if 'lon' in list_index:
-                lons = np.array(station_info.loc['lon'])
-
-        #
-        if IDs is None:
-            IDs = np.arange(len(data_frame.columns))+1
-        if station_names is None:
-            station_names = np.array(data_frame.columns, dtype='object')
-
-        # get the first string of the datetime as the starting point of the time
-        start_time_unit = str(data_frame.index[0])
-        # get the time unit
-        if   time_step.lower() in ['seconds','second','sec','s']:
-            time_var = data_frame.index.to_series().diff()/np.timedelta64(1, 's')
-            time_unit = 'seconds'
-        elif time_step.lower() in ['minutes','minute','min','m']:
-            time_var = data_frame.index.to_series().diff()/np.timedelta64(1, 'm')
-            time_unit = 'minutes'
-        elif time_step.lower() in ['hours','hour','hr','h']:
-            time_var = data_frame.index.to_series().diff()/np.timedelta64(1, 'h')
-            time_unit = 'hours'
-        elif time_step.lower() in ['days','day','d']:
-            time_var = data_frame.index.to_series().diff()/np.timedelta64(1, 'h')
-            time_var = time_var / 24
-            time_unit = 'days'
+        if isinstance(data_frame, pd.DataFrame):
+            print('EASYMORE detects that the input datafarame is pandas dataframe')
+            if isinstance(data_frame.index, pd.DatetimeIndex):
+                print('EASYMORE detects that index is pandas datatime')
+            else:
+                sys.exit('EASYMORE detects that the index is not datetime in data input file')
+        elif isinstance(data_frame, str):
+            if data_frame_DateTime_column is None:
+                sys.exit('dataframe is provided as string csv file,'\
+                         +'please provide the name of time index column')
+            # read the data csv
+            data_frame = pd.read_csv(data_frame)
+            # convert the data time of the data_frame to index
+            data_frame[data_frame_DateTime_column] = pd.to_datetime(data_frame[data_frame_DateTime_column], infer_datetime_format=True)
+            data_frame = data_frame.set_index(data_frame_DateTime_column) # set as index
         else:
-            sys.exit('The time_unit provided is not recognized.')
-        # creating the time variable
-        time_var[0] = 0 # set the inital time_step as zero (from NaN)
-        time_var = np.array(time_var) # change to numpy arrary
-        time_var = np.add.accumulate(time_var) # change to assumulated from first time step
-        # check if time is in int or float
-        temp =[not (i%1) for i in time_var ]
-        temp = all(temp)
-        if temp: # all int
-            time_dtype_code = 'i4'
-        else: # there is float
-            time_dtype_code = 'f8'
+            sys.exit('The data input type is not recognized')
+        data_frame = data_frame.rename_axis(index=None) # remove possible name of the index column
 
-        os.remove(file_name)
-        # write the netcdf file
-        with nc4.Dataset(file_name, "w", format="NETCDF4") as ncid: # creating the NetCDF file
-            # define the dimensions
-            dimid_N = ncid.createDimension('n', len(data_frame.columns))  # limited dimensiton equal the number of hruID
-            dimid_T = ncid.createDimension('time', None)   # unlimited dimensiton
-            # Variable time
-            time_varid = ncid.createVariable('time', time_dtype_code, ('time', ))
-            # Attributes
-            time_varid.long_name = 'time'
-            time_varid.units = time_unit +' since '+start_time_unit  # e.g. 'days since 2000-01-01 00:00' should change accordingly
-            time_varid.calendar = calendar
-            time_varid.standard_name = 'time'
-            time_varid.axis = 'T'
-            time_varid[:] = time_var
-            # variable to be saved
-            data_varid = ncid.createVariable(varibale_name, 'f8', ('time', 'n'), fill_value = -9999)
-            data_varid.long_name = variable_long_name
-            data_varid.units = unit_of_variable
-            data_varid[:] = np.array(data_frame)
-            # variable for name of the columns
-            Station_ID_varid = ncid.createVariable('column_name',str,('n',))
-            Station_ID_varid.long_name = 'column name'
-            Station_ID_varid.units = '1'
-            Station_ID_varid [:] =  np.array(list(data_frame.columns), dtype='object')
-            # variable ID, from 1 to n
-            if IDs is not None:
-                ID_varid = ncid.createVariable('ID','i4',('n',))
-                ID_varid.long_name = 'ID'
-                ID_varid.units = '1'
-                ID_varid [:] =  IDs
-            # variable lat
-            if lats is not None:
-                lat_varid = ncid.createVariable('latitude','f8',('n',), fill_value = -9999)
-                lat_varid.long_name = 'latitude'
-                lat_varid.units = 'degrees_north'
-                lat_varid[:] = lats
-            # variable lon
-            if lons is not None:
-                lon_varid = ncid.createVariable('longitude','f8',('n',), fill_value = -9999)
-                lon_varid.long_name = 'longitude'
-                lon_varid.units = 'degrees_east'
-                lon_varid[:] = lons
-            if station_names is not None:
-                Station_names_varid = ncid.createVariable('Station_ID',str,('n',))
-                Station_names_varid.long_name     = 'Station ID'
-                Station_names_varid.units         = '1'
-                Station_names_varidcf_role        = 'timeseries_id'
-                # Write data
-                Station_names_varid [:] = station_names
+        #
+        if station_info_data:
+            if not station_info_column:
+                sys.exit('The station name column should be provided')
+            if isinstance(station_info_data, pd.DataFrame):
+                print('EASYMORE detects that the station data is pandas dataframe')
+            elif isinstance(station_info_data, str):
+                if data_frame_DateTime_column is None:
+                    sys.exit('dataframe is provided as string csv file, please'+\
+                             ' provide the name of time index column')
+                # read the data csv
+                station_info_data = pd.read_csv(station_info_data)
+            else:
+                sys.exit('The station info data input type is not recognized')
+            # check if all station info info is exsiting in the station info
+            if set(list(data_frame.columns)) <= set(list(station_info_data [station_info_column])):
+                print('EASYMORE detects that the necessary information for the station are provided')
+            else:
+                sys.exit('EASYMORE detects the data frame provided for data, columns names, '+\
+                        'are partly missing in the station information')
+            # subset the station infromation for the provided data
+            station_info_data = station_info_data [station_info_data[station_info_column].isin(list(data_frame.columns))]
+            data_frame = data_frame[list(station_info_data[station_info_column])] # reorder columns to match station into
+        else:
+            station_info_data = pd.DataFrame(data_frame.columns, columns=['station_name'])
 
-            #
-            ncid.Conventions = 'CF-1.6'
-            ncid.Author = 'The data were written by ' + self.author_name
-            ncid.License = self.license
-            ncid.History = 'Created ' + time.ctime(time.time())
-            ncid.Source = 'Case: ' +self.case_name + '; remapped by script from library of Shervan Gharari (https://github.com/ShervanGharari/EASYMORE).'
+
+        # assign n to index if index is None
+        if station_info_data.index.name is None:
+            station_info_data.index.name = 'n'
+
+        #
+        info = xr.Dataset(station_info_data.to_xarray())
+        data = xr.Dataset(data_vars=dict(values=(["time", station_info_data.index.name],
+                                                      np.array(data_frame))),
+                          coords=dict(time = data_frame.index))
+        if unit_of_variable:
+            data['values']['units'] = unit_of_variable
+        if variable_long_name:
+            data['values']['long_name'] = variable_long_name
+        if variable_name:
+            data = data.rename_vars({'values':variable_name})
+
+        #
+        data = xr.merge([data, info])
+
+        #
+        if nc_file_name:
+            os.system ('rm '+nc_file_name)
+            data.to_netcdf(nc_file_name)
+
+        #
+        return data
+
+    # def dataframe_to_netcdf_nc4(self,
+    #                             station_data_name,
+    #                             time_column,
+    #                             file_name,
+    #                             varibale_name,
+    #                             unit_of_variable,
+    #                             variable_long_name,
+    #                             time_step = 'seconds', # minutes, hours, or days
+    #                             calendar = 'standard',
+    #                             station_info_name = None,
+    #                             IDs  = None, # array of int values; numpy array
+    #                             lats = None, # array of lat values; numpy array
+    #                             lons = None,
+    #                             station_names = None): # array of lon values; numpy array
+    #     """
+    #     @ author:                  Shervan Gharari
+    #     @ Github:                  https://github.com/ShervanGharari/EASYMORE
+    #     @ author's email id:       sh.gharari@gmail.com
+    #     @ license:                 GNU-GPLv3
+    #     This function get a pandas dataframe of some values (all float + datetime string) and save them in a netcdf file
+    #     ---------
+    #     data_frame: pandas data_frame
+    #     time_column: name of time column in the data_frame, string
+    #     file_name: netcdf file to be saved, string
+    #     varibale_name: varibale to be saved in the netcdf file, string
+    #     unit_of_variable: unit of variable in the netcdf file, string
+    #     variable_long_name: long name of variable in the netcdf file, string
+    #     time_step = 'seconds', # minutes, hours, or days
+    #     calendar = 'standard',
+    #     ID  = None, # array of int values; numpy array
+    #     lat = None, # array of lat values; numpy array
+    #     lon = None, # array of lon values; numpy array
+    #     names = None # list
+    #     """
+
+    #     # read the data csv
+    #     data_frame = pd.read_csv(station_data_name)
+    #     # convert the data time of the data_frame to index
+    #     data_frame[time_column] = pd.to_datetime(data_frame[time_column], infer_datetime_format=True)
+    #     data_frame = data_frame.set_index(time_column) # set as index
+
+    #     #
+    #     if station_info_name:
+    #         station_info = pd.read_csv(station_info_name)
+    #         station_info = station_info.set_index('Unnamed: 0')
+    #         station_info.index.names = [None]
+    #         # check if the two list are exatcly the same
+    #         if not set(data_frame.columns) <= set(station_info.columns):
+    #             sys.exit('there are colomn name in the data that do not have info in the information file')
+    #         # get the station_info_names in order of the data
+    #         station_info = station_info[data_frame.columns]
+    #         list_index = list (station_info.index)
+    #         if 'ID' in list_index:
+    #             IDs = np.array(station_info.loc['ID'])
+    #         if 'lat' in list_index:
+    #             lats = np.array(station_info.loc['lat'])
+    #         if 'lon' in list_index:
+    #             lons = np.array(station_info.loc['lon'])
+
+    #     #
+    #     if IDs is None:
+    #         IDs = np.arange(len(data_frame.columns))+1
+    #     if station_names is None:
+    #         station_names = np.array(data_frame.columns, dtype='object')
+
+    #     # get the first string of the datetime as the starting point of the time
+    #     start_time_unit = str(data_frame.index[0])
+    #     # get the time unit
+    #     if   time_step.lower() in ['seconds','second','sec','s']:
+    #         time_var = data_frame.index.to_series().diff()/np.timedelta64(1, 's')
+    #         time_unit = 'seconds'
+    #     elif time_step.lower() in ['minutes','minute','min','m']:
+    #         time_var = data_frame.index.to_series().diff()/np.timedelta64(1, 'm')
+    #         time_unit = 'minutes'
+    #     elif time_step.lower() in ['hours','hour','hr','h']:
+    #         time_var = data_frame.index.to_series().diff()/np.timedelta64(1, 'h')
+    #         time_unit = 'hours'
+    #     elif time_step.lower() in ['days','day','d']:
+    #         time_var = data_frame.index.to_series().diff()/np.timedelta64(1, 'h')
+    #         time_var = time_var / 24
+    #         time_unit = 'days'
+    #     else:
+    #         sys.exit('The time_unit provided is not recognized.')
+    #     # creating the time variable
+    #     time_var[0] = 0 # set the inital time_step as zero (from NaN)
+    #     time_var = np.array(time_var) # change to numpy arrary
+    #     time_var = np.add.accumulate(time_var) # change to assumulated from first time step
+    #     # check if time is in int or float
+    #     temp =[not (i%1) for i in time_var ]
+    #     temp = all(temp)
+    #     if temp: # all int
+    #         time_dtype_code = 'i4'
+    #     else: # there is float
+    #         time_dtype_code = 'f8'
+
+    #     os.remove(file_name)
+    #     # write the netcdf file
+    #     with nc4.Dataset(file_name, "w", format="NETCDF4") as ncid: # creating the NetCDF file
+    #         # define the dimensions
+    #         dimid_N = ncid.createDimension('n', len(data_frame.columns))  # limited dimensiton equal the number of hruID
+    #         dimid_T = ncid.createDimension('time', None)   # unlimited dimensiton
+    #         # Variable time
+    #         time_varid = ncid.createVariable('time', time_dtype_code, ('time', ))
+    #         # Attributes
+    #         time_varid.long_name = 'time'
+    #         time_varid.units = time_unit +' since '+start_time_unit  # e.g. 'days since 2000-01-01 00:00' should change accordingly
+    #         time_varid.calendar = calendar
+    #         time_varid.standard_name = 'time'
+    #         time_varid.axis = 'T'
+    #         time_varid[:] = time_var
+    #         # variable to be saved
+    #         data_varid = ncid.createVariable(varibale_name, 'f8', ('time', 'n'), fill_value = -9999)
+    #         data_varid.long_name = variable_long_name
+    #         data_varid.units = unit_of_variable
+    #         data_varid[:] = np.array(data_frame)
+    #         # variable for name of the columns
+    #         Station_ID_varid = ncid.createVariable('column_name',str,('n',))
+    #         Station_ID_varid.long_name = 'column name'
+    #         Station_ID_varid.units = '1'
+    #         Station_ID_varid [:] =  np.array(list(data_frame.columns), dtype='object')
+    #         # variable ID, from 1 to n
+    #         if IDs is not None:
+    #             ID_varid = ncid.createVariable('ID','i4',('n',))
+    #             ID_varid.long_name = 'ID'
+    #             ID_varid.units = '1'
+    #             ID_varid [:] =  IDs
+    #         # variable lat
+    #         if lats is not None:
+    #             lat_varid = ncid.createVariable('latitude','f8',('n',), fill_value = -9999)
+    #             lat_varid.long_name = 'latitude'
+    #             lat_varid.units = 'degrees_north'
+    #             lat_varid[:] = lats
+    #         # variable lon
+    #         if lons is not None:
+    #             lon_varid = ncid.createVariable('longitude','f8',('n',), fill_value = -9999)
+    #             lon_varid.long_name = 'longitude'
+    #             lon_varid.units = 'degrees_east'
+    #             lon_varid[:] = lons
+    #         if station_names is not None:
+    #             Station_names_varid = ncid.createVariable('Station_ID',str,('n',))
+    #             Station_names_varid.long_name     = 'Station ID'
+    #             Station_names_varid.units         = '1'
+    #             Station_names_varidcf_role        = 'timeseries_id'
+    #             # Write data
+    #             Station_names_varid [:] = station_names
+
+    #         #
+    #         ncid.Conventions = 'CF-1.6'
+    #         ncid.Author = 'The data were written by ' + self.author_name
+    #         ncid.License = self.license
+    #         ncid.History = 'Created ' + time.ctime(time.time())
+    #         ncid.Source = 'Case: ' +self.case_name + '; remapped by script from library of Shervan Gharari (https://github.com/ShervanGharari/EASYMORE).'
 
 
     ##############################################################
@@ -1833,19 +1936,20 @@ to correct for lon above 180')
         points['lat'].loc[idx]=points['lat'].loc[idx]+tolerance
         points['lon'].loc[idx]=points['lon'].loc[idx]+tolerance
         points = points.sort_values(by='ID_s')
+        points.rename(columns = {'lat':'lat_s','lon':'lon_s'},inplace=True)
         points = points.drop(columns=['lon_next','lat_next','ID_test','ID_test_next','distance'])
 
         # making points
         points = self.make_shape_point(points,
-                                       'lon',
-                                       'lat',
+                                       'lon_s',
+                                       'lat_s',
                                         point_shp_file_name = station_shp_file_name,
                                         crs = crs)
 
         # creating the voronoi
         voronoi = self.voronoi_diagram(points,
-                                       'lon',
-                                       'lat',
+                                       'lon_s',
+                                       'lat_s',
                                        ID_field_name = 'ID_s',
                                        voronoi_shp_file_name = voronoi_shp_file_name,
                                        buffer = buffer)
