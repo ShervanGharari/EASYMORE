@@ -1654,6 +1654,186 @@ to correct for lon above 180')
     #         ncid.History = 'Created ' + time.ctime(time.time())
     #         ncid.Source = 'Case: ' +self.case_name + '; remapped by script from library of Shervan Gharari (https://github.com/ShervanGharari/EASYMORE).'
 
+    def nc_remapper_vis(self,
+                        source_nc_name                  = None,
+                        source_nc_var_lon               = None,
+                        source_nc_var_lat               = None,
+                        source_nc_var_ID                = None,
+                        source_nc_var_time              = None,
+                        source_nc_var_name              = None,
+                        source_shp_name                 = None,
+                        source_shp_field_ID             = None,
+                        remapped_nc_name                = None,
+                        remapped_nc_var_ID              = None,
+                        remapped_nc_var_time            = None,
+                        remapped_nc_var_name            = None,
+                        shp_target_name                 = None,
+                        shp_target_filed_ID             = None,
+                        time_step_of_viz                = None,
+                        location_save_fig               = None,
+                        fig_name                        = None,
+                        fig_size                        = None,
+                        show_target_shp                 = None,
+                        show_remapped_values            = None,
+                        cmap                            = None,
+                        margin                          = None,
+                        linewidth                       = None,
+                        font_size                       = 40,
+                        font_family                     = 'Times New Roman',
+                        font_weigth                     = 'bold',
+                        add_colorbar                    = None,
+                        min_lon                         = None,
+                        min_lat                         = None,
+                        max_lon                         = None,
+                        max_lat                         = None):
+
+        import xarray as xr
+        from matplotlib import pyplot as plt
+        import matplotlib as mpl
+        import geopandas as gpd
+        import pandas as pd
+        import os
+        import numpy as np
+        from datetime import datetime
+        from easymore.easymore import easymore
+        import sys
+
+        font = {'family' :  font_family,
+                'weight' :  font_weigth,
+                'size'   :  font_size}
+        mpl.rc('font', **font)
+
+        # initializing EASYMORE object and find the case of source netcdf file
+        self.source_nc                = source_nc_name
+        self.var_names                = [source_nc_var_name] #single variable to list
+        self.var_lon                  = source_nc_var_lon
+        self.var_lat                  = source_nc_var_lat
+        self.NetCDF_SHP_lat_lon()
+        case = self.case
+
+        #
+        remapped_nc_exists = False
+        if remapped_nc_name:
+            remapped_nc_exists = True
+
+        #
+        ds_source = xr.open_dataset(source_nc_name) # source
+        if source_shp_name:
+            shp_source = gpd.read_file(source_shp_name)
+        # get the step for the remapped
+        date = pd.DatetimeIndex(ds_source[source_nc_var_time].dt.strftime('%Y-%m-%d %H:%M:%S'))
+        df = pd.DataFrame(np.arange(len(date)),
+                          columns=["step"],
+                          index=date)
+        df['timestamp'] = df.index.strftime('%Y-%m-%d %H:%M:%S')
+        df_slice = df.iloc[df.index.get_loc(datetime.strptime(time_step_of_viz,\
+                                                        '%Y-%m-%d %H:%M:%S'),method='nearest')]
+        step = df_slice['step'].item()
+        time_stamp = df_slice['timestamp']
+
+        # load the data and get the max and min values of remppaed file for the taarget variable
+        max_value = ds_source[source_nc_var_name][step].max().item() # get the max of remapped
+        min_value = ds_source[source_nc_var_name][step].min().item() # get the min of remapped
+
+        # check if remapped file exists and check the time varibales to source nc file
+        if remapped_nc_exists:
+            ds_remapped = xr.open_dataset(remapped_nc_name) # the remap of above
+            # check if the times are identical in source and remapped
+            if not ds_source[source_nc_var_time].equals(ds_remapped[remapped_nc_var_time]):
+                sys.exit('The source and remapped files seems to have different time; make sure '+\
+                         'the remapped files is from the same source file.')
+            # update the max min value based on remapped
+            max_value = ds_remapped[remapped_nc_var_name][step].max().item() # get the max of remapped
+            min_value = ds_remapped[remapped_nc_var_name][step].min().item() # get the min of remapped
+            #
+            shp_target = gpd.read_file(shp_target_name) # load the target shapefile
+            if (min_lon is None) or (min_lat is None) or (max_lon is None) or (max_lat is None):
+                min_lon, min_lat, max_lon, max_lat = shp_target.total_bounds
+
+
+        # visualize
+        fig, ax = plt.subplots(figsize=fig_size)
+
+        if case == 1 or case ==2:
+            ds_source[source_nc_var_name][step].plot.pcolormesh(x=source_nc_var_lon,
+                                                                y=source_nc_var_lat,
+                                                                add_colorbar=add_colorbar,
+                                                                ax = ax,
+                                                                cmap=cmap,
+                                                                vmin=min_value,
+                                                                vmax=max_value)
+
+        if case == 3:
+            # dataframe
+            df = pd.DataFrame()
+            df ['ID'] = ds_source[source_nc_var_ID][:]
+            df ['value'] = ds_source[source_nc_var_name][step]
+            df = df.sort_values(by=['ID'])
+            df = df.reset_index(drop=True)
+
+            # shapefile
+            shp_source = shp_source[shp_source[source_shp_field_ID].isin(df['ID'])]
+            shp_source = shp_source.sort_values(by=[source_shp_field_ID])
+            shp_source = shp_source.reset_index(drop=True)
+
+            # pass the values from datarame to geopandas and visuazlie
+            shp_source ['value'] = df ['value']
+            shp_source.plot(column= 'value',
+                            edgecolor='k',
+                            linewidth = linewidth,
+                            ax = ax,
+                            cmap=cmap,
+                            vmin=min_value,
+                            vmax=max_value)
+
+            # provide the time and date and other parameters
+            ax.set_title('time: '+time_stamp)
+            ax.set_xlabel('longitude')
+            ax.set_ylabel('latitude')
+            norm = mpl.colors.Normalize(vmin=min_value, vmax=max_value)
+            cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
+            cbar.ax.set_ylabel(source_nc_var_name)
+
+        if remapped_nc_exists:
+            if show_remapped_values:
+                show_target_shp = False
+            if show_target_shp:
+                shp_target.geometry.boundary.plot(color=None,edgecolor='k',linewidth = linewidth, ax = ax)
+            if show_remapped_values:
+                # dataframe
+                df = pd.DataFrame()
+                df ['ID'] = ds_remapped[remapped_nc_var_ID][:]
+                df ['value'] = ds_remapped[remapped_nc_var_name][step]
+                df = df.sort_values(by=['ID'])
+                df = df.reset_index(drop=True)
+
+                # shapefile
+                shp_target = shp_target[shp_target[shp_target_filed_ID].isin(df['ID'])]
+                shp_target = shp_target.sort_values(by=[shp_target_filed_ID])
+                shp_target = shp_target.reset_index(drop=True)
+
+                # pass the values from datarame to geopandas and visuazlie
+                shp_target ['value'] = df ['value']
+                shp_target.plot(column= 'value',
+                                edgecolor='k',
+                                linewidth = linewidth,
+                                ax = ax,
+                                cmap=cmap,
+                                vmin=min_value,
+                                vmax=max_value)
+                if case == 3:
+                    # provide the time and date and other parameters
+                    cbar.ax.set_ylabel(remapped_nc_var_name)
+
+        if min_lat and min_lon and max_lat and max_lon:
+            ax.set_ylim([min_lat-margin,max_lat+margin])
+            ax.set_xlim([min_lon-margin,max_lon+margin])
+
+        # create the folder to save
+        if location_save_fig and fig_name:
+            if not os.path.isdir(location_save_fig):
+                os.mkdir(location_save_fig)
+            plt.savefig(location_save_fig+fig_name)
 
     ##############################################################
     #### GIS section
