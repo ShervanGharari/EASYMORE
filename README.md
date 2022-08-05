@@ -22,7 +22,7 @@ In addition, EASYMORE can perform geospatial processes that are often needed for
 
 ### From PyPI:
 
-`pip install easymore`
+`pip install easymore[complete]`
 
 ### Local install:
 
