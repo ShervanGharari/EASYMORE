@@ -34,7 +34,7 @@ go to the EASYMORE folder, where `setup.py` is located and install EASYMORE loca
 
 `pip install -r requirements.txt`
 
-`pip install .`
+`pip install .[complete]`
 
 ## Flexibilities:
 
