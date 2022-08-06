@@ -30,18 +30,16 @@ setup(
         'pandas',
         'netCDF4',
         'datetime',
+        'geopandas',
+        'shapely',
+        'pyshp',
+        'pysheds',
+        'gdal'+get_installed_gdal_version(),
+        'geovoronoi',
+        'json5',
+        'rasterio',
+        'rtree'
     ],
-    extras_require={
-    "complete":['geopandas >= 0.8.1',
-    'shapely',
-    'pyshp',
-    'pysheds',
-    'gdal'+get_installed_gdal_version(),
-    'geovoronoi',
-    'json5',
-    'rasterio',
-    'rtree',]
-    },
     description=(
         'geo-spatial processing of the input data for environmental and hydrological modeling'
     ),
