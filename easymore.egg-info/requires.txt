@@ -1,0 +1,15 @@
+numpy
+xarray
+pandas
+netCDF4
+datetime
+cftime
+geopandas
+shapely
+pyshp
+pysheds
+gdal==3.3.1.*
+geovoronoi
+json5
+rasterio
+rtree

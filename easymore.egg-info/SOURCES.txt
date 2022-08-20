@@ -1,0 +1,11 @@
+LICENSE
+MANIFEST.in
+README.md
+setup.py
+easymore/__init__.py
+easymore/easymore.py
+easymore.egg-info/PKG-INFO
+easymore.egg-info/SOURCES.txt
+easymore.egg-info/dependency_links.txt
+easymore.egg-info/requires.txt
+easymore.egg-info/top_level.txt

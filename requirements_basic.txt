@@ -3,3 +3,4 @@ xarray
 pandas
 netCDF4
 datetime
+cftime
