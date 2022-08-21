@@ -10,6 +10,7 @@ import sys
 import os
 import warnings
 from   datetime     import datetime
+import re
 
 
 class easymore:
@@ -47,7 +48,7 @@ class easymore:
         self.save_csv                  =  False # save csv
         self.sort_ID                   =  False # to sort the remapped based on the target shapfile ID; self.target_shp_ID should be given
         self.complevel                 =  4 # netcdf compression level from 1 to 9. Any other value or object will mean no compression.
-        self.version                   =  '0.0.3' # version of the easymore
+        self.version                   =  '0.0.4' # version of the easymore
         print('EASYMORE version '+self.version+ ' is initiated.')
 
     ##############################################################
@@ -1062,6 +1063,13 @@ in dimensions of the varibales and latitude and longitude')
                     unit_name = ''
                     if 'units' in ds[self.var_names_remapped[i]].attrs.keys():
                         unit_name = ds[self.var_names_remapped[i]].attrs['units']
+                    # remove the forbidden character based on
+                    # ['#','%','&','{','}','\','<','>','*','?','/',' ','$','!','`',''','"',':','@','+',',','|','=']
+                    unit_name = re.sub("[#%&{}*<>*?*$!`:@+,|= ]","",unit_name)
+                    unit_name = unit_name.replace("\\","")
+                    unit_name = unit_name.replace("//","")
+                    unit_name = unit_name.replace("/","")
+                    # print(unit_name)
                     target_name_csv = self.output_dir + self.case_name + '_remapped_'+ self.var_names_remapped[i] +\
                      '_' + unit_name +\
                      '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+ '.csv'
