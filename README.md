@@ -50,14 +50,14 @@ pip install . --no-deps -r requirements_basic.txt
 
 ## Examples:
 
-1. [Remapping a regular lat/lon gridded data or model output to irregular shapes.](./examples/Chapter1_E1.ipynb)
-2. [Remapping a rotate lat/lon gridded data or model output to irregular shapes.](./examples/Chapter1_E2.ipynb)
-3. [Remapping an irregular shapefile data, such as Thiessen polygon for example, to irregular shapes.](./examples/Chapter1_E3.ipynb)
-4. [Extract the data for points (such as location of stations, cities, etc) from the grided or irregular shapefiles; temprature example](./examples/Chapter1_E4.ipynb)
-5. [Resampling of regular, rotated or irregular data and model output to any resolution density of the points](./examples/Chapter1_E5.ipynb)
-6. [Manipulation of remapped variables such as lapse rate to temperature based on elevation difference (can be applied to slope and aspect, etc)](./examples/Chapter1_E6.ipynb)
-7. [Creation of subbasins for hydrologically conditioned MERIT-Hydro DEM and perform spatial processes for finding elevation and land cover characteistics of all the subbasins](./examples/Chapter2_E1.ipynb)
-8. [Creation of Thiessen polygons, sampling a from a geotif based on point shapefile](./examples/Chapter2_E2.ipynb)
+1. [Remapping a regular lat/lon gridded data or model output to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/Chapter1_E1.ipynb)
+2. [Remapping a rotate lat/lon gridded data or model output to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/Chapter1_E2.ipynb)
+3. [Remapping an irregular shapefile data, such as Thiessen polygon for example, to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/Chapter1_E3.ipynb)
+4. [Extract the data for points (such as location of stations, cities, etc) from the grided or irregular shapefiles; temprature example](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/Chapter1_E4.ipynb)
+5. [Resampling of regular, rotated or irregular data and model output to any resolution density of the points](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/Chapter1_E5.ipynb)
+6. [Manipulation of remapped variables such as lapse rate to temperature based on elevation difference (can be applied to slope and aspect, etc)](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/Chapter1_E6.ipynb)
+7. [Creation of subbasins for hydrologically conditioned MERIT-Hydro DEM and perform spatial processes for finding elevation and land cover characteistics of all the subbasins](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/Chapter2_E1.ipynb)
+8. [Creation of Thiessen polygons, sampling a from a geotif based on point shapefile](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/Chapter2_E2.ipynb)
 
 The two figures show remapping of the gridded temperature from ERA5 data set to subbasin of South Saskatchewan River at Medicine Hat.
 
