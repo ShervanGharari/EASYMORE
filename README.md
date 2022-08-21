@@ -42,8 +42,6 @@ pip install .
 
 ### From PyPI
 
-`pip install . --no-deps -r requirements_basic.txt`
-
 `pip install easymore --no-deps -r requirements_basic.txt`
 
 ### From local repo:
