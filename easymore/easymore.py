@@ -1062,6 +1062,10 @@ in dimensions of the varibales and latitude and longitude')
                     unit_name = ''
                     if 'units' in ds[self.var_names_remapped[i]].attrs.keys():
                         unit_name = ds[self.var_names_remapped[i]].attrs['units']
+                    # remove the forbidden character based on
+                    forbidden_characters = ['#','%','&','{','}','\','<','>','*','?','/',' ','$','!','`',''','"',':','@','+',',','|','=']
+                    for forbidden_character in forbidden_characters:
+                        unit_name = unit_name.replace(forbidden_character,'')
                     target_name_csv = self.output_dir + self.case_name + '_remapped_'+ self.var_names_remapped[i] +\
                      '_' + unit_name +\
                      '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+ '.csv'
