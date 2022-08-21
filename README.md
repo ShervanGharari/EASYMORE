@@ -64,6 +64,8 @@ The two figures show remapping of the gridded temperature from ERA5 data set to 
 ### Original gridded temperature field:
 
 <img src="./fig/Gird.png" width="2000">
+![](https://github.com/ShervanGharari/EASYMORE/blob/main/fig/Gird.png)
+![](https://github.com/ShervanGharari/EASYMORE/blob/main/fig/Remapped.png)
 
 ### Remapped temperature field to the subbasins:
 
