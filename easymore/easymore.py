@@ -1069,7 +1069,7 @@ in dimensions of the varibales and latitude and longitude')
                     unit_name = unit_name.replace("\\","")
                     unit_name = unit_name.replace("//","")
                     unit_name = unit_name.replace("/","")
-                    print(unit_name)
+                    # print(unit_name)
                     target_name_csv = self.output_dir + self.case_name + '_remapped_'+ self.var_names_remapped[i] +\
                      '_' + unit_name +\
                      '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+ '.csv'
