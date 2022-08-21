@@ -39,7 +39,10 @@ pip install .
 
 1. EASYMORE allow for commbination of the remapping of NetCDF on local computer or remote high performance computer. For example, the the GIS steps of creating remapping file can be done locally on a sample file that contains few time step of the data (but all the domain). EASYMORE can then be directed to remapping file on the HPC and will skip all the needed GIS steps and directly start remapping process of bulk of the data. For installing without gis packages you can simply do:
 
+
 ### From PyPI
+
+`pip install . --no-deps -r requirements_basic.txt`
 
 `pip install easymore --no-deps -r requirements_basic.txt`
 
