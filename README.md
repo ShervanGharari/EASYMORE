@@ -29,7 +29,7 @@ In addition, EASYMORE can perform geospatial processes that are often needed for
 clone the code on your perosnal computer or home on HPC by
 
 ```
-git clone https://github.com/ShervanGharari/EASYMORE.git`
+git clone https://github.com/ShervanGharari/EASYMORE.git
 cd EASYMORE
 pip install -r requirements.txt
 pip install .
@@ -39,15 +39,10 @@ pip install .
 
 1. EASYMORE allow for commbination of the remapping of NetCDF on local computer or remote high performance computer. For example, the the GIS steps of creating remapping file can be done locally on a sample file that contains few time step of the data (but all the domain). EASYMORE can then be directed to remapping file on the HPC and will skip all the needed GIS steps and directly start remapping process of bulk of the data. For installing without gis packages you can simply do:
 
-
-### From PyPI
-
-`pip install easymore --no-deps -r requirements_basic.txt`
-
 ### From local repo:
 
 ```
-git clone https://github.com/ShervanGharari/EASYMORE.git`
+git clone https://github.com/ShervanGharari/EASYMORE.git
 cd EASYMORE
 pip install -r requirements.txt
 pip install . --no-deps -r requirements_basic.txt
