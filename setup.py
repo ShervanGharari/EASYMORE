@@ -50,6 +50,9 @@ setup(
     author=('Shervan Gharari', 'Wouter Knoben'),
     author_email = 'sh.gharari@gmail.com',
     url = 'https://github.com/ShervanGharari/EASYMORE',
+    description=(
+        'geo-spatial processing of the input data for environmental and hydrological modeling'
+    ),
     long_description=long_description,
     long_description_content_type='text/markdown',
     keywords = ['remapping', 'NetCDF',
@@ -73,12 +76,6 @@ setup(
         'rasterio',
         'rtree'
     ],
-    description=(
-        'geo-spatial processing of the input data for environmental and hydrological modeling'
-    ),
-    long_description=(
-        'Extract data from netcdf file from any shape to any shape (such as catchments), geo-spatial processes such as creating subbains and river network topology, zonl statistics'
-    ),
     packages=find_packages(),
     include_package_data=True,
     platforms='any',
