@@ -24,21 +24,33 @@ In addition, EASYMORE can perform geospatial processes that are often needed for
 
 `pip install easymore`
 
-### Local install:
+### From local repo:
 
 clone the code on your perosnal computer or home on HPC by
 
-`git clone https://github.com/ShervanGharari/EASYMORE.git`
-
-go to the EASYMORE folder, where `setup.py` is located and install EASYMORE locally:
-
-`pip install -r requirements.txt`
-
-`pip install .`
+```
+git clone https://github.com/ShervanGharari/EASYMORE.git`
+cd EASYMORE
+pip install -r requirements.txt
+pip install .
+```
 
 ## Flexibilities:
 
-1. EASYMORE allow for commbination of the remapping of NetCDF on local computer or remote high performance computer. For example, the the GIS steps of creating remapping file can be done locally on a sample file that contains few time step of the data (but all the domain). EASYMORE can then be directed to remapping file on the HPC and will skip all the needed GIS steps and directly start remapping process of bulk of the data.
+1. EASYMORE allow for commbination of the remapping of NetCDF on local computer or remote high performance computer. For example, the the GIS steps of creating remapping file can be done locally on a sample file that contains few time step of the data (but all the domain). EASYMORE can then be directed to remapping file on the HPC and will skip all the needed GIS steps and directly start remapping process of bulk of the data. For installing without gis packages you can simply do:
+
+### From PyPI
+
+`pip install easymore --no-deps -r requirements_basic.txt`
+
+### From local repo:
+
+```
+git clone https://github.com/ShervanGharari/EASYMORE.git`
+cd EASYMORE
+pip install -r requirements.txt
+pip install . --no-deps -r requirements_basic.txt
+```
 
 ## Examples:
 
@@ -65,10 +77,10 @@ The two figures show remapping of the gridded temperature from ERA5 data set to 
 
 Authors
 
-Wouter J.M. Knoben, Martyn P. Clark, Jerad Bales, Andrew Bennett, Shervan Gharari, Christopher B. Marsh, Bart Nijssen, Alain Pietroniro, Raymond J. Spiteri, David G. Tarboton, Andrew W Wood: Community Workflows to Advance Reproducibility in Hydrologic Modeling: Separating model-agnostic and model-specific configuration steps in applications of large-domain hydrologic models, Earth and Space Science Open Archive, 42, https://doi.org/10.1002/essoar.10509195.1, 2021
+Knoben, W. J. M., Clark, M. P., Bales, J., Bennett, A., Gharari, S., Marsh, C. B., Nijssen, B., Pietroniro, A., Spiteri, R. J., Tarboton, D. G., Wood, A. W.: Community Workflows to Advance Reproducibility in Hydrologic Modeling: Separating model-agnostic and model-specific configuration steps in applications of large-domain hydrologic models, Earth and Space Science Open Archive, 42, https://doi.org/10.1002/essoar.10509195.1, 2021
 
-Shervan Gharari, Inne Vanderkelen, Andrew Tefs, Naoki Mizukami, Tricia A. Stadnyk, David Lawrence, Martyn P. Clark: A Flexible Multi-Scale Framework to Simulate Lakes and Reservoirs in Earth System Models, Earth and Space Science Open Archive, 24, https://doi.org/10.1002/essoar.10510902.1, 2022
+Gharari, S., Vanderkelen, I., Tefs, A., Mizukami, N., Stadnyk, T. A., Lawrence, D., Clark, M. P.: A Flexible Multi-Scale Framework to Simulate Lakes and Reservoirs in Earth System Models, Earth and Space Science Open Archive, 24, https://doi.org/10.1002/essoar.10510902.1, 2022
 
 Gharari, S., Clark, M. P., Mizukami, N., Knoben, W. J. M., Wong, J. S., and Pietroniro, A.: Flexible vector-based spatial configurations in land models, Hydrol. Earth Syst. Sci., 24, 5953–5971, https://doi.org/10.5194/hess-24-5953-2020, 2020
 
-Sheikholeslami, R., Gharari, S. Papalexiou, S. M., Clark, M. P.: VISCOUS: A Variance-Based Sensitivity Analysis Using Copulas for Efficient Identification of Dominant Hydrological Processes, Water Resources Research, https://doi.org/10.1029/2020WR028435, 2021.
+Sheikholeslami, R., Gharari, S., Papalexiou, S. M., Clark, M. P.: VISCOUS: A Variance-Based Sensitivity Analysis Using Copulas for Efficient Identification of Dominant Hydrological Processes, Water Resources Research, https://doi.org/10.1029/2020WR028435, 2021.
