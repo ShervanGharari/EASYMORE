@@ -38,6 +38,11 @@ def get_installed_gdal_version():
                 """
             )
 
+# read the contents of your README file for distribution on PyPI
+from pathlib import Path
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text()
+
 setup(
     name='easymore',
     version='0.0.4',
@@ -45,6 +50,8 @@ setup(
     author=('Shervan Gharari', 'Wouter Knoben'),
     author_email = 'sh.gharari@gmail.com',
     url = 'https://github.com/ShervanGharari/EASYMORE',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     keywords = ['remapping', 'NetCDF',
         'shapefile','geotif',
         'geo-spatial processing',
