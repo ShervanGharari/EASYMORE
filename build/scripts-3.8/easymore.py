@@ -10,6 +10,7 @@ import sys
 import os
 import warnings
 from   datetime     import datetime
+import json
 
 class easymore:
 
@@ -52,6 +53,58 @@ class easymore:
         self.flag_smooth_lat_lon       =  True # check the lat lon smooth
         self.smooth_lat_lon_tolerance  =  2 # 2 degrees
         print('EASYMORE version '+self.version+ ' is initiated.')
+
+
+    def read_config_dict (self,
+                          config_file_name):
+
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function read a text file to a json file
+        config_file_name: name of the
+        """
+
+        # reading the data from the file
+        with open(config_file_name) as f:
+            data = f.read()
+
+        # reconstructing the data as a dictionary
+        config_dict = json.loads(data)
+
+        return config_dict
+
+
+    def init_from_dict (self,
+                        dict_name):
+
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function take a dict_name and populate the varibales needed to be initialized
+        """
+        # pass dictionary if it is a dic
+        if isinstance(dict_name, str):
+            dictionary = self.read_config_dict(dict_name)
+        elif isinstance(dict_name, dict):
+            dictionary = dict_name
+        else:
+            sys.exit('config dictionary should be a file name, string, or a dictionary')
+
+        # populate from the dictionary
+        # loop over the dictionary keys
+        for key in list(dictionary.keys()):
+            if key in list(vars(self).keys()):
+                setattr(self, key, dictionary[key])
+            else:
+                sys.exit('provided key in configuration dictionary or file is not recongnized by easymore keys')
+
+
+
 
     ##############################################################
     #### NetCDF remapping

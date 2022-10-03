@@ -1,0 +1,16 @@
+{
+    "case_name": "ERA5_Medicine_Hat",
+    "temp_dir": "../../temporary/",
+    "target_shp": "../../data/target_shapefiles/South_Saskatchewan_MedicineHat.shp",
+    "source_nc": "../../data/Source_nc_ERA5/ERA5_NA_*.nc",
+    "var_names": ["airtemp","pptrate"],
+    "var_names_remapped": ["temperature","precipitation"],
+    "var_lon": "longitude",
+    "var_lat": "latitude",
+    "var_time": "time",
+    "output_dir": "../../output/",
+    "format_list": ["f4"],
+    "fill_value_list": ["-9999.00"],
+    "save_csv": true,
+    "complevel": 9
+}
