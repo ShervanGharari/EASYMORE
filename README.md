@@ -31,22 +31,12 @@ clone the code on your perosnal computer or home on HPC by
 ```
 git clone https://github.com/ShervanGharari/EASYMORE.git
 cd EASYMORE
-pip install -r requirements.txt
 pip install .
 ```
 
 ## Flexibilities:
 
 1. EASYMORE allow for commbination of the remapping of NetCDF on local computer or remote high performance computer. For example, the the GIS steps of creating remapping file can be done locally on a sample file that contains few time step of the data (but all the domain). EASYMORE can then be directed to remapping file on the HPC and will skip all the needed GIS steps and directly start remapping process of bulk of the data. For installing without gis packages you can simply do:
-
-### From local repo:
-
-```
-git clone https://github.com/ShervanGharari/EASYMORE.git
-cd EASYMORE
-pip install -r requirements.txt
-pip install . --no-deps -r requirements_basic.txt
-```
 
 ## Examples:
 
@@ -71,7 +61,7 @@ The two figures show remapping of the gridded temperature from ERA5 data set to 
 
 ## Publication that have used EASYMORE so far:
 
-Knoben, W. J. M., Clark, M. P., Bales, J., Bennett, A., Gharari, S., Marsh, C. B., Nijssen, B., Pietroniro, A., Spiteri, R. J., Tarboton, D. G., Wood, A. W.: Community Workflows to Advance Reproducibility in Hydrologic Modeling: Separating model-agnostic and model-specific configuration steps in applications of large-domain hydrologic models, Earth and Space Science Open Archive, 42, https://doi.org/10.1002/essoar.10509195.1, 2021
+Knoben, W. J. M., Clark, M. P., Bales, J., Bennett, A., Gharari, S., Marsh, C. B., Nijssen, B., Pietroniro, A., Spiteri, R. J., Tarboton, D. G., Wood, A. W.: Community Workflows to Advance Reproducibility in Hydrologic Modeling: Separating Model-Agnostic and Model-Specific Configuration Steps in Applications of Large-Domain Hydrologic Models, Water Resources Research, 58, e2021WR031753. https://doi.org/10.1029/2021WR031753
 
 Gharari, S., Vanderkelen, I., Tefs, A., Mizukami, N., Stadnyk, T. A., Lawrence, D., Clark, M. P.: A Flexible Multi-Scale Framework to Simulate Lakes and Reservoirs in Earth System Models, Earth and Space Science Open Archive, 24, https://doi.org/10.1002/essoar.10510902.1, 2022
 
