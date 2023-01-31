@@ -11,6 +11,7 @@ import os
 import warnings
 from   datetime     import datetime
 import re
+import json
 
 
 class easymore:
@@ -28,6 +29,7 @@ class easymore:
         self.var_time                  =  'time' # name of varibale time in the source NetCDF file
         self.var_ID                    =  '' # name of vriable ID in the source NetCDF file
         self.var_names_remapped        =  [] # list of varibale names that will be replaced in the remapped file
+        self.skip_check_all_source_nc  =  False # if set to True only first file will be check for varibales and dimensions and not the all the files (recommneded not to change)
         self.source_shp                =  '' # name of source shapefile (essential for case-3)
         self.source_shp_lat            =  '' # name of column latitude in the source shapefile
         self.source_shp_lon            =  '' # name of column longitude in the source shapefile
@@ -36,12 +38,14 @@ class easymore:
         self.remapped_var_lat          =  'latitude' # name of the latitude variable in the new nc file; default 'latitude'
         self.remapped_var_lon          =  'longitude' # name of the longitude variable in the new nc file; default 'longitude'
         self.remapped_dim_id           =  'ID' # name of the ID dimension in the new nc file; default 'ID'
-        self.overwrite_existing_remap  =  True # Flag to automatically overwrite existing remapping files. If 'False', aborts the remapping procedure if a file is detected
+        self.remapped_chunk_size       =  200 # chunksize of remapped variables in the non-time (i.e. limited) dimension. Default 200. Use 'None' for netCDF4 defaults
+        self.overwrite_remapped_nc     =  True # Flag to automatically overwrite existing remapping files. If 'False', aborts the remapping procedure if a file is detected
         self.temp_dir                  =  './temp/' # temp_dir
         self.output_dir                =  './output/' # output directory
         self.format_list               =  ['f8'] # float for the remapped values
         self.fill_value_list           =  ['-9999'] # missing values set to -9999
         self.remap_csv                 =  '' # name of the remapped file if provided
+        self.only_create_remap_csv     =  False # is true it does not remap any nc files
         self.author_name               =  '' # name of the authour
         self.license                   =  '' # data license
         self.tolerance                 =  10**-5 # tolerance
@@ -50,6 +54,57 @@ class easymore:
         self.complevel                 =  4 # netcdf compression level from 1 to 9. Any other value or object will mean no compression.
         self.version                   =  '0.0.5' # version of the easymore
         print('EASYMORE version '+self.version+ ' is initiated.')
+
+
+    ##############################################################
+    #### Configuration from json file
+    ##############################################################
+
+    def read_config_dict (self,
+                          config_file_name):
+
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function read a text file to a json file
+        config_file_name: name of the
+        """
+        # reading the data from the file
+        with open(config_file_name) as f:
+            data = f.read()
+        # reconstructing the data as a dictionary
+        config_dict = json.loads(data)
+        # return
+        return config_dict
+
+
+    def init_from_dict (self,
+                        dict_name):
+
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function take a dict_name and populate the varibales needed to be initialized
+        """
+        # pass dictionary if it is a dic
+        if isinstance(dict_name, str):
+            dictionary = self.read_config_dict(dict_name)
+        elif isinstance(dict_name, dict):
+            dictionary = dict_name
+        else:
+            sys.exit('config dictionary should be a file name, string, or a dictionary')
+        # populate from the dictionary
+        # loop over the dictionary keys
+        for key in list(dictionary.keys()):
+            if key in list(vars(self).keys()):
+                setattr(self, key, dictionary[key])
+            else:
+                sys.exit('provided key in configuration dictionary or file is not recongnized by easymore keys')
+
 
     ##############################################################
     #### NetCDF remapping
@@ -66,6 +121,8 @@ class easymore:
         """
         # check EASYMORE input
         self.check_easymore_input()
+        # check the source nc file
+        self.check_source_nc()
         # if remap is not provided then create the remapping file
         if self.remap_csv == '':
             import geopandas as gpd
@@ -76,8 +133,6 @@ class easymore:
             print('EASYMORE will save standard shapefile for EASYMORE claculation as:')
             print(self.temp_dir+self.case_name+'_target_shapefile.shp')
             target_shp_gpd.to_file(self.temp_dir+self.case_name+'_target_shapefile.shp') # save
-            # check the source NetCDF files
-            self.check_source_nc()
             # find the case
             self.NetCDF_SHP_lat_lon()
             # create the source shapefile for case 1 and 2 if shapefile is not provided
@@ -160,9 +215,13 @@ class easymore:
             # check the remap file if provided
             int_df  = pd.read_csv(self.remap_csv)
             self.check_easymore_remap(int_df)
-            # check the source nc file
-            self.check_source_nc()
-        self.__target_nc_creation()
+        # check if the remapping file needs to be generated only
+        if self.only_create_remap_csv:
+            print('The flag to create only remap file is True')
+            print('The remapping file is either created or given to EASYMORE')
+            print('The remapping Located here: ', self.remap_csv)
+        else:
+            self.__target_nc_creation()
 
     def get_col_row(self):
         """
@@ -342,10 +401,17 @@ class easymore:
         This function checks the consistency of the dimentions and varibales for source netcdf file(s)
         """
         flag_do_not_match = False
-        nc_names = glob.glob (self.source_nc)
+        nc_names = sorted(glob.glob (self.source_nc))
         if not nc_names:
             sys.exit('EASYMORE detects no netCDF file; check the path to the soure netCDF files')
         else:
+            # when skip_check_all_source_nc is True easymore only
+            # check the first file and not all the consistancy of all the files to the first file
+            if self.skip_check_all_source_nc and len(nc_names)>1:
+                nc_names = [nc_names[0]]
+                print('EASYMORE only check the first of source netcdf files for consistency of varibales and dimensions '+\
+                      'and assume other netcdf source files are consistent with the first file: ', nc_names[0])
+            # continue checking
             ncid      = nc4.Dataset(nc_names[0])
             var_dim   = list(ncid.variables[self.var_names[0]].dimensions)
             lat_dim   = list(ncid.variables[self.var_lat].dimensions)
@@ -981,7 +1047,7 @@ in dimensions of the varibales and latitude and longitude')
             target_date_times = nc4.num2date(time_var,units = time_unit,calendar = time_cal)
             target_name = self.output_dir + self.case_name + '_remapped_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.nc'
             if os.path.exists(target_name):
-                if self.overwrite_existing_remap:
+                if self.overwrite_remapped_nc:
                     print('Removing existing remapped .nc file.')
                     os.remove(target_name)
                 else:
@@ -1034,13 +1100,24 @@ in dimensions of the varibales and latitude and longitude')
                 ncid.History = 'Created ' + time.ctime(time.time())
                 ncid.Source = 'Case: ' +self.case_name + '; remapped by script from library of Shervan Gharari (https://github.com/ShervanGharari/EASYMORE).'
                 # write varibales
+                # check chunking choice
+                if self.remapped_chunk_size == None:
+                    chunk_sizes = None # Use netCDF4 default values, i.e. (1,n) chunk lengths for (unlimited,limited) dimensions, where n is the length of the limited dim
+                else:
+                    chunk_length = min(self.remapped_chunk_size, self.number_of_target_elements) # don't make a chunk > data length
+                    chunk_sizes = (1,chunk_length) # (time,remap_dim)
+                #loop over variables
                 for i in np.arange(len(self.var_names)):
                     var_value  = self.__weighted_average( nc_name,
                                                           target_date_times,
                                                           self.var_names[i],
                                                           remap)
                     # Variables writing
-                    varid = ncid.createVariable(self.var_names_remapped[i], self.format_list[i], ('time',self.remapped_dim_id ), fill_value = self.fill_value_list[i], zlib=compflag, complevel=complevel)
+                    varid = ncid.createVariable(self.var_names_remapped[i], \
+                                                self.format_list[i], ('time',self.remapped_dim_id ),\
+                                                fill_value = self.fill_value_list[i], zlib=compflag,\
+                                                complevel=complevel,\
+                                                chunksizes=chunk_sizes)
                     varid [:] = var_value
                     # Pass attributes
                     if 'long_name' in ncids.variables[self.var_names[i]].ncattrs():
