@@ -48,7 +48,7 @@ class easymore:
         self.save_csv                  =  False # save csv
         self.sort_ID                   =  False # to sort the remapped based on the target shapfile ID; self.target_shp_ID should be given
         self.complevel                 =  4 # netcdf compression level from 1 to 9. Any other value or object will mean no compression.
-        self.version                   =  '0.0.4' # version of the easymore
+        self.version                   =  '0.0.5' # version of the easymore
         print('EASYMORE version '+self.version+ ' is initiated.')
 
     ##############################################################
@@ -1208,14 +1208,33 @@ to correct for lon above 180')
         shp['ID'] = np.arange(len(shp))+1
         # get the maximum and minimum bound of the total bound
         min_lon, min_lat, max_lon, max_lat = shp.total_bounds
+        min_lon = min_lon + self.tolerance
+        max_lon = max_lon - self.tolerance
+        shp_int1 = pd.DataFrame()
+        shp_int2 = pd.DataFrame()
         if (360 < max_lon) and (min_lon<0):
             sys.exit('The minimum longitude is higher than 360 while the minimum longitude is lower that 0')
         if (max_lon < 180) and (-180 < min_lon):
             print('EASYMORE detects that shapefile longitude is between -180 and 180, no correction is performed')
-            shp_final = shp
+            # shapefile with -180 to 180 lon
+            gdf2 = {'geometry': [Polygon([( -180.0+self.tolerance, -90.0+self.tolerance), (-180.0+self.tolerance,  90.0-self.tolerance),\
+                                          (  180.0-self.tolerance,  90.0-self.tolerance), ( 180.0-self.tolerance, -90.0+self.tolerance)])]}
+            gdf2 = gpd.GeoDataFrame(gdf2)
+            gdf2 = gdf2.set_crs ("epsg:4326")
+            warnings.simplefilter('ignore')
+            shp_int2 = self.intersection_shp(shp, gdf2)
+            warnings.simplefilter('default')
+            col_names = shp_int2.columns
+            col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
+            col_names.append('geometry')
+            shp_int2 = shp_int2[shp_int2.columns.intersection(col_names)]
+            col_names.remove('geometry')
+            # rename columns without S_1_
+            for col_name in col_names:
+                col_name = str(col_name)
+                col_name_n = col_name.replace("S_1_","");
+                shp_int2 = shp_int2.rename(columns={col_name: col_name_n})
         else:
-            shp_int1 = pd.DataFrame()
-            shp_int2 = pd.DataFrame()
             # intersection if shp has a larger lon of 180 so it is 0 to 360,
             if (180 < max_lon) and (-180 < min_lon):
                 print('EASYMORE detects that shapefile longitude is between 0 and 360, correction is performed to transfer to -180 to 180')
@@ -1304,13 +1323,13 @@ to correct for lon above 180')
                     col_name = str(col_name)
                     col_name_n = col_name.replace("S_1_","");
                     shp_int2 = shp_int2.rename(columns={col_name: col_name_n})
-            # merging the two shapefiles
-            if not shp_int1.empty and not shp_int2.empty:
-                shp_final = pd.concat([shp_int1,shp_int2])
-            elif not shp_int1.empty:
-                shp_final = shp_int1
-            elif not shp_int2.empty:
-                shp_final = shp_int2
+        # merging the two shapefiles
+        if not shp_int1.empty and not shp_int2.empty:
+            shp_final = pd.concat([shp_int1,shp_int2])
+        elif not shp_int1.empty:
+            shp_final = shp_int1
+        elif not shp_int2.empty:
+            shp_final = shp_int2
         # put back the pandas into geopandas
         shp_final = shp_final.set_geometry('geometry')
         shp_final = shp_final.dissolve(by='ID', as_index=False)
