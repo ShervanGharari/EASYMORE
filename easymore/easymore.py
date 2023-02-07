@@ -1459,6 +1459,192 @@ to correct for lon above 180')
         shp ['lon_cent'] = shp_points ['lon']
         return shp, shp_points
 
+    def check_if_row_is_numeric (self,
+                                 df):
+
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function get a pandas dataframe of some values (all float + datetime string) and save them in a netcdf file
+        ---------
+        df: pandas data_frame
+        return:
+        df_type: pandas data_frame with type of each row
+        """
+        df_type = df.copy()
+        df_type ['row_type'] = 'NaN'
+        for index, row in df.iterrows():
+            row_is_numeric = True
+            for value in row:
+                try:
+                    pd.to_numeric(value, errors='raise')
+                except ValueError:
+                    row_is_numeric = False
+                    break
+            if row_is_numeric:
+                if self.check_if_row_is_float_or_int(row):
+                    T = 'float'
+                else:
+                    T = 'int'
+                df_type ['row_type'].loc[index] = T
+                print(f'Row {index} is numeric and {T}')
+    #         else:
+    #             print(f'Row {index} is not numeric.')
+        df_type = df_type.loc[:, ['row_type']].copy()
+        return df_type
+
+
+    def check_if_row_is_float_or_int (self,
+                                      row):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function get a pandas dataframe of some values (all float + datetime string) and save them in a netcdf file
+        ---------
+        row: pandas data_frame row
+        return
+        has_float: logical flag that indicate the row has a float in it
+        """
+        has_float = False
+        for item in row:
+            if isinstance(pd.to_numeric(item, errors='raise'), float):
+                has_float = True
+                break
+        return has_float
+
+    def dataframe_to_netcdf_xr (self,
+                                data_frame,
+                                nc_file_name,
+                                data_frame_DateTime_column = None,
+                                variable_name = 'values',
+                                variable_dim_name = 'n',
+                                unit_of_variable = None,
+                                variable_long_name = None,
+                                Fill_value = None,
+                                station_info_data = None,
+                                station_info_column = None):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function get a pandas dataframe of some values (all float + datetime string) and save them in a netcdf file
+        ---------
+        data_frame: pandas data_frame with index as pandas data time or path to csv file
+        nc_file_name: the name of nc file to be saved, string
+        data_frame_DateTime_column: in case data_frame is path to csv file then column data_frame_DateTime_column should be provided, string
+        variable_name: name of variable name to be saved in nc file, string
+        unit_of_variable: unit of varibale name to be saved in nc file, string
+        variable_long_name: varibale long name to be saved in nc file, string
+        Fill_value: fill value to be saved in nc file, string
+        station_info_data: pandas dataframe or path to csv file including the information of stations or grid for data_frame
+        station_info_column: the column that include the information of station from station_info_data, string
+        """
+
+        # preparation of dataset
+        if isinstance(data_frame, pd.DataFrame):
+            print('EASYMORE detects that the input datafarame is pandas dataframe')
+            if isinstance(data_frame.index, pd.DatetimeIndex):
+                print('EASYMORE detects that index is pandas datatime')
+            else:
+                sys.exit('EASYMORE detects that the index is not datetime in data input file. ',\
+                         'You use dataframe.index = pd.to_datetime(dataframe.index) to make sure ',\
+                         'the index is in <class pandas.core.indexes.datetimes.DatetimeIndex>')
+        elif isinstance(data_frame, str):
+            if data_frame_DateTime_column is None:
+                sys.exit('dataframe is provided as string csv file,'\
+                         +'please provide the name of time index column')
+            # read the data csv
+            data_frame = pd.read_csv(data_frame)
+            # convert the data time of the data_frame to index
+            data_frame[data_frame_DateTime_column] = pd.to_datetime(data_frame[data_frame_DateTime_column], infer_datetime_format=True)
+            data_frame = data_frame.set_index(data_frame_DateTime_column) # set as index
+            data_frame.index = pd.to_datetime(data_frame.index) # from index to datetime index
+        else:
+            sys.exit('The data input type is not recognized')
+        data_frame = data_frame.rename_axis(index=None) # remove possible name of the index column
+
+        # preparation of dataset_info
+        # encoding for station info
+        encoding = {}
+        if station_info_data:
+            if not station_info_column:
+                sys.exit('The station name column should be provided')
+            if isinstance(station_info_data, pd.DataFrame):
+                print('EASYMORE detects that the station data is pandas dataframe')
+            elif isinstance(station_info_data, str):
+                if data_frame_DateTime_column is None:
+                    sys.exit('dataframe is provided as string csv file, please'+\
+                             ' provide the name of time index column')
+                # read the data csv
+                station_info_data = pd.read_csv(station_info_data)
+            else:
+                sys.exit('The station info data input type is not recognized')
+            station_info_data = station_info_data.set_index(station_info_column)
+            station_info_data = station_info_data.rename_axis(index=None)
+
+            # check if all station info info is exsiting in the station info
+            if set(list(data_frame.columns)) <= set(list(station_info_data.columns)):
+                print('EASYMORE detects that the necessary information for the station are provided')
+            else:
+                sys.exit('EASYMORE detects the data frame provided for data, columns names, '+\
+                        'are partly missing in the station information')
+            # subset the station infromation for the provided data
+            station_info_data = station_info_data [station_info_data.columns.intersection(list(data_frame.columns))]
+            data_frame = data_frame[list(station_info_data.columns)] # reorder columns to match station into
+            # encoding
+            station_info_data_type = self.check_if_row_is_numeric (station_info_data)
+            for index, row in station_info_data_type.iterrows():
+                temp = {}
+                if row['row_type'] == 'int':
+                    temp = {index: {'dtype': 'int32'}}
+                    station_info_data.loc[index] = station_info_data.loc[index].astype(int)
+                if row['row_type'] == 'float':
+                    temp = {index: {'dtype': 'float64'}}
+                    station_info_data.loc[index] = station_info_data.loc[index].astype(float)
+                encoding.update(temp)
+            station_info_data = station_info_data.transpose()
+        else:
+            station_info_data = pd.DataFrame(np.arange(len(data_frame.columns))+1,\
+                                             index=data_frame.columns,\
+                                             columns=['ID'])
+        # rename the dimension
+        if station_info_data.index.name is None:
+            station_info_data.index.name = variable_dim_name
+        #
+        info = xr.Dataset(station_info_data.to_xarray())
+
+        # data
+        data = xr.Dataset(data_vars=dict(values=(["time", station_info_data.index.name],\
+                                                 np.array(data_frame))),\
+                          coords=dict(time = data_frame.index))
+        attr = {}
+        if unit_of_variable:
+            attr.update({'units' : unit_of_variable})
+        if variable_long_name:
+            attr.update({'long_name' : variable_long_name})
+        data['values'].attrs=attr
+        if variable_name:
+            data = data.rename_vars({'values':variable_name})
+
+        # merging the data and data information
+        data = xr.merge([data, info])
+
+        # remove the existing file to save
+        if nc_file_name:
+            os.system ('rm '+nc_file_name)
+        # save
+        if data_frame.applymap(lambda x: isinstance(x, (int, float))).all().all():
+            temp = {variable_name:{'dtype': 'object', '_FillValue': -9999}}
+        else:
+            temp = {variable_name:{'dtype': 'object'}}
+        print(temp)
+        data.to_netcdf(nc_file_name, encoding=temp)
+
 
     ##############################################################
     #### GIS section
