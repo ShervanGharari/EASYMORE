@@ -27,7 +27,8 @@ class easymore:
         self.var_lon                   =  '' # name of varibale longitude in the source NetCDF file
         self.var_lat                   =  '' # name of varibale latitude in the source NetCDF file
         self.var_time                  =  'time' # name of varibale time in the source NetCDF file
-        self.var_ID                    =  '' # name of vriable ID in the source NetCDF file
+        self.var_ID                    =  '' # name of variable ID in the source NetCDF file
+        self.var_station               =  '' # name of variable station in the source NetCDF file
         self.var_names_remapped        =  [] # list of varibale names that will be replaced in the remapped file
         self.skip_check_all_source_nc  =  False # if set to True only first file will be check for varibales and dimensions and not the all the files (recommneded not to change)
         self.source_shp                =  '' # name of source shapefile (essential for case-3)
@@ -157,14 +158,23 @@ class easymore:
                 print('EASYMORE detect the shapefile is provided and will resave it here:')
                 print(self.temp_dir+self.case_name+'_source_shapefile.shp')
             # if case 3 or source shapefile is provided
-            if (self.case == 3) and (self.source_shp != ''):
-                self.check_source_nc_shp() # check the lat lon in soure shapefile and nc file
-                source_shp_gpd = gpd.read_file(self.source_shp)
-                source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
-                    self.source_shp_lon, self.source_shp_ID)
-                source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
-                print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
-                print(self.temp_dir+self.case_name+'_source_shapefile.shp')
+            if (self.case == 3):
+                if (self.source_shp != ''):
+                    self.check_source_nc_shp() # check the lat lon in soure shapefile and nc file
+                    source_shp_gpd = gpd.read_file(self.source_shp)
+                    source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
+                        self.source_shp_lon, self.source_shp_ID)
+                    source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
+                    print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
+                    print(self.temp_dir+self.case_name+'_source_shapefile.shp')
+            # if case 3 and source shapefile is not provided; EASYMORE will use Voronoi diagram
+                if (self.source_shp == ''):
+                    # Create the source shapefile using Voronio diagram
+                    print('EASYMORE detect that source shapefile is not provided for irregulat lat lon source NetCDF')
+                    print('EASYMORE will create the source shapefile based on the lat lon')
+                    voronoi = self.shp_from_irregular_nc (station_shp_file_name = self.temp_dir+self.case_name+'_source_shapefile_points.shp')
+                    print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
+                    voronoi.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
             # intersection of the source and sink/target shapefile
             shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_target_shapefile.shp')
             shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
@@ -2057,7 +2067,8 @@ to correct for lon above 180')
                             dataframe,
                             lon_field,
                             lat_field,
-                            crs=None):
+                            point_shp_file_name = None,
+                            crs = None):
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
@@ -2066,9 +2077,10 @@ to correct for lon above 180')
         This function creates a geopandas dataframe of lat, lon and IDs provided
         Arguments
         ---------
-        dataframe: pandas dataframe or string linking to a csv data frame
+        dataframe: pandas dataframe or string linking to a csv data frame that inlcude the lat/lon and other info
         lon_field: string, the name of longitude column in dataframe
         lat_field: string, the name of latitude column in dataframe
+        point_shp_file_name: string, the name of the point shapefile to be saved
         crs: string, indicating the spatial reference; e.g.'EPSG:4326'
         Returns
         -------
@@ -2084,7 +2096,87 @@ to correct for lon above 180')
         else:
             print('no crs is provided for the point shapefiles; EASYMORE will allocate WGS84')
             shp = shp.set_crs ('EPSG:4326')
+        if point_shp_file_name:
+            shp.to_file(point_shp_file_name)
         return shp
+
+    def shp_from_irregular_nc (self,
+                               station_shp_file_name = None,
+                               voronoi_shp_file_name = None,
+                               buffer = 2,
+                               crs = None,
+                               tolerance = 0.000001):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function creates a geopandas dataframe of lat, lon and IDs provided
+        Arguments
+        ---------
+        dataframe: pandas dataframe or string linking to a csv data frame that inlcude the lat/lon and other info
+        lon_field: string, the name of longitude column in dataframe
+        lat_field: string, the name of latitude column in dataframe
+        point_shp_file_name: string, the name of the point shapefile to be saved
+        crs: string, indicating the spatial reference; e.g.'EPSG:4326'
+        Returns
+        -------
+        shp: geopandas dataframe, with geometry of longitude and latitude
+        """
+
+        # read the file (or the first file)
+        nc_names = glob.glob(self.source_nc)
+        ncid     = nc4.Dataset(nc_names[0])
+
+        # create the data frame
+        points = pd.DataFrame()
+        points['lon'] = ncid.variables[self.var_lon][:]
+        points['lat'] = ncid.variables[self.var_lat][:]
+        points['ID_s'] = 1 + np.arange(len(points))
+        points['ID_test'] = points['ID_s']
+        if self.var_ID != '':
+            points['ID_s'] = ncid.variables[self.var_ID][:]
+            points['ID_test'] = points['ID_s']
+        if self.var_station != '':
+            points['station_name'] = ncid.variables[self.var_station][:]
+
+        # check if two points fall on each other
+        points = points.sort_values(by=['lat','lon'])
+        points['lon_next'] = np.roll(points['lon'],1)
+        points['lat_next'] = np.roll(points['lat'],1)
+        points['ID_test_next'] = np.roll(points['ID_test'], 1)
+        points['distance'] = np.power(points['lon_next']-points['lon'], 2)+\
+                             np.power(points['lat_next']-points['lat'], 2)
+        points['distance'] = np.power(points['distance'], 0.5)
+        idx = points.index[points['distance']<tolerance]
+        if not (idx.empty):
+            print('EASYMORE detects that the lat lon values are for 2 or'+\
+                  'more points are identical given tolerance =',str(tolerance))
+            print('ID of those are:')
+            print(points['ID_s'].loc[idx].values)
+        points['lat'].loc[idx]=points['lat'].loc[idx]+tolerance
+        points['lon'].loc[idx]=points['lon'].loc[idx]+tolerance
+        points = points.sort_values(by='ID_s')
+        points.rename(columns = {'lat':'lat_s','lon':'lon_s'},inplace=True)
+        points = points.drop(columns=['lon_next','lat_next','ID_test','ID_test_next','distance'])
+
+        # making points
+        points = self.make_shape_point(points,
+                                       'lon_s',
+                                       'lat_s',
+                                        point_shp_file_name = station_shp_file_name,
+                                        crs = crs)
+
+        # creating the voronoi
+        voronoi = self.voronoi_diagram(points,
+                                       'lon_s',
+                                       'lat_s',
+                                       ID_field_name = 'ID_s',
+                                       voronoi_shp_file_name = voronoi_shp_file_name,
+                                       buffer = buffer)
+
+        # return the shapefile
+        return voronoi
 
     def zonal_stat_vector ( self,
                             vector_path_1,
@@ -2551,7 +2643,10 @@ to correct for lon above 180')
 
     def voronoi_diagram(self,
                         points_shp_in,
-                        voronoi_shp_out,
+                        lon_field_name,
+                        lat_field_name,
+                        ID_field_name=None,
+                        voronoi_shp_file_name=None,
                         buffer = 2):
         """
         original code by:
@@ -2582,46 +2677,58 @@ to correct for lon above 180')
             stations = points_shp_in # geodataframe
         # get the crs from the point shapefile
         crs_org = stations.crs
-        print(crs_org)
+        print('crs from the point geopandas: ', crs_org)
         # add the ID_t to the point shapefiles
-        stations ['ID_s'] = np.arange(len(stations))+1
-        stations ['ID_s'] = stations ['ID_s'].astype(float)
+        if not ID_field_name:
+            stations ['ID_s'] = np.arange(len(stations))+1
+            stations ['ID_s'] = stations ['ID_s'].astype(int)
+        else:
+            stations ['ID_s'] = stations[ID_field_name].astype(int)
+        stations = stations.sort_values(by='ID_s')
+        ID_s = stations ['ID_s']
         # get the total boundary of the shapefile
         stations_buffert = stations.buffer(buffer) # add a buffer
         minx, miny, maxx, maxy = stations_buffert.total_bounds
         # create the bounding shapefile
         parts = []
-        with shapefile.Writer('test.shp') as w:
+        with shapefile.Writer(self.temp_dir+'test.shp') as w:
             w.autoBalance = 1 # turn on function that keeps file stable if number of shapes and records don't line up
             w.field("ID_bounding",'N') # create (N)umerical attribute fields, integer
             # creating the polygon given the lat and lon
             parts.append([ (minx, miny),\
-                           (minx, maxy), \
-                           (maxx, maxy), \
-                           (maxx, miny), \
+                           (minx, maxy),\
+                           (maxx, maxy),\
+                           (maxx, miny),\
                            (minx, miny)])
             # store polygon
             w.poly(parts)
             # update records/fields for the polygon
             w.record(1)
-        boundary = gpd.read_file('test.shp')
-        os.remove('test.dbf');os.remove('test.shx');os.remove('test.shp')
+        boundary = gpd.read_file(self.temp_dir+'test.shp')
+        os.system('rm '+self.temp_dir+'test.*')
         # create the voroni diagram for given point shapefile
         coords = geovoronoi.points_to_coords(stations.geometry)
         poly_shapes, location = \
         geovoronoi.voronoi_regions_from_coords(coords, boundary.iloc[0].geometry)
         # pass te polygons to shapefile
         Thiessen = gpd.GeoDataFrame()
-        Thiessen['ID'] = None
         for i in np.arange(len(poly_shapes)):
             Thiessen.loc[i, 'geometry'] = Polygon(poly_shapes[i])
-            Thiessen.loc[i, 'ID_s']     = stations.iloc[location[i][0]].ID_s.astype(float)
+            Thiessen.loc[i, 'ID_s']     = stations.iloc[location[i][0]].ID_s
+        Thiessen['ID_s'] = Thiessen['ID_s'].astype(int)
         Thiessen = Thiessen.sort_values(by='ID_s')# sort on values
         stations = stations.drop(columns='geometry')
         Thiessen = pd.merge_asof(Thiessen, stations, on='ID_s') #, direction='nearest')
         Thiessen = Thiessen.set_geometry('geometry') #bring back the geometry filed; pd to gpd
         Thiessen = Thiessen.set_crs(crs_org)
-        Thiessen.to_file(voronoi_shp_out)
+        ID_s_V = Thiessen['ID_s']
+        diff = np.setdiff1d(ID_s, ID_s_V, assume_unique=False)
+        if diff.size !=0 :
+            print(diff)
+            sys.exit('It seems the input points with the following ID do have identical lon, lat ')
+        if not (voronoi_shp_file_name is None):
+            Thiessen.to_file(voronoi_shp_file_name)
+        return Thiessen
 
     def get_all_downstream (self,
                             seg_IDs,
