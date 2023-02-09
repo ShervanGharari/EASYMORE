@@ -17,6 +17,7 @@ import json
 class easymore:
 
     def __init__(self):
+        self.delet_attr()  # remove the existing varibales
         self.case_name                 =  'case_temp' # name of the case
         self.target_shp                =  '' # sink/target shapefile
         self.target_shp_ID             =  '' # name of the column ID in the sink/target shapefile
@@ -60,6 +61,12 @@ class easymore:
     ##############################################################
     #### Configuration from json file
     ##############################################################
+
+    def delet_attr(self):
+
+        for label in vars(self).keys():
+            delattr(self, l)
+            print('deleted ', l)
 
     def read_config_dict (self,
                           config_file_name):
@@ -1692,6 +1699,8 @@ to correct for lon above 180')
                         font_family                     = 'Times New Roman',
                         font_weigth                     = 'bold',
                         add_colorbar_flag               = None,
+                        min_value_colorbar              = None,
+                        max_value_colorbar              = None,
                         min_lon                         = None,
                         min_lat                         = None,
                         max_lon                         = None,
@@ -1753,8 +1762,8 @@ to correct for lon above 180')
         print(time_stamp)
 
         # load the data and get the max and min values of remppaed file for the taarget variable
-        max_value = ds_source[source_nc_var_name][step].max().item() # get the max of remapped
-        min_value = ds_source[source_nc_var_name][step].min().item() # get the min of remapped
+        max_value = ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest').max().item() # get the max of remapped
+        min_value = ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest').min().item() # get the min of remapped
 
         # check if remapped file exists and check the time varibales to source nc file
         if remapped_nc_exists:
@@ -1764,19 +1773,24 @@ to correct for lon above 180')
                 sys.exit('The source and remapped files seems to have different time; make sure '+\
                          'the remapped files is from the same source file.')
             # update the max min value based on remapped
-            max_value = ds_remapped[remapped_nc_var_name][step].max().item() # get the max of remapped
-            min_value = ds_remapped[remapped_nc_var_name][step].min().item() # get the min of remapped
+            max_value = ds_remapped[remapped_nc_var_name].sel(time=time_stamp, method='nearest').max().item() # get the max of remapped
+            min_value = ds_remapped[remapped_nc_var_name].sel(time=time_stamp, method='nearest').min().item() # get the min of remapped
             #
             shp_target = gpd.read_file(shp_target_name) # load the target shapefile
             if (min_lon is None) or (min_lat is None) or (max_lon is None) or (max_lat is None):
                 min_lon, min_lat, max_lon, max_lat = shp_target.total_bounds
 
+        # correct min and max if the are given
+        if min_value_colorbar:
+            min_value = min_value_colorbar
+        if max_value_colorbar:
+            max_value = max_value_colorbar
 
         # visualize
         fig, ax = plt.subplots(figsize=fig_size)
 
         if self.case == 1 or self.case ==2:
-            ds_source[source_nc_var_name][step].plot.pcolormesh(x=source_nc_var_lon,
+            ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest').plot.pcolormesh(x=source_nc_var_lon,
                                                                 y=source_nc_var_lat,
                                                                 add_colorbar=add_colorbar_flag,
                                                                 ax = ax,
@@ -1789,7 +1803,6 @@ to correct for lon above 180')
             df = pd.DataFrame()
             df ['ID'] = ds_source[source_nc_var_ID][:]
             df ['value'] = ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest') # assumes times is first
-            #ll
             df = df.sort_values(by=['ID'])
             df = df.reset_index(drop=True)
 
@@ -1825,7 +1838,7 @@ to correct for lon above 180')
                 # dataframe
                 df = pd.DataFrame()
                 df ['ID'] = ds_remapped[remapped_nc_var_ID][:]
-                df ['value'] = ds_remapped[remapped_nc_var_name][step]
+                df ['value'] = ds_remapped[remapped_nc_var_name].sel(time=time_stamp, method='nearest')
                 df = df.sort_values(by=['ID'])
                 df = df.reset_index(drop=True)
 
