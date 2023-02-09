@@ -157,9 +157,9 @@ class easymore:
                 source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
                 print('EASYMORE detect the shapefile is provided and will resave it here:')
                 print(self.temp_dir+self.case_name+'_source_shapefile.shp')
-            # if case 3 or source shapefile is provided
+            # if case 3
             if (self.case == 3):
-                if (self.source_shp != ''):
+                if (self.source_shp != ''): # source shapefile is provided
                     self.check_source_nc_shp() # check the lat lon in soure shapefile and nc file
                     source_shp_gpd = gpd.read_file(self.source_shp)
                     source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
@@ -167,11 +167,10 @@ class easymore:
                     source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
                     print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
                     print(self.temp_dir+self.case_name+'_source_shapefile.shp')
-            # if case 3 and source shapefile is not provided; EASYMORE will use Voronoi diagram
-                if (self.source_shp == ''):
+                if (self.source_shp == ''): # source shapefile is not provided goes for voronoi
                     # Create the source shapefile using Voronio diagram
                     print('EASYMORE detect that source shapefile is not provided for irregulat lat lon source NetCDF')
-                    print('EASYMORE will create the source shapefile based on the lat lon')
+                    print('EASYMORE will create the voronoi source shapefile based on the lat lon')
                     voronoi = self.shp_from_irregular_nc (station_shp_file_name = self.temp_dir+self.case_name+'_source_shapefile_points.shp')
                     print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
                     voronoi.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
@@ -1751,6 +1750,7 @@ to correct for lon above 180')
                                                         '%Y-%m-%d %H:%M:%S'),method='nearest')]
         step = df_slice['step'].item()
         time_stamp = df_slice['timestamp']
+        print(time_stamp)
 
         # load the data and get the max and min values of remppaed file for the taarget variable
         max_value = ds_source[source_nc_var_name][step].max().item() # get the max of remapped
@@ -1788,7 +1788,8 @@ to correct for lon above 180')
             # dataframe
             df = pd.DataFrame()
             df ['ID'] = ds_source[source_nc_var_ID][:]
-            df ['value'] = ds_source[source_nc_var_name][step]
+            df ['value'] = ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest') # assumes times is first
+            #ll
             df = df.sort_values(by=['ID'])
             df = df.reset_index(drop=True)
 
@@ -2105,7 +2106,7 @@ to correct for lon above 180')
                                voronoi_shp_file_name = None,
                                buffer = 2,
                                crs = None,
-                               tolerance = 0.000001):
+                               tolerance = 0.00001):
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
@@ -2172,8 +2173,7 @@ to correct for lon above 180')
                                        'lon_s',
                                        'lat_s',
                                        ID_field_name = 'ID_s',
-                                       voronoi_shp_file_name = voronoi_shp_file_name,
-                                       buffer = buffer)
+                                       voronoi_shp_file_name = voronoi_shp_file_name)
 
         # return the shapefile
         return voronoi
