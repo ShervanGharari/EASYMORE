@@ -1692,9 +1692,13 @@ to correct for lon above 180')
                         fig_size                        = None,
                         show_target_shp_flag            = None,
                         show_remapped_values_flag       = None,
+                        show_source_flag                = True,
                         cmap                            = None,
                         margin                          = None,
-                        linewidth                       = None,
+                        linewidth_source                = None,
+                        linewidth_remapped              = None,
+                        alpha_source                    = None,
+                        alpha_remapped                  = None,
                         font_size                       = 40,
                         font_family                     = 'Times New Roman',
                         font_weigth                     = 'bold',
@@ -1722,6 +1726,9 @@ to correct for lon above 180')
                 'size'   :  font_size}
         mpl.rc('font', **font)
 
+        #
+        colorbar_do_not_exists = True
+
         # initializing EASYMORE object and find the case of source netcdf file
         # check of the source_nc_names is string and doesnt have * in it
         if isinstance(source_nc_name, str):
@@ -1742,7 +1749,7 @@ to correct for lon above 180')
         if remapped_nc_name:
             remapped_nc_exists = True
 
-        # decidin the case
+        # deciding the case
         self.NetCDF_SHP_lat_lon() # to find the case and lat/lon
 
         #
@@ -1759,11 +1766,14 @@ to correct for lon above 180')
                                                         '%Y-%m-%d %H:%M:%S'),method='nearest')]
         step = df_slice['step'].item()
         time_stamp = df_slice['timestamp']
-        print(time_stamp)
+        print('the closest time step to what is provided for vizualization ', time_step_of_viz,\
+              ' is ', time_stamp)
 
         # load the data and get the max and min values of remppaed file for the taarget variable
         max_value = ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest').max().item() # get the max of remapped
         min_value = ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest').min().item() # get the min of remapped
+        print('min: {}, max: {} for variable: {} in source nc file for the time step: {}'.format(\
+            min_value, max_value, source_nc_var_name, time_stamp))
 
         # check if remapped file exists and check the time varibales to source nc file
         if remapped_nc_exists:
@@ -1775,6 +1785,8 @@ to correct for lon above 180')
             # update the max min value based on remapped
             max_value = ds_remapped[remapped_nc_var_name].sel(time=time_stamp, method='nearest').max().item() # get the max of remapped
             min_value = ds_remapped[remapped_nc_var_name].sel(time=time_stamp, method='nearest').min().item() # get the min of remapped
+            print('min: {}, max: {} for variable: {} in remapped nc file for the time step: {}'.format(\
+            min_value, max_value, remapped_nc_var_time, time_stamp))
             #
             shp_target = gpd.read_file(shp_target_name) # load the target shapefile
             if (min_lon is None) or (min_lat is None) or (max_lon is None) or (max_lat is None):
@@ -1783,22 +1795,26 @@ to correct for lon above 180')
         # correct min and max if the are given
         if min_value_colorbar:
             min_value = min_value_colorbar
+            print('min values for colorbar is provided as: ',min_value)
         if max_value_colorbar:
             max_value = max_value_colorbar
+            print('max values for colorbar is provided as: ',max_value)
 
         # visualize
         fig, ax = plt.subplots(figsize=fig_size)
 
-        if self.case == 1 or self.case ==2:
+        if (self.case == 1 or self.case ==2) and show_source_flag:
             ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest').plot.pcolormesh(x=source_nc_var_lon,
                                                                 y=source_nc_var_lat,
                                                                 add_colorbar=add_colorbar_flag,
                                                                 ax = ax,
                                                                 cmap=cmap,
                                                                 vmin=min_value,
-                                                                vmax=max_value)
+                                                                vmax=max_value,
+                                                                alpha=alpha_source)
+            colorbar_do_not_exists = False
 
-        if self.case == 3:
+        if self.case == 3 and show_source_flag:
             # dataframe
             df = pd.DataFrame()
             df ['ID'] = ds_source[source_nc_var_ID][:]
@@ -1815,30 +1831,37 @@ to correct for lon above 180')
             shp_source ['value'] = df ['value']
             shp_source.plot(column= 'value',
                             edgecolor='k',
-                            linewidth = linewidth,
+                            linewidth = linewidth_source,
                             ax = ax,
                             cmap=cmap,
                             vmin=min_value,
-                            vmax=max_value)
+                            vmax=max_value,
+                            alpha=alpha_source)
 
-            # provide the time and date and other parameters
-            ax.set_title('time: '+time_stamp)
-            ax.set_xlabel('longitude')
-            ax.set_ylabel('latitude')
-            norm = mpl.colors.Normalize(vmin=min_value, vmax=max_value)
-            cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
-            cbar.ax.set_ylabel(source_nc_var_name)
+            if add_colorbar_flag:
+                # provide the time and date and other parameters
+                ax.set_title('time: '+time_stamp)
+                ax.set_xlabel('longitude')
+                ax.set_ylabel('latitude')
+                norm = mpl.colors.Normalize(vmin=min_value, vmax=max_value)
+                cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
+                if 'units' in ds_source[source_nc_var_name].attrs.keys():
+                    unit_name = ds_source[source_nc_var_name].attrs["units"]
+                    cbar.ax.set_ylabel(source_nc_var_name+' ['+unit_name+']')
+                else:
+                    cbar.ax.set_ylabel(remapped_nc_var_name)
+                colorbar_do_not_exists = False
 
         if remapped_nc_exists:
             if show_remapped_values_flag:
                 show_target_shp_flag = False
             if show_target_shp_flag:
-                shp_target.geometry.boundary.plot(color=None,edgecolor='k',linewidth = linewidth, ax = ax)
+                shp_target.geometry.boundary.plot(color=None,edgecolor='k',linewidth = linewidth_remapped, ax = ax)
             if show_remapped_values_flag:
                 # dataframe
                 df = pd.DataFrame()
                 df ['ID'] = ds_remapped[remapped_nc_var_ID][:]
-                df ['value'] = ds_remapped[remapped_nc_var_name].sel(time=time_stamp, method='nearest')
+                df ['value'] = ds_remapped[remapped_nc_var_name].sel(time=time_stamp,method='nearest')
                 df = df.sort_values(by=['ID'])
                 df = df.reset_index(drop=True)
 
@@ -1851,18 +1874,33 @@ to correct for lon above 180')
                 shp_target ['value'] = df ['value']
                 shp_target.plot(column= 'value',
                                 edgecolor='k',
-                                linewidth = linewidth,
+                                linewidth = linewidth_remapped,
                                 ax = ax,
                                 cmap=cmap,
                                 vmin=min_value,
-                                vmax=max_value)
-                if self.case == 3:
-                    # provide the time and date and other parameters
+                                vmax=max_value,
+                                alpha=alpha_remapped)
+            if add_colorbar_flag and (colorbar_do_not_exists):
+                # provide the time and date and other parameters
+                ax.set_title('time: '+time_stamp)
+                ax.set_xlabel('longitude')
+                ax.set_ylabel('latitude')
+                norm = mpl.colors.Normalize(vmin=min_value, vmax=max_value)
+                cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
+                if 'units' in ds_remapped[remapped_nc_var_name].attrs.keys():
+                    unit_name = ds_remapped[remapped_nc_var_name].attrs["units"]
+                    cbar.ax.set_ylabel(remapped_nc_var_name+' ['+unit_name+']')
+                else:
                     cbar.ax.set_ylabel(remapped_nc_var_name)
 
+        #
         if min_lat and min_lon and max_lat and max_lon:
             ax.set_ylim([min_lat-margin,max_lat+margin])
             ax.set_xlim([min_lon-margin,max_lon+margin])
+
+        # print(min max lat lon)
+        # print('min_lon, min_lat, max_lon, max_lat', min_lon, min_lat, max_lon, max_lat)
+        print('min_lon:{}, min_lat:{}, max_lon:{}, max_lat:{}'.format(min_lon, min_lat, max_lon, max_lat))
 
         # create the folder to save
         if location_save_fig and fig_name:
