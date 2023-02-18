@@ -558,28 +558,6 @@ in dimensions of the varibales and latitude and longitude')
             # print
             #sys.exit('The latitude and longitude in source NetCDF files are not unique')
             print('The latitude and longitude in source NetCDF files are not unique')
-        # check if the latitude and longitude in the shapefiles are in the nc file
-        # coord_nc_temp     = np.array(coord_nc)
-        # for index, row in coord_shp.iterrows():
-        #     # get the distance
-        #     lat_target = row.lat
-        #     lon_target = row.lon
-        #     Dist = np.array(((coord_nc_temp[:,1] - lat_target)**2 +\
-        #         (coord_nc_temp[:,0] - lon_target)**2)**0.5)
-        #     idx_target = np.where(Dist<self.tolerance)
-        #     idx_target = np.array(idx_target)
-        #     idx_target = idx_target.flatten()
-        #     if idx_target.shape[0] > 1:
-        #         multi_source = True
-        #         #idx_target    = max (idx_target[0]-1000,0)
-        #         #sys.exit('There are multiple shape in source shapefile that is closer to provided netCDF latitude and longitude')
-        #     if idx_target.shape[0] == 1:
-        #         idx_target = idx_target.item()
-        #         idx_target    = max (idx_target-1000,0)
-        #     print(idx_target)
-        #     coord_nc_temp = coord_nc_temp[idx_target:] # cut the
-        # if multi_source:
-        #     print('There are multiple shape in source shapefile that is closer to provided netCDF latitude and longitude')
 
     def NetCDF_SHP_lat_lon(self):
         """
@@ -694,10 +672,85 @@ in dimensions of the varibales and latitude and longitude')
             self.lon = lon
             self.ID  = ID
 
+    # def lat_lon_SHP(self,
+    #                 lat,
+    #                 lon,
+    #                 file_name):
+    #     """
+    #     @ author:                  Shervan Gharari, Wouter Knoben
+    #     @ Github:                  https://github.com/ShervanGharari/EASYMORE
+    #     @ author's email id:       sh.gharari@gmail.com
+    #     @ license:                 GNU-GPLv3
+    #     This function creates a shapefile for the source netcdf file
+    #     Arguments
+    #     ---------
+    #     lat: the 2D matrix of lat_2D [n,m,]
+    #     lon: the 2D matrix of lon_2D [n,m,]
+    #     file_name: string, name of the file that the shapefile will be saved at
+    #     """
+    #     # check if lat/lon that are taken in has the same dimension
+    #     import geopandas as gpd
+    #     from   shapely.geometry import Polygon
+    #     import shapefile # pyshed library
+    #     import shapely
+    #     #
+    #     lat_lon_shape = lat.shape
+    #     # write the shapefile
+    #     with shapefile.Writer(file_name) as w:
+    #         w.autoBalance = 1 # turn on function that keeps file stable if number of shapes and records don't line up
+    #         w.field("ID_s",'N') # create (N)umerical attribute fields, integer
+    #         w.field("lat_s",'F',decimal=4) # float with 4 decimals
+    #         w.field("lon_s",'F',decimal=4) # float with 4 decimals
+    #         # preparing the m whcih is a couter for the shapefile arbitrary ID
+    #         m = 0.00
+    #         # itterating to create the shapes of the result shapefile ignoring the first and last rows and columns
+    #         for i in range(1, lat_lon_shape[0] - 1):
+    #             for j in range(1, lat_lon_shape[1] - 1):
+    #                 # checking is lat and lon is located inside the provided bo
+    #                 # empty the polygon variable
+    #                 parts = []
+    #                 # update records
+    #                 m += 1 # ID
+    #                 center_lat = lat[i,j] # lat value of data point in source .nc file
+    #                 center_lon = lon[i,j] # lon value of data point in source .nc file should be within [0,360]
+    #                 # Creating the lat of the shapefile
+    #                 Lat_Up       = (lat[i - 1, j] + lat[i, j]) / 2
+    #                 Lat_UpRright = (lat[i - 1, j] + lat[i - 1, j + 1] + lat[i, j + 1] + lat[i, j]) / 4
+    #                 Lat_Right    = (lat[i, j + 1] + lat[i, j]) / 2
+    #                 Lat_LowRight = (lat[i, j + 1] + lat[i + 1, j + 1] + lat[i + 1, j] + lat[i, j]) / 4
+    #                 Lat_Low      = (lat[i + 1, j] + lat[i, j]) / 2
+    #                 Lat_LowLeft  = (lat[i, j - 1] + lat[i + 1, j - 1] + lat[i + 1, j] + lat[i, j]) / 4
+    #                 Lat_Left     = (lat[i, j - 1] + lat[i, j]) / 2
+    #                 Lat_UpLeft   = (lat[i - 1, j - 1] + lat[i - 1, j] + lat[i, j - 1] + lat[i, j]) / 4
+    #                 # Creating the lon of the shapefile
+    #                 Lon_Up       = (lon[i - 1, j] + lon[i, j]) / 2
+    #                 Lon_UpRright = (lon[i - 1, j] + lon[i - 1, j + 1] + lon[i, j + 1] + lon[i, j]) / 4
+    #                 Lon_Right    = (lon[i, j + 1] + lon[i, j]) / 2
+    #                 Lon_LowRight = (lon[i, j + 1] + lon[i + 1, j + 1] + lon[i + 1, j] + lon[i, j]) / 4
+    #                 Lon_Low      = (lon[i + 1, j] + lon[i, j]) / 2
+    #                 Lon_LowLeft  = (lon[i, j - 1] + lon[i + 1, j - 1] + lon[i + 1, j] + lon[i, j]) / 4
+    #                 Lon_Left     = (lon[i, j - 1] + lon[i, j]) / 2
+    #                 Lon_UpLeft   = (lon[i - 1, j - 1] + lon[i - 1, j] + lon[i, j - 1] + lon[i, j]) / 4
+    #                 # creating the polygon given the lat and lon
+    #                 parts.append([ (Lon_Up,        Lat_Up),\
+    #                                (Lon_UpRright,  Lat_UpRright), \
+    #                                (Lon_Right,     Lat_Right), \
+    #                                (Lon_LowRight,  Lat_LowRight), \
+    #                                (Lon_Low,       Lat_Low), \
+    #                                (Lon_LowLeft,   Lat_LowLeft), \
+    #                                (Lon_Left,      Lat_Left), \
+    #                                (Lon_UpLeft,    Lat_UpLeft), \
+    #                                (Lon_Up,        Lat_Up)])
+    #                 # store polygon
+    #                 w.poly(parts)
+    #                 # update records/fields for the polygon
+    #                 w.record(m, center_lat, center_lon)
+
     def lat_lon_SHP(self,
                     lat,
                     lon,
-                    file_name):
+                    crs = None,
+                    file_name = None):
         """
         @ author:                  Shervan Gharari, Wouter Knoben
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
@@ -706,67 +759,85 @@ in dimensions of the varibales and latitude and longitude')
         This function creates a shapefile for the source netcdf file
         Arguments
         ---------
-        lat: the 2D matrix of lat_2D [n,m,]
-        lon: the 2D matrix of lon_2D [n,m,]
+        lat: numpy array, the 2D matrix of lat_2D [n,m,]
+        lon: numpy array, the 2D matrix of lon_2D [n,m,]
         file_name: string, name of the file that the shapefile will be saved at
         """
-        # check if lat/lon that are taken in has the same dimension
-        import geopandas as gpd
+
         from   shapely.geometry import Polygon
-        import shapefile # pyshed library
-        import shapely
-        #
-        lat_lon_shape = lat.shape
-        # write the shapefile
-        with shapefile.Writer(file_name) as w:
-            w.autoBalance = 1 # turn on function that keeps file stable if number of shapes and records don't line up
-            w.field("ID_s",'N') # create (N)umerical attribute fields, integer
-            w.field("lat_s",'F',decimal=4) # float with 4 decimals
-            w.field("lon_s",'F',decimal=4) # float with 4 decimals
-            # preparing the m whcih is a couter for the shapefile arbitrary ID
-            m = 0.00
-            # itterating to create the shapes of the result shapefile ignoring the first and last rows and columns
-            for i in range(1, lat_lon_shape[0] - 1):
-                for j in range(1, lat_lon_shape[1] - 1):
-                    # checking is lat and lon is located inside the provided bo
-                    # empty the polygon variable
-                    parts = []
-                    # update records
-                    m += 1 # ID
-                    center_lat = lat[i,j] # lat value of data point in source .nc file
-                    center_lon = lon[i,j] # lon value of data point in source .nc file should be within [0,360]
-                    # Creating the lat of the shapefile
-                    Lat_Up       = (lat[i - 1, j] + lat[i, j]) / 2
-                    Lat_UpRright = (lat[i - 1, j] + lat[i - 1, j + 1] + lat[i, j + 1] + lat[i, j]) / 4
-                    Lat_Right    = (lat[i, j + 1] + lat[i, j]) / 2
-                    Lat_LowRight = (lat[i, j + 1] + lat[i + 1, j + 1] + lat[i + 1, j] + lat[i, j]) / 4
-                    Lat_Low      = (lat[i + 1, j] + lat[i, j]) / 2
-                    Lat_LowLeft  = (lat[i, j - 1] + lat[i + 1, j - 1] + lat[i + 1, j] + lat[i, j]) / 4
-                    Lat_Left     = (lat[i, j - 1] + lat[i, j]) / 2
-                    Lat_UpLeft   = (lat[i - 1, j - 1] + lat[i - 1, j] + lat[i, j - 1] + lat[i, j]) / 4
-                    # Creating the lon of the shapefile
-                    Lon_Up       = (lon[i - 1, j] + lon[i, j]) / 2
-                    Lon_UpRright = (lon[i - 1, j] + lon[i - 1, j + 1] + lon[i, j + 1] + lon[i, j]) / 4
-                    Lon_Right    = (lon[i, j + 1] + lon[i, j]) / 2
-                    Lon_LowRight = (lon[i, j + 1] + lon[i + 1, j + 1] + lon[i + 1, j] + lon[i, j]) / 4
-                    Lon_Low      = (lon[i + 1, j] + lon[i, j]) / 2
-                    Lon_LowLeft  = (lon[i, j - 1] + lon[i + 1, j - 1] + lon[i + 1, j] + lon[i, j]) / 4
-                    Lon_Left     = (lon[i, j - 1] + lon[i, j]) / 2
-                    Lon_UpLeft   = (lon[i - 1, j - 1] + lon[i - 1, j] + lon[i, j - 1] + lon[i, j]) / 4
-                    # creating the polygon given the lat and lon
-                    parts.append([ (Lon_Up,        Lat_Up),\
-                                   (Lon_UpRright,  Lat_UpRright), \
-                                   (Lon_Right,     Lat_Right), \
-                                   (Lon_LowRight,  Lat_LowRight), \
-                                   (Lon_Low,       Lat_Low), \
-                                   (Lon_LowLeft,   Lat_LowLeft), \
-                                   (Lon_Left,      Lat_Left), \
-                                   (Lon_UpLeft,    Lat_UpLeft), \
-                                   (Lon_Up,        Lat_Up)])
-                    # store polygon
-                    w.poly(parts)
-                    # update records/fields for the polygon
-                    w.record(m, center_lat, center_lon)
+
+
+        # get the lats and lons of surrounding grids
+        df['Lat_Up_Left']   = lat [  :-2 ,   :-2].flatten()
+        df['Lat_Left']      = lat [ 1:-1 ,   :-2].flatten()
+        df['Lat_Low_Left']  = lat [ 2:   ,   :-2].flatten()
+        df['Lat_Low']       = lat [ 2:   ,  1:-1].flatten()
+        df['Lat_Low_Right'] = lat [ 2:   ,  2:  ].flatten()
+        df['Lat_Right']     = lat [ 1:-1 ,  2:  ].flatten()
+        df['Lat_Up_Right']  = lat [  :-2 ,  2:  ].flatten()
+        df['Lat_Up']        = lat [  :-2 ,  1:-1].flatten()
+        df['Lon_Up_Left']   = lon [  :-2 ,   :-2].flatten()
+        df['Lon_Left']      = lon [ 1:-1 ,   :-2].flatten()
+        df['Lon_Low_Left']  = lon [ 2:   ,   :-2].flatten()
+        df['Lon_Low']       = lon [ 2:   ,  1:-1].flatten()
+        df['Lon_Low_Right'] = lon [ 2:   ,  2:  ].flatten()
+        df['Lon_Right']     = lon [ 1:-1 ,  2:  ].flatten()
+        df['Lon_Up_Right']  = lon [  :-2 ,  2:  ].flatten()
+        df['Lon_Up']        = lon [  :-2 ,  1:-1].flatten()
+        # get the center of grid
+        df['Lat_C']         = lat [ 1:-1 ,  1:-1].flatten()
+        df['Lon_C']         = lon [ 1:-1 ,  1:-1].flatten()
+
+
+        # calculate the mid point with surrounding grids
+        df['Point_Lat_Up_Left']   = (df['Lat_Up_Left']   +df['Lat_Up']  +df['Lat_Left']   +df['Lat_C'])/4
+        df['Point_Lat_Left']      = (df['Lat_Left']                                       +df['Lat_C'])/2
+        df['Point_Lat_Low_Left']  = (df['Lat_Low_Left']  +df['Lat_Low'] +df['Lat_Left']   +df['Lat_C'])/4
+        df['Point_Lat_Low']       = (df['Lat_Low']                                        +df['Lat_C'])/2
+        df['Point_Lat_Low_Right'] = (df['Lat_Low_Right'] +df['Lat_Low'] +df['Lat_Right']  +df['Lat_C'])/4
+        df['Point_Lat_Right']     = (df['Lat_Right']                                      +df['Lat_C'])/2
+        df['Point_Lat_Up_Right']  = (df['Lat_Up_Right']  +df['Lat_Up']  +df['Lat_Right']  +df['Lat_C'])/4
+        df['Point_Lat_Up']        = (df['Lat_Up']                                         +df['Lat_C'])/2
+        df['Point_Lon_Up_Left']   = (df['Lon_Up_Left']   +df['Lon_Up']  +df['Lon_Left']   +df['Lon_C'])/4
+        df['Point_Lon_Left']      = (df['Lon_Left']                                       +df['Lon_C'])/2
+        df['Point_Lon_Low_Left']  = (df['Lon_Low_Left']  +df['Lon_Low'] +df['Lon_Left']   +df['Lon_C'])/4
+        df['Point_Lon_Low']       = (df['Lon_Low']                                        +df['Lon_C'])/2
+        df['Point_Lon_Low_Right'] = (df['Lon_Low_Right'] +df['Lon_Low'] +df['Lon_Right']  +df['Lon_C'])/4
+        df['Point_Lon_Right']     = (df['Lon_Right']                                      +df['Lon_C'])/2
+        df['Point_Lon_Up_Right']  = (df['Lon_Up_Right']  +df['Lon_Up']  +df['Lon_Right']  +df['Lon_C'])/4
+        df['Point_Lon_Up']        = (df['Lon_Up']                                         +df['Lon_C'])/2
+
+        # inner function to create the grid polygons
+        def make_polygon(row):
+            coords = [(row["Point_Lon_Up"]        , row["Point_Lat_Up"]), \
+                      (row["Point_Lon_Up_Right"]  , row["Point_Lat_Up_Right"]), \
+                      (row["Point_Lon_Right"]     , row["Point_Lat_Right"]), \
+                      (row["Point_Lon_Low_Right"] , row["Point_Lat_Low_Right"]), \
+                      (row["Point_Lon_Low"]       , row["Point_Lat_Low"]), \
+                      (row["Point_Lon_Low_Left"]  , row["Point_Lat_Low_Left"]), \
+                      (row["Point_Lon_Left"]      , row["Point_Lat_Left"]), \
+                      (row["Point_Lon_Up_Left"]   , row["Point_Lat_Up_Left"]), \
+                      (row["Point_Lon_Up"]        , row["Point_Lat_Up"])]
+            return Polygon(coords)
+
+        # Create a new column "geometry" in the DataFrame containing Polygons
+        df["geometry"] = df.apply(make_polygon, axis=1)
+        df = df.loc[:, ['geometry', 'Lat_C', 'Lon_C']]
+        df ['ID_s'] = np.arange(len(df))+1
+        df = df.rename(columns={'Lat_C': 'lat_s',
+                                'Lon_C': 'lon_s'})
+        # to geodataframe
+        gdf = gpd.GeoDataFrame(df, geometry="geometry")
+        # assining the crs
+        if crs:
+            gdf = gdf.set_crs(crs)
+        # saving the file if file_name is provided
+        if file_name:
+            gdf.to_file(file_name)
+        return gdf
+
+
+
 
     def add_lat_lon_source_SHP( self,
                                 shp,
@@ -1179,38 +1250,6 @@ in dimensions of the varibales and latitude and longitude')
                     maps [0,:] = lat_data
                     maps [1,:] = lon_data
                     df_map = pd.DataFrame(data=maps, index=["lat","lon"], columns=column_name)
-                    #######
-                    # new_list = list(self.var_names_remapped) # new lists
-                    # del new_list[i] # remove one value
-                    # #ds_temp = ds.drop(new_list) # drop all the other varibales excpet target varibale, lat, lon and time
-                    # ds_temp = ds.drop_vars(new_list) # drop all the other varibales excpet target varibale, lat, lon and time
-                    # if 'units' in ds[self.var_names_remapped[i]].attrs.keys():
-                    #     dictionary = {self.var_names_remapped[i]:self.var_names_remapped[i]+' ['+ds[self.var_names_remapped[i]].attrs['units']+']'}
-                    #     ds_temp = ds_temp.rename_vars(dictionary)
-                    # target_name_csv = self.output_dir + self.case_name + '_remapped_'+ self.var_names_remapped[i] +\
-                    #  '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.csv'
-                    # if os.path.exists(target_name_csv): # remove file if exists
-                    #     os.remove(target_name_csv)
-                    # # ds_temp = ds_temp.set_coords([self.remapped_var_lat,self.remapped_var_lon])
-                    # ds_temp = ds_temp.reset_index(['time',self.remapped_var_id])
-                    # ds_temp = ds_temp.reset_coords()
-                    # df = ds_temp.to_dataframe()
-                    # df = df.reset_index()
-                    # df = df.drop(columns=['time'])
-                    # df ['time'] = df ['time_']
-                    # df = df.drop(columns=['time_'])
-                    # df = df.drop(columns=[self.remapped_var_id])
-                    # df [self.remapped_var_id] = df [self.remapped_var_id+'_']
-                    # df = df.drop(columns=[self.remapped_var_id+'_'])
-                    #######
-                    # df['ID'] = df.index.get_level_values(level=0)
-                    # df['time'] = df.index.get_level_values(level=1)
-                    # df = df.set_index(['ID','time',self.remapped_var_lat,self.remapped_var_lon])
-                    # df = df.unstack(level=-3)
-                    # df = df.transpose()
-                    # if 'units' in ds[self.var_names_remapped[i]].attrs.keys():
-                    #     df = df.replace(self.var_names_remapped[i], self.var_names_remapped[i]+' '+ds[self.var_names_remapped[i]].attrs['units'])
-                    #######
                     df.to_csv(target_name_csv)
                     print('Converting variable '+ self.var_names_remapped[i] +' from remapped file of '+target_name+\
                         ' to '+target_name_csv)
@@ -1475,62 +1514,6 @@ to correct for lon above 180')
         shp ['lon_cent'] = shp_points ['lon']
         return shp, shp_points
 
-    def check_if_row_is_numeric (self,
-                                 df):
-
-        """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function get a pandas dataframe of some values (all float + datetime string) and save them in a netcdf file
-        ---------
-        df: pandas data_frame
-        return:
-        df_type: pandas data_frame with type of each row
-        """
-        df_type = df.copy()
-        df_type ['row_type'] = 'NaN'
-        for index, row in df.iterrows():
-            row_is_numeric = True
-            for value in row:
-                try:
-                    pd.to_numeric(value, errors='raise')
-                except ValueError:
-                    row_is_numeric = False
-                    break
-            if row_is_numeric:
-                if self.check_if_row_is_float_or_int(row):
-                    T = 'float'
-                else:
-                    T = 'int'
-                df_type ['row_type'].loc[index] = T
-                print(f'Row {index} is numeric and {T}')
-    #         else:
-    #             print(f'Row {index} is not numeric.')
-        df_type = df_type.loc[:, ['row_type']].copy()
-        return df_type
-
-
-    def check_if_row_is_float_or_int (self,
-                                      row):
-        """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function get a pandas dataframe of some values (all float + datetime string) and save them in a netcdf file
-        ---------
-        row: pandas data_frame row
-        return
-        has_float: logical flag that indicate the row has a float in it
-        """
-        has_float = False
-        for item in row:
-            if isinstance(pd.to_numeric(item, errors='raise'), float):
-                has_float = True
-                break
-        return has_float
 
     def dataframe_to_netcdf_xr (self,
                                 data_frame,
@@ -1671,44 +1654,529 @@ to correct for lon above 180')
         data.to_netcdf(nc_file_name, encoding=temp)
         print("EASYMORE saved the nc file here: ",nc_file_name)
 
-    def nc_remapper_vis(self,
-                        source_nc_name                  = None,
-                        source_nc_var_lon               = None,
-                        source_nc_var_lat               = None,
-                        source_nc_var_ID                = None,
-                        source_nc_var_time              = None,
-                        source_nc_var_name              = None,
-                        source_shp_name                 = None,
-                        source_shp_field_ID             = None,
-                        remapped_nc_name                = None,
-                        remapped_nc_var_ID              = None,
-                        remapped_nc_var_time            = None,
-                        remapped_nc_var_name            = None,
-                        shp_target_name                 = None,
-                        shp_target_filed_ID             = None,
-                        time_step_of_viz                = None,
-                        location_save_fig               = None,
-                        fig_name                        = None,
-                        fig_size                        = None,
-                        show_target_shp_flag            = None,
-                        show_remapped_values_flag       = None,
-                        show_source_flag                = True,
-                        cmap                            = None,
-                        margin                          = None,
-                        linewidth_source                = None,
-                        linewidth_remapped              = None,
-                        alpha_source                    = None,
-                        alpha_remapped                  = None,
-                        font_size                       = 40,
-                        font_family                     = 'Times New Roman',
-                        font_weigth                     = 'bold',
-                        add_colorbar_flag               = None,
-                        min_value_colorbar              = None,
-                        max_value_colorbar              = None,
-                        min_lon                         = None,
-                        min_lat                         = None,
-                        max_lon                         = None,
-                        max_lat                         = None):
+
+    def check_if_row_is_numeric (self,
+                                 df):
+
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function get a pandas dataframe and determin if a column is all numeric (int or float) or others
+        ---------
+        df: pandas dataframe
+        return:
+        df_type: pandas data_frame with type of each row
+        """
+        df_type = df.copy()
+        df_type ['row_type'] = 'NaN'
+        for index, row in df.iterrows():
+            row_is_numeric = True
+            for value in row:
+                try:
+                    pd.to_numeric(value, errors='raise')
+                except ValueError:
+                    row_is_numeric = False
+                    break
+            if row_is_numeric:
+                if self.check_if_row_is_float_or_int(row):
+                    T = 'float'
+                else:
+                    T = 'int'
+                df_type ['row_type'].loc[index] = T
+        df_type = df_type.loc[:, ['row_type']].copy()
+        return df_type
+
+
+    def check_if_row_is_float_or_int (self,
+                                      row):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function get a pandas dataframe row and check of the entire row is float or int
+        ---------
+        row: pandas data_frame row
+        return
+        has_float: boolean or logical, flag that indicate the row has a float
+        """
+        has_float = False
+        for item in row:
+            if isinstance(pd.to_numeric(item, errors='raise'), float):
+                has_float = True
+                break
+        return has_float
+
+
+    ##############################################################
+    #### GIS section
+    ##############################################################
+
+    def intersection_shp(   self,
+                            shp_1,
+                            shp_2):
+        import geopandas as gpd
+        from   shapely.geometry import Polygon
+        import shapefile # pyshed library
+        import shapely
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @license:                  GNU-GPLv3
+        This function intersects two shapefiles. It keeps the attributes from the first and second shapefiles (identified by prefix S_1_ and
+        S_2_). It also creates other fields including AS1 (area of the shape element from shapefile 1), IDS1 (an arbitrary index
+        for the shapefile 1), AS2 (area of the shape element from shapefile 1), IDS2 (an arbitrary index for the shapefile 1),
+        AINT (the area of the intersected shapes), AP1 (the area of the intersected shape to the shapes from shapefile 1),
+        AP2 (the area of the intersected shape to the shapes from shapefile 2), AP1N (the area normalized in the case AP1
+        summation is less than one for a given shape from shapefile 1, this will help to preserve mass if parts of the shapefile are not
+        intersected, for example, shapefile overextends the existing domain of the other shapefile), AP2N (the area normalized in the case AP2
+        summation is less than one for a given shape from shapefile 2, this will help to preserve mass if parts of the shapefile are not
+        intersected, for example, shapefile overextends the existing domain of the other shapefile)
+        Arguments
+        ---------
+        shp_1: geo data frame, shapefile 1
+        shp_2: geo data frame, shapefile 2
+        Returns
+        -------
+        result: a geodataframe that includes the intersected shapefile and area, percent and normalized percent of each shape
+        elements in another one
+        """
+        # get the column name of shp_1
+        column_names = shp_1.columns
+        column_names = list(column_names)
+        # removing the geometry from the column names
+        column_names.remove('geometry')
+        # renaming the column with S_1
+        shp_1 = shp_1.add_prefix('S_1_')
+        # Caclulate the area for shp1
+        shp_1['AS1']  = shp_1.area
+        shp_1['IDS1'] = np.arange(shp_1.shape[0])+1
+        # get the column name of shp_2
+        column_names = shp_2.columns
+        column_names = list(column_names)
+        # removing the geometry from the colomn names
+        column_names.remove('geometry')
+        # renaming the column with S_2
+        shp_2 = shp_2.add_prefix('S_2_')
+        # Caclulate the area for shp2
+        shp_2['AS2']  = shp_2.area
+        shp_2['IDS2'] = np.arange(shp_2.shape[0])+1
+        # Intersection
+        result = self.spatial_overlays (shp_1, shp_2, how='intersection')
+        # Caclulate the area for shp2
+        result['AINT'] = result['geometry'].area
+        result['AP1']  = result['AINT']/result['AS1']
+        result['AP2']  = result['AINT']/result['AS2']
+        # Calculate the normalized area for AP1 and AP2 to conserve mass
+        result['AP1N'] = df.groupby('IDS1')['AP1'].apply(lambda x: (x / x.sum()) )
+        result['AP2N'] = df.groupby('IDS2')['AP2'].apply(lambda x: (x / x.sum()) )
+        # return
+        return result
+
+        # TO BE REMOVED
+        # for i in range(len(column_names)):
+        #     shp_2 = shp_2.rename(
+        #         columns={column_names[i]: 'S_2_' + column_names[i]})
+
+        # for i in range(len(column_names)):
+        #     shp_1 = shp_1.rename(
+        #         columns={column_names[i]: 'S_1_' + column_names[i]})
+
+        # # taking the part of data frame as the numpy to incread the spead
+        # # finding the IDs from shapefile one
+        # ID_S1 = np.array (result['IDS1'])
+        # AP1 = np.array(result['AP1'])
+        # AP1N = AP1 # creating the nnormalized percent area
+        # ID_S1_unique = np.unique(ID_S1) #unique idea
+        # for i in ID_S1_unique:
+        #     INDX = np.where(ID_S1==i) # getting the indeces
+        #     AP1N[INDX] = AP1[INDX] / AP1[INDX].sum() # normalizing for that sum
+        # # taking the part of data frame as the numpy to incread the spead
+        # # finding the IDs from shapefile one
+        # ID_S2 = np.array (result['IDS2'])
+        # AP2 = np.array(result['AP2'])
+        # AP2N = AP2 # creating the nnormalized percent area
+        # ID_S2_unique = np.unique(ID_S2) #unique idea
+        # for i in ID_S2_unique:
+        #     INDX = np.where(ID_S2==i) # getting the indeces
+        #     AP2N[INDX] = AP2[INDX] / AP2[INDX].sum() # normalizing for that sum
+        # result ['AP1N'] = AP1N
+        # result ['AP2N'] = AP2N
+
+
+    def spatial_overlays(self,
+                         df1,
+                         df2,
+                         how='intersection',
+                         reproject=True):
+        import geopandas as gpd
+        from   shapely.geometry import Polygon
+        import shapefile # pyshed library
+        import shapely
+        """
+        Perform spatial overlay between two polygons.
+        Currently only supports data GeoDataFrames with polygons.
+        Implements several methods that are all effectively subsets of
+        the union.
+        author: Omer Ozak (with his permission)
+        https://github.com/ozak
+        https://github.com/geopandas/geopandas/pull/338
+        license: GNU-GPLv3
+        Parameters
+        ----------
+        df1: GeoDataFrame with MultiPolygon or Polygon geometry column
+        df2: GeoDataFrame with MultiPolygon or Polygon geometry column
+        how: string
+            Method of spatial overlay: 'intersection', 'union',
+            'identity', 'symmetric_difference' or 'difference'.
+        reprojet: boolean, to reproject one shapefile to another crs
+                  for spatial operation
+        Returns
+        -------
+        df: GeoDataFrame
+            GeoDataFrame with a new set of polygons and attributes
+            resulting from the overlay
+        """
+        df1 = df1.copy()
+        df2 = df2.copy()
+        df1['geometry'] = df1.geometry.buffer(0)
+        df2['geometry'] = df2.geometry.buffer(0)
+        if df1.crs!=df2.crs and reproject:
+            print('Data has different projections.')
+            print('Converted data to projection of first GeoPandas DatFrame')
+            df2.to_crs(crs=df1.crs, inplace=True)
+        if how=='intersection':
+            # Spatial Index to create intersections
+            spatial_index = df2.sindex
+            df1['bbox'] = df1.geometry.apply(lambda x: x.bounds)
+            df1['sidx']=df1.bbox.apply(lambda x:list(spatial_index.intersection(x)))
+            pairs = df1['sidx'].to_dict()
+            nei = []
+            for i,j in pairs.items():
+                for k in j:
+                    nei.append([i,k])
+            #pairs = gpd.GeoDataFrame(nei, columns=['idx1','idx2'], crs=df1.crs)
+            #pairs = gpd.GeoDataFrame(nei, columns=['idx1','idx2'])
+            pairs = pd.DataFrame(nei, columns=['idx1','idx2']) # replace instead of initializing the GeoDataFrame
+            pairs = pairs.merge(df1, left_on='idx1', right_index=True)
+            pairs = pairs.merge(df2, left_on='idx2', right_index=True, suffixes=['_1','_2'])
+            pairs['Intersection'] = pairs.apply(lambda x: (x['geometry_1'].intersection(x['geometry_2'])).buffer(0), axis=1)
+            #pairs = gpd.GeoDataFrame(pairs, columns=pairs.columns, crs=df1.crs)
+            pairs = gpd.GeoDataFrame(pairs, columns=pairs.columns)
+            cols = pairs.columns.tolist()
+            cols.remove('geometry_1')
+            cols.remove('geometry_2')
+            cols.remove('sidx')
+            cols.remove('bbox')
+            cols.remove('Intersection')
+            dfinter = pairs[cols+['Intersection']].copy()
+            dfinter.rename(columns={'Intersection':'geometry'}, inplace=True)
+            #dfinter = gpd.GeoDataFrame(dfinter, columns=dfinter.columns, crs=pairs.crs)
+            dfinter = gpd.GeoDataFrame(dfinter, columns=dfinter.columns, crs=df1.crs)
+            dfinter = dfinter.loc[dfinter.geometry.is_empty==False]
+            dfinter.drop(['idx1','idx2'], inplace=True, axis=1)
+            return dfinter
+        elif how=='difference':
+            spatial_index = df2.sindex
+            df1['bbox'] = df1.geometry.apply(lambda x: x.bounds)
+            df1['sidx'] = df1.bbox.apply(lambda x:list(spatial_index.intersection(x)))
+            df1['new_g'] = df1.apply(lambda x: reduce(lambda x, y: x.difference(y).buffer(0),
+                                     [x.geometry]+list(df2.iloc[x.sidx].geometry)) , axis=1)
+            df1.geometry = df1.new_g
+            df1 = df1.loc[df1.geometry.is_empty==False].copy()
+            df1.drop(['bbox', 'sidx', 'new_g'], axis=1, inplace=True)
+            return df1
+        elif how=='symmetric_difference':
+            df1['idx1'] = df1.index.tolist()
+            df2['idx2'] = df2.index.tolist()
+            df1['idx2'] = np.nan
+            df2['idx1'] = np.nan
+            dfsym = df1.merge(df2, on=['idx1','idx2'], how='outer', suffixes=['_1','_2'])
+            dfsym['geometry'] = dfsym.geometry_1
+            dfsym.loc[dfsym.geometry_2.isnull()==False, 'geometry'] = dfsym.loc[dfsym.geometry_2.isnull()==False, 'geometry_2']
+            dfsym.drop(['geometry_1', 'geometry_2'], axis=1, inplace=True)
+            dfsym = gpd.GeoDataFrame(dfsym, columns=dfsym.columns, crs=df1.crs)
+            spatial_index = dfsym.sindex
+            dfsym['bbox'] = dfsym.geometry.apply(lambda x: x.bounds)
+            dfsym['sidx'] = dfsym.bbox.apply(lambda x:list(spatial_index.intersection(x)))
+            dfsym['idx'] = dfsym.index.values
+            dfsym.apply(lambda x: x.sidx.remove(x.idx), axis=1)
+            dfsym['new_g'] = dfsym.apply(lambda x: reduce(lambda x, y: x.difference(y).buffer(0),
+                             [x.geometry]+list(dfsym.iloc[x.sidx].geometry)) , axis=1)
+            dfsym.geometry = dfsym.new_g
+            dfsym = dfsym.loc[dfsym.geometry.is_empty==False].copy()
+            dfsym.drop(['bbox', 'sidx', 'idx', 'idx1','idx2', 'new_g'], axis=1, inplace=True)
+            return dfsym
+        elif how=='union':
+            dfinter = spatial_overlays(df1, df2, how='intersection')
+            dfsym = spatial_overlays(df1, df2, how='symmetric_difference')
+            dfunion = dfinter.append(dfsym)
+            dfunion.reset_index(inplace=True, drop=True)
+            return dfunion
+        elif how=='identity':
+            dfunion = spatial_overlays(df1, df2, how='union')
+            cols1 = df1.columns.tolist()
+            cols2 = df2.columns.tolist()
+            cols1.remove('geometry')
+            cols2.remove('geometry')
+            cols2 = set(cols2).intersection(set(cols1))
+            cols1 = list(set(cols1).difference(set(cols2)))
+            cols2 = [col+'_1' for col in cols2]
+            dfunion = dfunion[(dfunion[cols1+cols2].isnull()==False).values]
+            return dfunion
+
+    def make_shape_point(   self,
+                            dataframe,
+                            lon_column,
+                            lat_column,
+                            point_shp_file_name = None,
+                            crs = None):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function creates a geopandas dataframe of lat, lon, and IDs provided from a csv file or a pandas dataframe
+        Arguments
+        ---------
+        dataframe: pandas dataframe or string linking to a csv data frame that includes the lat/lon and other info
+        lon_column: string, the name of the longitude column in dataframe
+        lat_column: string, the name of the latitude column in dataframe
+        point_shp_file_name: string, the name of the point shapefile to be saved
+        crs: string, indicating the spatial reference; e.g.'EPSG:4326'
+        Returns
+        -------
+        shp: geopandas dataframe, with the geometry of longitude and latitude
+        """
+        import geopandas as gpd
+        import pandas    as pd
+        # if string is given it is assumed that is the link to a csv file including lat and lon of the points
+        if isinstance(dataframe, str):
+            dataframe = pd.read_csv(dataframe)
+        # create the GeoDataFrame
+        shp = gpd.GeoDataFrame(dataframe, geometry=gpd.points_from_xy(dataframe[lon_column], dataframe[lat_column]))
+        # assign crs, otherwise assign the default
+        if crs:
+            shp = shp.set_crs (crs)
+            print('crs ', crs,' is assigned to the point shapefile')
+        if point_shp_file_name:
+            shp.to_file(point_shp_file_name)
+            print('point shapefile is saved at ', point_shp_file_name)
+        return shp
+
+    def shp_from_irregular_nc (self,
+                               station_shp_file_name = None,
+                               voronoi_shp_file_name = None,
+                               buffer = 2,
+                               crs = None,
+                               tolerance = 0.00001):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function creates a Voronoi diagram from latitude and longitude provided in an irregular shapefile
+        Arguments
+        ---------
+        station_shp_file_name: string, name of the created point shapefile to be saved
+        voronoi_shp_file_name: string, name of the created Voronoi shapefile to be saved
+        buffer: float, the buffer around the bounding box of the point shapefile for creating the Voronoi shapefile
+        crs: string, indicating the spatial reference system; e.g.'EPSG:4326'
+        tolerance: float, tolerance to identify if two points provided in nc files are closer than tolerance
+        Returns
+        -------
+        voronoi: geopandas dataframe, Voronio diagram
+        points: geopandas dataframe, points shapefile created for irregular nc file (e.g. station data)
+        """
+
+        # read the file (or the first file)
+        nc_names = glob.glob(self.source_nc)
+        ncid     = nc4.Dataset(nc_names[0])
+        # create the data frame
+        points = pd.DataFrame()
+        points['lon'] = ncid.variables[self.var_lon][:]
+        points['lat'] = ncid.variables[self.var_lat][:]
+        points['ID_s'] = 1 + np.arange(len(points))
+        if self.var_ID != '':
+            points['ID_s'] = ncid.variables[self.var_ID][:]
+        else:
+            points['ID_s'] = 1 + np.arange(len(points))
+        points['ID_test'] = points['ID_s']
+        if self.var_station != '':
+            points['station_name'] = ncid.variables[self.var_station][:]
+        # check if two points fall on each other
+        points = points.sort_values(by=['lat','lon'])
+        points['lon_next'] = np.roll(points['lon'],1)
+        points['lat_next'] = np.roll(points['lat'],1)
+        points['ID_test_next'] = np.roll(points['ID_test'], 1)
+        points['distance'] = np.power(points['lon_next']-points['lon'], 2)+\
+                             np.power(points['lat_next']-points['lat'], 2)
+        points['distance'] = np.power(points['distance'], 0.5)
+        idx = points.index[points['distance']<tolerance]
+        if not (idx.empty):
+            # add small values to overcome the issue of overlapping points
+            print('EASYMORE detects that the lat lon values are for 2 or'+\
+                  'more points are identical given the tolerance values of ',str(tolerance))
+            print('ID of those points are:')
+            print(points['ID_s'].loc[idx].values)
+            points['lat'].loc[idx]=points['lat'].loc[idx]+tolerance
+            points['lon'].loc[idx]=points['lon'].loc[idx]+tolerance
+        points = points.sort_values(by='ID_s')
+        points.rename(columns = {'lat':'lat_s','lon':'lon_s'},inplace=True)
+        points = points.drop(columns=['lon_next','lat_next','ID_test','ID_test_next','distance'])
+        # making points
+        points = self.make_shape_point(points,
+                                       'lon_s',
+                                       'lat_s',
+                                        point_shp_file_name = station_shp_file_name,
+                                        crs = crs)
+        # creating the voronoi diagram
+        voronoi = self.voronoi_diagram(points,
+                                       'lon_s',
+                                       'lat_s',
+                                       ID_field_name = 'ID_s',
+                                       voronoi_shp_file_name = voronoi_shp_file_name)
+        # return the shapefile
+        return voronoi, points
+
+    def voronoi_diagram(self,
+                        points_shp_in,
+                        ID_field_name=None,
+                        voronoi_shp_file_name=None,
+                        buffer = 2):
+        """
+        original code by:
+        Abdishakur
+        https://towardsdatascience.com/how-to-create-voronoi-regions-with-geospatial-data-in-python-adbb6c5f2134
+        modified by:
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function reads a shapefile of points and returns the Thiessen or Voronoi polygons for that point shapefile
+        ---------
+        points_shp_in: geopandas or string; if string it will read the shapefile
+        ID_field_name: string, the name of attributes that include ID index values (optional)
+        voronoi_shp_file_name: string, name of the Voronoi output shapefile to be saved
+        buffer: float, the buffer around the points bounding box to limit the Voronoi diagram
+        Returns
+        -------
+        Thiessen: geopandas dataframe, Voronio or Thiessen diagram
+        """
+        import shapefile # as part of pyshp
+        import geovoronoi
+        import os
+        from   shapely.geometry import Polygon
+        import numpy as np
+        import pandas as pd
+        import geopandas as gpd
+        # read the shapefile
+        if isinstance(points_shp_in, str):
+            stations = gpd.read_file(points_shp_in)
+        else:
+            stations = points_shp_in # geodataframe
+        # get the crs from the point shapefile
+        crs_org = stations.crs
+        print('crs from the point geopandas: ', crs_org)
+        # add the ID_t to the point shapefiles
+        if not ID_field_name:
+            stations ['ID_s'] = np.arange(len(stations))+1
+            stations ['ID_s'] = stations ['ID_s'].astype(int)
+        else:
+            stations ['ID_s'] = stations[ID_field_name].astype(int)
+        stations = stations.sort_values(by='ID_s')
+        ID_s = stations ['ID_s']
+        # get the total boundary of the shapefile
+        stations_buffert = stations.buffer(buffer) # add a buffer
+        minx, miny, maxx, maxy = stations_buffert.total_bounds
+        # create the bounding shapefile
+        parts = []
+        with shapefile.Writer(self.temp_dir+'test.shp') as w:
+            w.autoBalance = 1 # turn on function that keeps file stable if number of shapes and records don't line up
+            w.field("ID_bounding",'N') # create (N)umerical attribute fields, integer
+            # creating the polygon given the lat and lon
+            parts.append([ (minx, miny),\
+                           (minx, maxy),\
+                           (maxx, maxy),\
+                           (maxx, miny),\
+                           (minx, miny)])
+            # store polygon
+            w.poly(parts)
+            # update records/fields for the polygon
+            w.record(1)
+        boundary = gpd.read_file(self.temp_dir+'test.shp')
+        for f in glob.glob(self.temp_dir+'test.*'):
+            os.remove(f)
+        # create the voroni diagram for given point shapefile
+        coords = geovoronoi.points_to_coords(stations.geometry)
+        poly_shapes, location = \
+        geovoronoi.voronoi_regions_from_coords(coords, boundary.iloc[0].geometry)
+        # pass te polygons to shapefile
+        Thiessen = gpd.GeoDataFrame()
+        for i in np.arange(len(poly_shapes)):
+            Thiessen.loc[i, 'geometry'] = Polygon(poly_shapes[i])
+            Thiessen.loc[i, 'ID_s']     = stations.iloc[location[i][0]].ID_s
+        Thiessen['ID_s'] = Thiessen['ID_s'].astype(int)
+        Thiessen = Thiessen.sort_values(by='ID_s')# sort on values
+        stations = stations.drop(columns='geometry')
+        Thiessen = pd.merge_asof(Thiessen, stations, on='ID_s') #, direction='nearest')
+        Thiessen = Thiessen.set_geometry('geometry') #bring back the geometry filed; pd to gpd
+        Thiessen = Thiessen.set_crs(crs_org)
+        ID_s_V = Thiessen['ID_s']
+        diff = np.setdiff1d(ID_s, ID_s_V, assume_unique=False)
+        if diff.size !=0 :
+            print(diff)
+            sys.exit('It seems the input points with the following ID do have identical longitude and latitude')
+        if not (voronoi_shp_file_name is None):
+            Thiessen.to_file(voronoi_shp_file_name)
+        return Thiessen
+
+
+    ##############################################################
+    #### visualization section
+    ##############################################################
+
+    def nc_vis(self,
+               source_nc_name                  = None,
+               source_nc_var_lon               = None,
+               source_nc_var_lat               = None,
+               source_nc_var_ID                = None,
+               source_nc_var_time              = None,
+               source_nc_var_name              = None,
+               source_shp_name                 = None,
+               source_shp_field_ID             = None,
+               remapped_nc_name                = None,
+               remapped_nc_var_ID              = None,
+               remapped_nc_var_time            = None,
+               remapped_nc_var_name            = None,
+               shp_target_name                 = None,
+               shp_target_filed_ID             = None,
+               time_step_of_viz                = None,
+               location_save_fig               = None,
+               fig_name                        = None,
+               fig_size                        = None,
+               show_target_shp_flag            = None,
+               show_remapped_values_flag       = None,
+               show_source_flag                = True,
+               cmap                            = None,
+               margin                          = None,
+               linewidth_source                = None,
+               linewidth_remapped              = None,
+               alpha_source                    = None,
+               alpha_remapped                  = None,
+               font_size                       = 40,
+               font_family                     = 'Times New Roman',
+               font_weigth                     = 'bold',
+               add_colorbar_flag               = None,
+               min_value_colorbar              = None,
+               max_value_colorbar              = None,
+               min_lon                         = None,
+               min_lat                         = None,
+               max_lon                         = None,
+               max_lat                         = None):
 
         import xarray              as      xr
         from   matplotlib          import  pyplot as plt
@@ -1908,1340 +2376,3 @@ to correct for lon above 180')
                 os.makedirs(location_save_fig)
             plt.savefig(location_save_fig+fig_name)
 
-
-    ##############################################################
-    #### GIS section
-    ##############################################################
-
-    def intersection_shp(   self,
-                            shp_1,
-                            shp_2):
-        import geopandas as gpd
-        from   shapely.geometry import Polygon
-        import shapefile # pyshed library
-        import shapely
-        """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @license:                  GNU-GPLv3
-        This fucntion intersect two shapefile. It keeps the fiels from the first and second shapefiles (identified by S_1_ and
-        S_2_). It also creats other field including AS1 (area of the shape element from shapefile 1), IDS1 (an arbitary index
-        for the shapefile 1), AS2 (area of the shape element from shapefile 1), IDS2 (an arbitary index for the shapefile 1),
-        AINT (the area of teh intersected shapes), AP1 (the area of the intersected shape to the shapes from shapefile 1),
-        AP2 (the area of teh intersected shape to the shapefes from shapefile 2), AP1N (the area normalized in the case AP1
-        summation is not 1 for a given shape from shapefile 1, this will help to preseve mass if part of the shapefile are not
-        intersected), AP2N (the area normalized in the case AP2 summation is not 1 for a given shape from shapefile 2, this
-        will help to preseve mass if part of the shapefile are not intersected)
-        Arguments
-        ---------
-        shp_1: geo data frame, shapefile 1
-        shp_2: geo data frame, shapefile 2
-        Returns
-        -------
-        result: a geo data frame that includes the intersected shapefile and area, percent and normalized percent of each shape
-        elements in another one
-        """
-        # get the column name of shp_1
-        column_names = shp_1.columns
-        column_names = list(column_names)
-        # removing the geometry from the column names
-        column_names.remove('geometry')
-        # renaming the column with S_1
-        for i in range(len(column_names)):
-            shp_1 = shp_1.rename(
-                columns={column_names[i]: 'S_1_' + column_names[i]})
-        # Caclulating the area for shp1
-        shp_1['AS1']  = shp_1.area
-        shp_1['IDS1'] = np.arange(shp_1.shape[0])+1
-        # get the column name of shp_2
-        column_names = shp_2.columns
-        column_names = list(column_names)
-        # removing the geometry from the colomn names
-        column_names.remove('geometry')
-        # renaming the column with S_2
-        for i in range(len(column_names)):
-            shp_2 = shp_2.rename(
-                columns={column_names[i]: 'S_2_' + column_names[i]})
-        # Caclulating the area for shp2
-        shp_2['AS2'] = shp_2.area
-        shp_2['IDS2'] = np.arange(shp_2.shape[0])+1
-        # making intesection
-        result = self.spatial_overlays (shp_1, shp_2, how='intersection')
-        # Caclulating the area for shp2
-        result['AINT'] = result['geometry'].area
-        result['AP1'] = result['AINT']/result['AS1']
-        result['AP2'] = result['AINT']/result['AS2']
-        # taking the part of data frame as the numpy to incread the spead
-        # finding the IDs from shapefile one
-        ID_S1 = np.array (result['IDS1'])
-        AP1 = np.array(result['AP1'])
-        AP1N = AP1 # creating the nnormalized percent area
-        ID_S1_unique = np.unique(ID_S1) #unique idea
-        for i in ID_S1_unique:
-            INDX = np.where(ID_S1==i) # getting the indeces
-            AP1N[INDX] = AP1[INDX] / AP1[INDX].sum() # normalizing for that sum
-        # taking the part of data frame as the numpy to incread the spead
-        # finding the IDs from shapefile one
-        ID_S2 = np.array (result['IDS2'])
-        AP2 = np.array(result['AP2'])
-        AP2N = AP2 # creating the nnormalized percent area
-        ID_S2_unique = np.unique(ID_S2) #unique idea
-        for i in ID_S2_unique:
-            INDX = np.where(ID_S2==i) # getting the indeces
-            AP2N[INDX] = AP2[INDX] / AP2[INDX].sum() # normalizing for that sum
-        result ['AP1N'] = AP1N
-        result ['AP2N'] = AP2N
-        return result
-
-    def spatial_overlays(   self,
-                            df1,
-                            df2,
-                            how='intersection',
-                            reproject=True):
-        import geopandas as gpd
-        from   shapely.geometry import Polygon
-        import shapefile # pyshed library
-        import shapely
-        """
-        Perform spatial overlay between two polygons.
-        Currently only supports data GeoDataFrames with polygons.
-        Implements several methods that are all effectively subsets of
-        the union.
-        author: Omer Ozak
-        https://github.com/ozak
-        https://github.com/geopandas/geopandas/pull/338
-        license: GNU-GPLv3
-        Parameters
-        ----------
-        df1: GeoDataFrame with MultiPolygon or Polygon geometry column
-        df2: GeoDataFrame with MultiPolygon or Polygon geometry column
-        how: string
-            Method of spatial overlay: 'intersection', 'union',
-            'identity', 'symmetric_difference' or 'difference'.
-        use_sindex : boolean, default True
-            Use the spatial index to speed up operation if available.
-        Returns
-        -------
-        df: GeoDataFrame
-            GeoDataFrame with new set of polygons and attributes
-            resulting from the overlay
-        """
-        df1 = df1.copy()
-        df2 = df2.copy()
-        df1['geometry'] = df1.geometry.buffer(0)
-        df2['geometry'] = df2.geometry.buffer(0)
-        if df1.crs!=df2.crs and reproject:
-            print('Data has different projections.')
-            print('Converted data to projection of first GeoPandas DatFrame')
-            df2.to_crs(crs=df1.crs, inplace=True)
-        if how=='intersection':
-            # Spatial Index to create intersections
-            spatial_index = df2.sindex
-            df1['bbox'] = df1.geometry.apply(lambda x: x.bounds)
-            df1['sidx']=df1.bbox.apply(lambda x:list(spatial_index.intersection(x)))
-            pairs = df1['sidx'].to_dict()
-            nei = []
-            for i,j in pairs.items():
-                for k in j:
-                    nei.append([i,k])
-            #pairs = gpd.GeoDataFrame(nei, columns=['idx1','idx2'], crs=df1.crs)
-            #pairs = gpd.GeoDataFrame(nei, columns=['idx1','idx2'])
-            pairs = pd.DataFrame(nei, columns=['idx1','idx2'])
-            pairs = pairs.merge(df1, left_on='idx1', right_index=True)
-            pairs = pairs.merge(df2, left_on='idx2', right_index=True, suffixes=['_1','_2'])
-            pairs['Intersection'] = pairs.apply(lambda x: (x['geometry_1'].intersection(x['geometry_2'])).buffer(0), axis=1)
-            #pairs = gpd.GeoDataFrame(pairs, columns=pairs.columns, crs=df1.crs)
-            pairs = gpd.GeoDataFrame(pairs, columns=pairs.columns)
-            cols = pairs.columns.tolist()
-            cols.remove('geometry_1')
-            cols.remove('geometry_2')
-            cols.remove('sidx')
-            cols.remove('bbox')
-            cols.remove('Intersection')
-            dfinter = pairs[cols+['Intersection']].copy()
-            dfinter.rename(columns={'Intersection':'geometry'}, inplace=True)
-            #dfinter = gpd.GeoDataFrame(dfinter, columns=dfinter.columns, crs=pairs.crs)
-            dfinter = gpd.GeoDataFrame(dfinter, columns=dfinter.columns, crs=df1.crs)
-            dfinter = dfinter.loc[dfinter.geometry.is_empty==False]
-            dfinter.drop(['idx1','idx2'], inplace=True, axis=1)
-            return dfinter
-        elif how=='difference':
-            spatial_index = df2.sindex
-            df1['bbox'] = df1.geometry.apply(lambda x: x.bounds)
-            df1['sidx'] = df1.bbox.apply(lambda x:list(spatial_index.intersection(x)))
-            df1['new_g'] = df1.apply(lambda x: reduce(lambda x, y: x.difference(y).buffer(0),
-                                     [x.geometry]+list(df2.iloc[x.sidx].geometry)) , axis=1)
-            df1.geometry = df1.new_g
-            df1 = df1.loc[df1.geometry.is_empty==False].copy()
-            df1.drop(['bbox', 'sidx', 'new_g'], axis=1, inplace=True)
-            return df1
-        elif how=='symmetric_difference':
-            df1['idx1'] = df1.index.tolist()
-            df2['idx2'] = df2.index.tolist()
-            df1['idx2'] = np.nan
-            df2['idx1'] = np.nan
-            dfsym = df1.merge(df2, on=['idx1','idx2'], how='outer', suffixes=['_1','_2'])
-            dfsym['geometry'] = dfsym.geometry_1
-            dfsym.loc[dfsym.geometry_2.isnull()==False, 'geometry'] = dfsym.loc[dfsym.geometry_2.isnull()==False, 'geometry_2']
-            dfsym.drop(['geometry_1', 'geometry_2'], axis=1, inplace=True)
-            dfsym = gpd.GeoDataFrame(dfsym, columns=dfsym.columns, crs=df1.crs)
-            spatial_index = dfsym.sindex
-            dfsym['bbox'] = dfsym.geometry.apply(lambda x: x.bounds)
-            dfsym['sidx'] = dfsym.bbox.apply(lambda x:list(spatial_index.intersection(x)))
-            dfsym['idx'] = dfsym.index.values
-            dfsym.apply(lambda x: x.sidx.remove(x.idx), axis=1)
-            dfsym['new_g'] = dfsym.apply(lambda x: reduce(lambda x, y: x.difference(y).buffer(0),
-                             [x.geometry]+list(dfsym.iloc[x.sidx].geometry)) , axis=1)
-            dfsym.geometry = dfsym.new_g
-            dfsym = dfsym.loc[dfsym.geometry.is_empty==False].copy()
-            dfsym.drop(['bbox', 'sidx', 'idx', 'idx1','idx2', 'new_g'], axis=1, inplace=True)
-            return dfsym
-        elif how=='union':
-            dfinter = spatial_overlays(df1, df2, how='intersection')
-            dfsym = spatial_overlays(df1, df2, how='symmetric_difference')
-            dfunion = dfinter.append(dfsym)
-            dfunion.reset_index(inplace=True, drop=True)
-            return dfunion
-        elif how=='identity':
-            dfunion = spatial_overlays(df1, df2, how='union')
-            cols1 = df1.columns.tolist()
-            cols2 = df2.columns.tolist()
-            cols1.remove('geometry')
-            cols2.remove('geometry')
-            cols2 = set(cols2).intersection(set(cols1))
-            cols1 = list(set(cols1).difference(set(cols2)))
-            cols2 = [col+'_1' for col in cols2]
-            dfunion = dfunion[(dfunion[cols1+cols2].isnull()==False).values]
-            return dfunion
-
-    def make_shape_point(   self,
-                            dataframe,
-                            lon_field,
-                            lat_field,
-                            point_shp_file_name = None,
-                            crs = None):
-        """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function creates a geopandas dataframe of lat, lon and IDs provided
-        Arguments
-        ---------
-        dataframe: pandas dataframe or string linking to a csv data frame that inlcude the lat/lon and other info
-        lon_field: string, the name of longitude column in dataframe
-        lat_field: string, the name of latitude column in dataframe
-        point_shp_file_name: string, the name of the point shapefile to be saved
-        crs: string, indicating the spatial reference; e.g.'EPSG:4326'
-        Returns
-        -------
-        shp: geopandas dataframe, with geometry of longitude and latitude
-        """
-        import geopandas as gpd
-        import pandas as pd
-        if isinstance(dataframe, str):
-            dataframe = pd.read_csv(dataframe)
-        shp = gpd.GeoDataFrame(dataframe, geometry=gpd.points_from_xy(dataframe[lon_field], dataframe[lat_field]))
-        if crs:
-            shp = shp.set_crs (crs)
-        else:
-            print('no crs is provided for the point shapefiles; EASYMORE will allocate WGS84')
-            shp = shp.set_crs ('EPSG:4326')
-        if point_shp_file_name:
-            shp.to_file(point_shp_file_name)
-        return shp
-
-    def shp_from_irregular_nc (self,
-                               station_shp_file_name = None,
-                               voronoi_shp_file_name = None,
-                               buffer = 2,
-                               crs = None,
-                               tolerance = 0.00001):
-        """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function creates a geopandas dataframe of lat, lon and IDs provided
-        Arguments
-        ---------
-        dataframe: pandas dataframe or string linking to a csv data frame that inlcude the lat/lon and other info
-        lon_field: string, the name of longitude column in dataframe
-        lat_field: string, the name of latitude column in dataframe
-        point_shp_file_name: string, the name of the point shapefile to be saved
-        crs: string, indicating the spatial reference; e.g.'EPSG:4326'
-        Returns
-        -------
-        shp: geopandas dataframe, with geometry of longitude and latitude
-        """
-
-        # read the file (or the first file)
-        nc_names = glob.glob(self.source_nc)
-        ncid     = nc4.Dataset(nc_names[0])
-
-        # create the data frame
-        points = pd.DataFrame()
-        points['lon'] = ncid.variables[self.var_lon][:]
-        points['lat'] = ncid.variables[self.var_lat][:]
-        points['ID_s'] = 1 + np.arange(len(points))
-        points['ID_test'] = points['ID_s']
-        if self.var_ID != '':
-            points['ID_s'] = ncid.variables[self.var_ID][:]
-            points['ID_test'] = points['ID_s']
-        if self.var_station != '':
-            points['station_name'] = ncid.variables[self.var_station][:]
-
-        # check if two points fall on each other
-        points = points.sort_values(by=['lat','lon'])
-        points['lon_next'] = np.roll(points['lon'],1)
-        points['lat_next'] = np.roll(points['lat'],1)
-        points['ID_test_next'] = np.roll(points['ID_test'], 1)
-        points['distance'] = np.power(points['lon_next']-points['lon'], 2)+\
-                             np.power(points['lat_next']-points['lat'], 2)
-        points['distance'] = np.power(points['distance'], 0.5)
-        idx = points.index[points['distance']<tolerance]
-        if not (idx.empty):
-            print('EASYMORE detects that the lat lon values are for 2 or'+\
-                  'more points are identical given tolerance =',str(tolerance))
-            print('ID of those are:')
-            print(points['ID_s'].loc[idx].values)
-        points['lat'].loc[idx]=points['lat'].loc[idx]+tolerance
-        points['lon'].loc[idx]=points['lon'].loc[idx]+tolerance
-        points = points.sort_values(by='ID_s')
-        points.rename(columns = {'lat':'lat_s','lon':'lon_s'},inplace=True)
-        points = points.drop(columns=['lon_next','lat_next','ID_test','ID_test_next','distance'])
-
-        # making points
-        points = self.make_shape_point(points,
-                                       'lon_s',
-                                       'lat_s',
-                                        point_shp_file_name = station_shp_file_name,
-                                        crs = crs)
-
-        # creating the voronoi
-        voronoi = self.voronoi_diagram(points,
-                                       'lon_s',
-                                       'lat_s',
-                                       ID_field_name = 'ID_s',
-                                       voronoi_shp_file_name = voronoi_shp_file_name)
-
-        # return the shapefile
-        return voronoi
-
-    def zonal_stat_vector ( self,
-                            vector_path_1,
-                            vector_path_2,
-                            field_ID_1 = None,
-                            field_ID_2 = None):
-        """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function reads the two shapefile in WGS84 and return the percent of intersection
-        of the elements of the second shapefile in the first shapefile (also the normalized values)
-        Arguments
-        ---------
-        vector_path_1: string; the path to the target shapefile; as an example subbasins
-        vector_path_2: string; the path to the source shapefile; as an land cover
-        field_ID_1: name of the fields from the first shapefile that identifies between the shapes
-        field_ID_2: name of the fields from the second shapefile that identifies between the shapes
-        Returns
-        -------
-        shp_int: geodataframe, with values of mean, max, min, sum, std, count, fid for each shape in shapefile
-        """
-        import geopandas as gpd
-        shp_1 = gpd.read_file(vector_path_1)
-        if not shp_1.crs:
-            sys.exit('first shapefile does not have a projection')
-        if "epsg:6933" not in str(shp_1.crs).lower():
-            shp_1 = shp_1.to_crs ("EPSG:6933") # project to equal area
-        shp_2 = gpd.read_file(vector_path_2)
-        if not shp_2.crs:
-            sys.exit('second shapefile does not have a projection')
-        if "epsg:6933" not in str(shp_2.crs).lower():
-            shp_2 = shp_2.to_crs ("EPSG:6933") # project to equal area
-        shp_int = self.intersection_shp(shp_1, shp_2)
-        # rename dictionary
-        dict_rename = {'S_1_'+field_ID_1: field_ID_1+'_1',
-                       'S_2_'+field_ID_2: field_ID_2+'_2',
-                       'AS1' : 'A_1[m2]',
-                       'AINT': 'Aint[m2]',
-                       'AP1' : 'percent',
-                       'AP1N': 'percent_N'}
-        shp_int = shp_int.rename(columns=dict_rename)
-        column_list = list (['A_1[m2]','Aint[m2]',
-            'geometry', 'percent', 'percent_N',
-            field_ID_1+'_1', field_ID_2+'_2'])
-        shp_int = shp_int[column_list]
-        shp_int['percent']   = shp_int['percent'] * 100 # to perent
-        shp_int['percent_N'] = shp_int['percent_N'] * 100 # to perent
-        shp_int = shp_int.to_crs(shp_1.crs) # project to the first shapefile crs
-        return shp_int
-
-    def zonal_stat(self,
-                   vector_path,
-                   raster_path,
-                   histogram = False,
-                   raster_band = 1,
-                   nodata_value = None):
-        """
-        original code:
-        Zonal Statistics
-        Vector-Raster Analysis
-        Copyright 2013 Matthew Perry
-        Usage:
-          zonal_stats.py VECTOR RASTER
-          zonal_stats.py -h | --help
-          zonal_stats.py --version
-        Options:
-          -h --help     Show this screen.
-          --version     Show version.
-        modified by:
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function creates a geopandas dataframe of lat, lon and IDs provided
-        Arguments
-        ---------
-        vector_path: string; the path to the shapefile
-        raster_path: string; the path to the raster
-        histogram: logical; set to false, for discrete values in raster (such as lan cover) can be set True
-        raster_band: int, the band in the raster to be used for zonal statistics
-        nodata_value: no data value in raster to be ingnored
-        global_src_extent : set as False
-        Returns
-        -------
-        shp: geodataframe, with values of mean, max, min, sum, std, count, fid for each shape in shapefile
-        """
-        from osgeo import gdal, ogr
-        # from osgeo.gdalconst import *
-        import osgeo.gdalconst
-        import numpy as np
-        import sys
-        gdal.PushErrorHandler('CPLQuietErrorHandler')
-        import pandas as pd
-        import os
-        import geopandas as gpd
-        # set hardcoded value
-        global_src_extent = False
-        # read the ratster file band number n
-        rds = gdal.Open(raster_path, osgeo.gdalconst.GA_ReadOnly)
-        assert(rds)
-        rb = rds.GetRasterBand(raster_band)
-        rgt = rds.GetGeoTransform()
-        # if nodata_value is identified
-        if nodata_value:
-            nodata_value = float(nodata_value)
-            rb.SetNoDataValue(nodata_value)
-        # read vector data
-        vds = ogr.Open(vector_path, osgeo.gdalconst.GA_ReadOnly)  # TODO maybe open update if we want to write stats
-        assert(vds)
-        vlyr = vds.GetLayer(0)
-        # create an in-memory numpy array of the source raster data
-        # covering the whole extent of the vector layer
-        if global_src_extent:
-            # use global source extent
-            # useful only when disk IO or raster scanning inefficiencies are your limiting factor
-            # advantage: reads raster data in one pass
-            # disadvantage: large vector extents may have big memory requirements
-            src_offset = self.bbox_to_pixel_offsets(rgt, vlyr.GetExtent())
-            src_array = rb.ReadAsArray(*src_offset)
-            # calculate new geotransform of the layer subset
-            new_gt = (
-                (rgt[0] + (src_offset[0] * rgt[1])),
-                rgt[1],
-                0.0,
-                (rgt[3] + (src_offset[1] * rgt[5])),
-                0.0,
-                rgt[5]
-            )
-        mem_drv = ogr.GetDriverByName('Memory')
-        driver = gdal.GetDriverByName('MEM')
-        # Loop through vectors
-        stats = []
-        feat = vlyr.GetNextFeature()
-        while feat is not None:
-            if not global_src_extent:
-                # use local source extent
-                # fastest option when you have fast disks and well indexed raster (ie tiled Geotiff)
-                # advantage: each feature uses the smallest raster chunk
-                # disadvantage: lots of reads on the source raster
-                src_offset = self.bbox_to_pixel_offsets(rgt, feat.geometry().GetEnvelope())
-                src_array = rb.ReadAsArray(*src_offset)
-                # calculate new geotransform of the feature subset
-                new_gt = (
-                    (rgt[0] + (src_offset[0] * rgt[1])),
-                    rgt[1],
-                    0.0,
-                    (rgt[3] + (src_offset[1] * rgt[5])),
-                    0.0,
-                    rgt[5]
-                )
-            if src_array is not None:
-                # Create a temporary vector layer in memory
-                mem_ds = mem_drv.CreateDataSource('out')
-                mem_layer = mem_ds.CreateLayer('poly', None, ogr.wkbPolygon)
-                mem_layer.CreateFeature(feat.Clone())
-                # Rasterize it
-                rvds = driver.Create('', src_offset[2], src_offset[3], 1, gdal.GDT_Byte)
-                rvds.SetGeoTransform(new_gt)
-                gdal.RasterizeLayer(rvds, [1], mem_layer, burn_values=[1])
-                rv_array = rvds.ReadAsArray()
-                # Mask the source data array with our current feature
-                # we take the logical_not to flip 0<->1 to get the correct mask effect
-                # we also mask out nodata values explictly
-                masked = np.ma.MaskedArray(
-                    src_array,
-                    mask=np.logical_or(
-                        src_array == nodata_value,
-                        np.logical_not(rv_array)
-                    )
-                )
-                if histogram:
-                    masked_numpy = np.ma.filled(masked.astype(float), np.nan)
-                    masked_numpy = masked_numpy[~np.isnan(masked_numpy)]
-                    masked_numpy_bin = np.unique(masked_numpy)
-                    masked_numpy_bin = np.append(masked_numpy_bin-0.00000001, masked_numpy_bin[-1]+0.000000001)
-                    feature_stats = {
-                        'min': float(masked.min()),
-                        'mean': float(masked.mean()),
-                        'max': float(masked.max()),
-                        'std': float(masked.std()),
-                        'sum': float(masked.sum()),
-                        'count': int(masked.count()),
-                        'fid': int(feat.GetFID()),
-                        'unique': str(np.unique(masked_numpy)),
-                        'freq': str(np.histogram(masked_numpy,bins=masked_numpy_bin)[0]),
-                        'percent': str(np.histogram(masked_numpy,bins=masked_numpy_bin)[0]/masked.count()*100)}
-                else:
-                    feature_stats = {
-                        'min': float(masked.min()),
-                        'mean': float(masked.mean()),
-                        'max': float(masked.max()),
-                        'std': float(masked.std()),
-                        'sum': float(masked.sum()),
-                        'count': int(masked.count()),
-                        'fid': int(feat.GetFID()),
-                        'unique': 'NaN',
-                        'freq': 'NaN',
-                        'percent': 'NaN'}
-            else:
-                feature_stats = {
-                    'min': 'NaN',
-                    'mean': 'NaN',
-                    'max': 'NaN',
-                    'std': 'NaN',
-                    'sum': 'NaN',
-                    'count': 'NaN',
-                    'fid': 'NaN',
-                    'unique': 'NaN',
-                    'freq': 'NaN',
-                    'percent': 'NaN'}
-            stats.append(feature_stats)
-            rvds = None
-            mem_ds = None
-            feat = vlyr.GetNextFeature()
-        vds = None
-        rds = None
-        stats = pd.DataFrame(stats)
-        shp = gpd.read_file(vector_path)
-        shp ['min'] = stats['min'].astype(float)
-        shp ['mean'] = stats['mean'].astype(float)
-        shp ['max'] = stats['max'].astype(float)
-        shp ['std'] = stats['std'].astype(float)
-        shp ['sum'] = stats['sum'].astype(float)
-        shp ['count'] = stats['count'].astype(float)
-        shp ['fid'] =  stats['fid'].astype(float)
-        if histogram:
-            shp ['unique'] =  stats['unique'].astype(str)
-            shp ['freq'] =  stats['freq'].astype(str)
-            shp ['percent'] =  stats['percent'].astype(str)
-            shp ['mode'] = None
-            for index, row in shp.iterrows():
-                frequency = row ['freq']
-                frequency = frequency.replace(']', '')
-                frequency = frequency.replace('[', '')
-                frequency = np.fromstring(frequency, dtype=float, sep=' ')
-                unique = row ['unique']
-                unique = unique.replace(']', '')
-                unique = unique.replace('[', '')
-                unique = np.fromstring(unique, dtype=float, sep=' ')
-                idx = np.where(frequency == np.max(frequency))
-                value = unique[idx]
-                shp.iloc[index, shp.columns.get_loc('mode')] = str(value)
-                #shp['mode'].iloc[index] = str(value)
-        return shp
-
-    def bbox_to_pixel_offsets(self,gt, bbox):
-        """
-        Zonal Statistics
-        Vector-Raster Analysis
-        Copyright 2013 Matthew Perry
-        Usage:
-          zonal_stats.py VECTOR RASTER
-          zonal_stats.py -h | --help
-          zonal_stats.py --version
-        Options:
-          -h --help     Show this screen.
-          --version     Show version.
-        """
-        originX = gt[0]
-        originY = gt[3]
-        pixel_width = gt[1]
-        pixel_height = gt[5]
-        x1 = int((bbox[0] - originX) / pixel_width)
-        x2 = int((bbox[1] - originX) / pixel_width) + 1
-        y1 = int((bbox[3] - originY) / pixel_height)
-        y2 = int((bbox[2] - originY) / pixel_height) + 1
-        xsize = x2 - x1
-        ysize = y2 - y1
-        return (x1, y1, xsize, ysize)
-
-    def geotif_zones(self,
-                     raster_path_in,
-                     raster_path_out,
-                     raster_band = 1,
-                     num_bin = 10,
-                     slice_values = None):
-        """
-        original code by:
-        Andrea Massetti;
-        https://gis.stackexchange.com/questions/164853/reading-modifying-and-writing-a-geotiff-with-gdal-in-python
-        modified by:
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function creates a raster file based on assiging single values to a given range of cell values;
-        example is creating elevation zone based on a raster file of digital elevation models (DEMs)
-        Arguments
-        ---------
-        raster_path_in: string; the path to the input raster
-        raster_path_out: string; the path to the output raster
-        raster_band: int; the band in the raster
-        num_bin: int; number of bins to slice min and max
-        slice_values : np.array; strcitly monotonically increasing levels for slicing the raster
-        """
-        # read the ratster file band number n
-        import os
-        from osgeo import gdal
-        import numpy as np
-        ds = gdal.Open(raster_path_in)
-        band = ds.GetRasterBand(raster_band)
-        arr = band.ReadAsArray()
-        [cols, rows] = arr.shape
-        arr_min = arr.min()
-        arr_max = arr.max()
-        if slice_values is None: # calculate the delta from min to max with number of bins
-            delta = np.arange(arr_min, arr_max, (arr_max-arr_min)/num_bin)
-        else:
-            # check if slice_level is monotonically increasing
-            slice_values = slice_values.flatten()
-            if slice_values.ndim != 1:
-                sys.exit('it seems the provided slice levels are not 1 dimentional numpy array')
-            if len(slice_values) != len(np.unique(slice_values)):
-                sys.exit('it seems the provided slice levels do not have unique values')
-            if not np.all(np.diff(slice_values) > 0):
-                sys.exit('it seems the provided slice levels are not in increasing order')
-            delta = slice_values
-            # check values:
-            if (arr_min > delta.max()) or (arr_max < delta.min()):
-                print('max from geotiff: ', arr_max, 'min from geotiff: ', arr_min)
-                sys.exit('it seems the provided bound specified by slice_level is outside of raster max to min values')
-        if (arr_max > delta.max()):
-            delta = np.append(delta,np.array([arr_max]))
-            delta = np.unique(delta)
-            delta = np.sort(delta)
-        if (arr_min < delta.min()):
-            delta = np.append(delta,np.array([arr_min]))
-            delta = np.unique(delta)
-            delta = np.sort(delta)
-        arr_out = arr
-        print(delta)
-        for i in np.arange(len(delta)-1):
-            arr_out = np.where(np.logical_and(arr_out>=delta[i], arr_out<=delta[i+1]), (delta[i]+delta[i+1])/2,arr_out)
-        # saving
-        driver = gdal.GetDriverByName("GTiff")
-        outdata = driver.Create(raster_path_out, rows, cols, 1, gdal.GDT_UInt16)
-        outdata.SetGeoTransform(ds.GetGeoTransform())##sets same geotransform as input
-        outdata.SetProjection(ds.GetProjection())##sets same projection as input
-        outdata.GetRasterBand(1).WriteArray(arr_out)
-        outdata.GetRasterBand(1).SetNoDataValue(0)
-        outdata.FlushCache()
-        outdata = None
-        band=None
-        ds=None
-
-
-    def geotif2shp(self,
-                   raster_path_in,
-                   vector_path_out,
-                   raster_band = 1,
-                   name_of_filed = 'values',
-                   dissolve = True):
-
-        self.__geotif2shp_subfun(raster_path_in,
-            vector_path_out,
-            raster_band = raster_band,
-            name_of_filed = name_of_filed)
-        if dissolve:
-            self.shp_dissolve(vector_path_out,
-                              vector_path_out,
-                              name_of_filed)
-
-    def __geotif2shp_subfun(self,
-                            raster_path_in,
-                            vector_path_out,
-                            raster_band = 1,
-                            name_of_filed = 'values'):
-        """
-        original code by:
-        Kadir Şahbaz;
-        https://gis.stackexchange.com/questions/281073/excluding-extent-when-polygonizing-raster-file-using-python
-        and
-        onakua
-        https://gis.stackexchange.com/questions/254410/raster-to-vector-conversion-using-gdal-python
-        modified by:
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function reads a raster file in geotiff and return vector values refering to that raster
-        Arguments
-        ---------
-        raster_path_in: string; the path to the input raster
-        vector_path_out: string; the path to the output shapefile
-        raster_band: int; the band in the raster
-        name_of_filed: string; the name of the column of extracted values in shapefile
-        """
-        from osgeo import gdal, ogr, osr
-        import geopandas as gpd
-        # this allows GDAL to throw Python Exceptions
-        #gdal.UseExceptions()
-        src_ds = gdal.Open(raster_path_in)
-        srs = osr.SpatialReference()
-        srs.ImportFromWkt(src_ds.GetProjection())
-        srcband = src_ds.GetRasterBand(raster_band)
-        drv = ogr.GetDriverByName('ESRI Shapefile')
-        dst_ds = drv.CreateDataSource(vector_path_out)
-        dst_layer = dst_ds.CreateLayer(vector_path_out , srs=srs)
-        fd = ogr.FieldDefn(name_of_filed, ogr.OFTInteger)
-        dst_layer.CreateField(fd)
-        dst_field = dst_layer.GetLayerDefn().GetFieldIndex(name_of_filed)
-        gdal.Polygonize(srcband, None, dst_layer, dst_field, [], callback=None)
-
-    def shp_dissolve(   self,
-                        vector_path_in,
-                        vector_path_out,
-                        name_of_filed):
-        """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function recieve a shapefile name and its colomn to be dissolved
-        Arguments
-        ---------
-        raster_path_in: string; the path to the input raster
-        raster_path_out: string; the path to the output raster
-        name_of_filed: string; the name of the column of extracted values in shapefile
-        """
-        import geopandas as gpd
-        shp = gpd.read_file(vector_path_in)
-        shp = shp.dissolve(by=name_of_filed)
-        shp ['temp'] = shp.index
-        shp = shp.reset_index(drop=True)
-        shp [name_of_filed] = shp ['temp']
-        shp = shp.drop(columns=['temp'])
-        shp.to_file(vector_path_out)
-
-    def extract_value_tiff (  self,
-                              lon_in,
-                              lat_in,
-                              raster_path_in):
-        """
-        original code by:
-        Charlie Parr;
-        https://gis.stackexchange.com/questions/317391/python-extract-raster-values-at-point-locations/324830
-        modified by:
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function reads a raster file in geotiff and return vector values refering to cells of that raster
-        given then lat and lon values
-        Arguments
-        ---------
-        lon_in: np.array; longitude of the points to be extraxted (in geotiff projection)
-        lat_in: np.array; latitude of the points to be extraxted (in geotiff projection)
-        raster_path_in: string; the path to the input raster
-        """
-        import rasterio
-        import geopandas as gpd
-        import numpy as np
-        # Initialize coords
-        coords = np.zeros([len(lon_in),2])
-        coords[:,0] = lon_in
-        coords[:,1] = lat_in
-        # Open the raster and store metadata
-        src = rasterio.open(raster_path_in)
-        # Sample the raster at every point location and store values in DataFrame
-        values = [x for x in src.sample(coords)]
-        return np.array(values)
-
-    def voronoi_diagram(self,
-                        points_shp_in,
-                        lon_field_name,
-                        lat_field_name,
-                        ID_field_name=None,
-                        voronoi_shp_file_name=None,
-                        buffer = 2):
-        """
-        original code by:
-        Abdishakur
-        https://towardsdatascience.com/how-to-create-voronoi-regions-with-geospatial-data-in-python-adbb6c5f2134
-        modified by:
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function reads a shapefile of points and return the Thiessen or Voronoi polygons
-        ---------
-        points_shp_in: geopandas or string; if string it will read the file
-        voronoi_shp_out: string; the path to save the output Voronoi shapefile
-        buffer: float; the buffer around the points_shp_in to create Voronoi shapefile
-        """
-        import shapefile # as part of pyshp
-        import geovoronoi
-        import os
-        from   shapely.geometry import Polygon
-        import numpy as np
-        import pandas as pd
-        import geopandas as gpd
-        # read the shapefile
-        if isinstance(points_shp_in, str):
-            stations = gpd.read_file(points_shp_in)
-        else:
-            stations = points_shp_in # geodataframe
-        # get the crs from the point shapefile
-        crs_org = stations.crs
-        print('crs from the point geopandas: ', crs_org)
-        # add the ID_t to the point shapefiles
-        if not ID_field_name:
-            stations ['ID_s'] = np.arange(len(stations))+1
-            stations ['ID_s'] = stations ['ID_s'].astype(int)
-        else:
-            stations ['ID_s'] = stations[ID_field_name].astype(int)
-        stations = stations.sort_values(by='ID_s')
-        ID_s = stations ['ID_s']
-        # get the total boundary of the shapefile
-        stations_buffert = stations.buffer(buffer) # add a buffer
-        minx, miny, maxx, maxy = stations_buffert.total_bounds
-        # create the bounding shapefile
-        parts = []
-        with shapefile.Writer(self.temp_dir+'test.shp') as w:
-            w.autoBalance = 1 # turn on function that keeps file stable if number of shapes and records don't line up
-            w.field("ID_bounding",'N') # create (N)umerical attribute fields, integer
-            # creating the polygon given the lat and lon
-            parts.append([ (minx, miny),\
-                           (minx, maxy),\
-                           (maxx, maxy),\
-                           (maxx, miny),\
-                           (minx, miny)])
-            # store polygon
-            w.poly(parts)
-            # update records/fields for the polygon
-            w.record(1)
-        boundary = gpd.read_file(self.temp_dir+'test.shp')
-        os.system('rm '+self.temp_dir+'test.*')
-        # create the voroni diagram for given point shapefile
-        coords = geovoronoi.points_to_coords(stations.geometry)
-        poly_shapes, location = \
-        geovoronoi.voronoi_regions_from_coords(coords, boundary.iloc[0].geometry)
-        # pass te polygons to shapefile
-        Thiessen = gpd.GeoDataFrame()
-        for i in np.arange(len(poly_shapes)):
-            Thiessen.loc[i, 'geometry'] = Polygon(poly_shapes[i])
-            Thiessen.loc[i, 'ID_s']     = stations.iloc[location[i][0]].ID_s
-        Thiessen['ID_s'] = Thiessen['ID_s'].astype(int)
-        Thiessen = Thiessen.sort_values(by='ID_s')# sort on values
-        stations = stations.drop(columns='geometry')
-        Thiessen = pd.merge_asof(Thiessen, stations, on='ID_s') #, direction='nearest')
-        Thiessen = Thiessen.set_geometry('geometry') #bring back the geometry filed; pd to gpd
-        Thiessen = Thiessen.set_crs(crs_org)
-        ID_s_V = Thiessen['ID_s']
-        diff = np.setdiff1d(ID_s, ID_s_V, assume_unique=False)
-        if diff.size !=0 :
-            print(diff)
-            sys.exit('It seems the input points with the following ID do have identical lon, lat ')
-        if not (voronoi_shp_file_name is None):
-            Thiessen.to_file(voronoi_shp_file_name)
-        return Thiessen
-
-    def get_all_downstream (self,
-                            seg_IDs,
-                            down_IDs):
-        """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function get a 1-D array of numpy arrays of river reach ID and a similar 1-D array
-        of downstream river reach ID
-        Arguments
-        ---------
-        seg_IDs: the 1D array of seg id [n,]
-        down_IDs: the 1D array of downstream seg id [n,]; if no down_IDs for a given segment should be negative
-        Returns
-        -------
-        NTOPO: the 2D array of downsream seg id s [n,10000]; 10000 is maximume number of downstream
-        """
-        import pandas as pd
-        import numpy as np
-        #
-        seg_IDs = np.array(seg_IDs)
-        down_IDs = np.array(down_IDs)
-        NTOPO = np.empty([len(seg_IDs),10000]) # create the empty array with length of seg_IDs and 10000
-        NTOPO [:] = np.nan # populate with nan
-        NTOPO [:,0] = seg_IDs # assign the first colomn as seg id
-        # loop over the seg_IDs
-        for i in np.arange(len(seg_IDs)):
-            ID = seg_IDs [i] # get the seg ID
-            down_ID = down_IDs [i] # get the seg downstream ID
-            if down_ID in seg_IDs: # check if the downstream seg is part of river network
-                down_stream_exists = True
-            else:
-                down_stream_exists = False
-            m = 1 # initialize m
-            while down_ID > 0 and down_stream_exists: # while not the last segment
-                # update the ID and ID down
-                idx = np.where (seg_IDs == down_ID) # get the index of the segment that is downstream
-                ID = seg_IDs [idx] # update the ID
-                down_ID = down_IDs [idx] # update the downstream
-                if down_ID in seg_IDs:
-                    down_stream_exists = True
-                else:
-                    down_stream_exists = False
-                NTOPO[i,m] = ID
-                m += 1
-        return NTOPO
-
-    def get_all_upstream(   self,
-                            seg_ID,
-                            NTOPO):
-        """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function gets a segmenet ID, a 1-D array of numpy arrays of river reach ID and
-        a similar 1-D array of downstream river reach ID
-        Arguments
-        ---------
-        seg_ID: the segment id which we want the upstream
-        NTOPO: the 2D array of downstream for each segment
-        Returns
-        -------
-        Array: the 2D array of downsream seg id s [n,1000] 1000 is maximume number of downstream
-        """
-        import pandas as pd
-        import numpy as np
-        #
-        upstreams = np.array([])
-        # loop over the rows and find the rows that the seg_ID is mentioned in them
-        for i in np.arange(len(NTOPO[:,0])):
-            # get rows
-            row = NTOPO[i,:].flatten()
-            # check if seg_ID is in the row
-            if seg_ID in row:
-                upstreams = np.append (upstreams, row[0])
-        return upstreams
-
-    # def tif_crop ( self,
-    #                 raster_in,
-    #                 raster_out,
-    #                 xmin=None,
-    #                 xmax=None,
-    #                 ymin=None,
-    #                 ymax=None):
-    #     from osgeo import gdal
-    #     bbox = (xmin,ymin,xmax,ymax)
-    #     gdal.Translate(raster_out, raster_in, projWin = bbox)
-
-    def run_subbasin_creation(self,
-                              dem_tif_in,
-                              pour_point = (-9999,-9999),
-                              river_thr = 10000, #starting point in number of cells int
-                              dir_tif_in = None,
-                              acc_tif_in = None,
-                              dirmap = (64,  128,  1,   2,    4,   8,    16,  32)): # N, NE, E, SE, S, SW, W, NW):
-
-        """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This functions recives a path to a DEM raster file and create the flow direction
-        low accumulation, river network and river network topology and subbasins
-        Arguments
-        ---------
-        raster_path_in: string; the path to the input raster, DEM geotif
-        pour_point: (x, y), location of the outlet of the basin
-        river_thr: int, number of cells accumulation that river start
-        dir_tif_in: string; the path to the direction raster
-        acc_tif_in: string; the path to the accumulation raster
-        dirmap: showing the direction of the values in the dir map if direction is provided
-        """
-        import geopandas as gpd
-        import numpy as np
-        import pandas as pd
-        from pysheds.grid import Grid
-        import os
-        grid = Grid.from_raster(dem_tif_in, data_name='dem')
-        crs = str(grid.crs)
-        if 'wgs84' in crs.lower():
-            print('EASYMORE detect the tif file is projected in WGS84')
-        else:
-            sys.exit('the provided DEM should be in WGS84')
-        grid_size = grid.cellsize
-        if not os.path.isdir(self.temp_dir):
-            os.mkdir(self.temp_dir)
-        if not os.path.isdir(self.output_dir):
-            os.mkdir(self.output_dir)
-        if dir_tif_in:
-            print('providing the acc_tif_in is not yet supported, EASYMORE with calculate direction internally')
-            print('EASYMORE set dir_tif_in to None')
-            dir_tif_in = None
-        if acc_tif_in:
-            print('providing the acc_tif_in is not yet supported, EASYMORE with calculate accumulation internally')
-            print('EASYMORE set acc_tif_in to None')
-            acc_tif_in = None
-        self.dem_processing (dem_tif_in,
-                             dir_tif_in = None,
-                             acc_tif_in = None,
-                             dirmap = dirmap)
-        self.river (self.temp_dir+self.case_name+'_dir.tif',
-                    self.temp_dir+self.case_name+'_acc.tif',
-                    self.temp_dir+self.case_name+'_river.shp',
-                    dirmap = dirmap,
-                    pour_point = pour_point,
-                    snap_pour_point = 100,
-                    river_thr = river_thr)
-        self.river_network( self.temp_dir+self.case_name+'_river.shp',
-                            self.temp_dir+self.case_name+'_river_NTOPO.shp',
-                            dem_tif_in = dem_tif_in,
-                            acc_tif_in = self.temp_dir+self.case_name+'_acc.tif',
-                            grid_size = grid_size)
-        # calculate length of river segments
-        shp = gpd.read_file(self.temp_dir+self.case_name+'_river_NTOPO.shp')
-        shp_t = shp.to_crs ("EPSG:6933")
-        shp['length'] = shp_t.geometry.length
-        shp.to_file(self.temp_dir+self.case_name+'_river_NTOPO.shp')
-        # create the virtual gauges from the shp
-        df_gauge = pd.DataFrame()
-        df_gauge ['lat'] = shp['end_lat_b'].astype(float)
-        df_gauge ['lon'] = shp['end_lon_b'].astype(float)
-        df_gauge ['ID'] = shp['ID'].astype(float)
-        virtual_gauges = self.make_shape_point(df_gauge, 'lon', 'lat')
-        virtual_gauges.to_file(self.temp_dir+self.case_name+'_virtual_gauges.shp')
-        self.subbasin_creation(  self.temp_dir+self.case_name+'_dir.tif',
-                                 self.temp_dir+self.case_name+'_virtual_gauges.shp',
-                                 self.temp_dir+self.case_name+'_subbasin.tif')
-        self.geotif2shp(   self.temp_dir+self.case_name+'_subbasin.tif',
-                           self.temp_dir+self.case_name+'_subbasin.shp',
-                           raster_band = 1,
-                           name_of_filed = 'ID',
-                           dissolve = True)
-        shp = gpd.read_file(self.temp_dir+self.case_name+'_subbasin.shp')
-        shp = shp [shp['ID']!=0] # remove the subbasin ID of zero
-        shp_t = shp.to_crs("EPSG:6933")
-        shp ['Area[m2]'] = shp_t.area
-        shp.to_file(self.output_dir+self.case_name+'_subbasin.shp')
-        # upstream area
-        cat = gpd.read_file(self.output_dir+self.case_name+'_subbasin.shp')
-        cat = cat.sort_values(by='ID')
-        cat = cat.reset_index(drop=True)
-        river = gpd.read_file(self.temp_dir+self.case_name+'_river_NTOPO.shp')
-        river = river.sort_values(by='ID')
-        river = river.reset_index(drop=True)
-        NTOPO = self.get_all_downstream (river.ID,river.Down_ID)
-        # loop over the segemets and get the upstream
-        Area_up = np.zeros([len(cat)])
-        m = 0
-        for index, row in cat.iterrows():
-            upstreams = self.get_all_upstream(row.ID,NTOPO)
-            cat_t = cat [cat['ID'].isin(upstreams)]
-            Area_up [m] = cat_t['Area[m2]'].sum()
-            m += 1
-        river ['Area_up'] = Area_up
-        river ['Area[m2]'] = cat['Area[m2]']
-        river.to_file(self.output_dir+self.case_name+'_river_NTOPO.shp')
-
-    def dem_processing (self,
-                        dem_tif_in,
-                        dir_tif_in = None, #TODO: include if user give dir_tif_in
-                        acc_tif_in = None, #TODO: include if user give acc_tif_in
-                        dirmap = (64,  128,  1,   2,    4,   8,    16,  32)): # N, NE, E, SE, S, SW, W, NW
-        """
-        original code by:
-        pysheds developer team
-        https://github.com/mdbartos/pysheds
-        modified by:
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function reads a dem (or also a direction file and map) and generate the dir file, and flow accumualtion
-        ---------
-        dem_tif_in: string; the path to the input raster
-        dir_tif_in: string; the path to the direction raster
-        acc_tif_in: string; the path to the accumulation raster
-        dirmap: showing the direction of the values in the dir map if direction is provided
-        """
-        from pysheds.grid import Grid
-        import geopandas as gpd
-        import numpy as np
-        import os
-        grid = Grid.from_raster(dem_tif_in, data_name='dem')
-        grid.fill_depressions(data='dem', out_name='flooded_dem')
-        grid.resolve_flats('flooded_dem', out_name='inflated_dem') #resolve the flats
-        # Add new dir to grid as float and save in temporary folder
-        if not dir_tif_in:
-            grid.flowdir(data='inflated_dem', out_name='dir', dirmap=dirmap)
-            print('direction map is not provided; EASYMORE will calculate flow direction and save in temporary file:')
-            print('EASYMORE will save the direction file here: ', self.temp_dir+self.case_name+'_dir.tif')
-            grid.add_gridded_data(grid.dir.astype(float), data_name='dir_new', affine=grid.affine,
-                                  shape=grid.dem.shape, crs=grid.crs, nodata=grid.dir.nodata)
-            grid.to_raster('dir_new', self.temp_dir+self.case_name+'_dir.tif' , view=False)
-        if not acc_tif_in:
-            grid.accumulation(data='dir', out_name='acc')
-            # Add new dir to grid as float
-            grid.add_gridded_data(grid.acc.astype(float), data_name='acc_new', affine=grid.affine,
-                                  shape=grid.dem.shape, crs=grid.crs, nodata=grid.acc.nodata)
-            print('EASYMORE will save the accumulation file here: ', self.temp_dir+self.case_name+'_acc.tif')
-            grid.to_raster('acc_new', self.temp_dir+self.case_name+'_acc.tif' , view=False)
-
-    def river  (self,
-                dir_tif_in,
-                acc_tif_in,
-                shp_river_out,
-                dirmap = (64,  128,  1,   2,    4,   8,    16,  32), # N, NE, E, SE, S, SW, W, NW
-                pour_point = (-9999,-9999), # lon and lat of the outlet
-                snap_pour_point = 100, # threshold for snap the outlet to river network
-                river_thr = None,
-                grid_size = 0): # starting river netwrok threshold in number of grids
-        """
-        original code by:
-        pysheds developer team
-        https://github.com/mdbartos/pysheds
-        modified by:
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function reads direction and flow accumulation and the most downstream point and threshold
-        ---------
-        dir_tif_in: string; the path to the direction geotif
-        acc_tif_in: string; the path to the flow accumulation geotif
-        dirmap: int; direction of each value in flow direction file
-        pour_point: (lon,lat); the most downstream location
-        snap_pour_point: int; the maximum flow accumulation for correcting to the river segment in cell
-        river_thr: int; starting point of river network for more than an accumulation value
-        """
-        from pysheds.grid import Grid
-        import geopandas as gpd
-        import json
-        import numpy as np
-        import os
-        #
-        grid = Grid.from_raster(dir_tif_in, data_name='dir')
-        grid1 = Grid.from_raster(acc_tif_in, data_name='acc')
-        grid.add_gridded_data(grid1.acc, data_name='acc', affine=grid.affine,
-                              shape=grid.shape, crs=grid.crs, nodata=np.nan)
-        # putting the outlet point exactly on the river network
-        xy = np.column_stack([pour_point[0], pour_point[1]])
-        new_xy = grid.snap_to_mask(grid.acc > snap_pour_point, xy, return_dist=False)
-        new_xs, new_ys = new_xy[:,0], new_xy[:,1]
-        # Delineate the catchment
-        grid.catchment(data='dir', x=new_xs, y=new_ys, dirmap=dirmap, out_name='catch',\
-                       nodata=grid.dir.nodata,\
-                       recursionlimit=1500000, xytype='label')
-        grid.clip_to('catch') # must be clipped
-        # Compute accumulation
-        grid.accumulation(data='catch', out_name='acc')
-        branches = None
-        branches = grid.extract_river_network(fdir='catch',
-                                              acc='acc',
-                                              threshold=river_thr,
-                                              dirmap=dirmap)
-        for branch in branches['features']:
-            line = np.asarray(branch['geometry']['coordinates'])
-        # dumpt the lines into a network
-        with open(self.temp_dir+self.case_name+'_river.json', 'w') as json_file:
-            json.dump(branches, json_file)
-        # load the json and save it as a shapefile using geopandas
-        shp = gpd.read_file(self.temp_dir+self.case_name+'_river.json')
-        os.remove (self.temp_dir+self.case_name+'_river.json')
-        shp['ID'] = np.arange(len(shp)) + 1
-        # save the shapefile
-        shp.to_file(shp_river_out)
-
-    def river_network(  self,
-                        infile_river,
-                        outfile_river_NTopo,
-                        dem_tif_in = None,
-                        acc_tif_in = None,
-                        grid_size = 0.00):
-
-        import geopandas as gpd
-        import pandas as pd
-        import numpy as np
-        from shapely.geometry import Point
-        import shapely
-        #
-        shp = gpd.read_file(infile_river)
-        # creat additional fields for network topology data
-        shp['start_lat'] = None
-        shp['start_lon'] = None
-        shp['end_lat']   = None
-        shp['end_lon']   = None
-        shp['end_lat_b'] = None
-        shp['end_lon_b'] = None
-        shp['Down_ID']   = -9999
-        shp['Up_ID']     = None
-        shp['Up1_ID']    = None
-        shp['Up2_ID']    = None
-        shp['Up3_ID']    = None
-        shp['Up4_ID']    = None
-        shp['Up5_ID']    = None
-        # popolating the fileds
-        for index, row in shp.iterrows():
-            line = np.asarray(row['geometry'])
-            # populate the filed
-            shp.iloc[index, shp.columns.get_loc('start_lat')] = line[-1,1]
-            shp.iloc[index, shp.columns.get_loc('start_lon')] = line[-1,0]
-            shp.iloc[index, shp.columns.get_loc('end_lat')]   = line[0,1]
-            shp.iloc[index, shp.columns.get_loc('end_lon')]   = line[0,0]
-            shp.iloc[index, shp.columns.get_loc('end_lat_b')] = line[1,1] # one before merged point not to include all the contributing area of confluence
-            shp.iloc[index, shp.columns.get_loc('end_lon_b')] = line[1,0] # one before merged point not to include all the contributing area of confluence
-        for index, row in shp.iterrows():
-            # get the end lat, lon of a river segment
-            end_lat = shp['end_lat'].iloc[index]
-            end_lon = shp['end_lon'].iloc[index]
-            # find which segment start with that lat, lon
-            indy = shp.index[shp['start_lat'] == end_lat].tolist()
-            indx = shp.index[shp['start_lon'] == end_lon].tolist()
-            # find the end of indy and indx
-            ind = list(set(indy).intersection(indx))
-            # assign the list of downstream segment to the field if no downstream -9999
-            if str(ind).strip('[]') != '':
-                shp.iloc[index, shp.columns.get_loc('Down_ID')] = shp['ID'].iloc[int(str(ind).strip('[]'))]
-                # --- old code that uses 'chained indexing' - cleaner to use iloc[] to find both row and column
-                #shp['Down_ID'].iloc[index] = shp['ID'].iloc[int(str(ind).strip('[]'))]
-            else:
-                shp.iloc[index, shp.columns.get_loc('Down_ID')] = -9999
-                # --- old code that uses 'chained indexing' - cleaner to use iloc[] to find both row and column
-                #shp['Down_ID'].iloc[index] = -9999
-        # creat a list of immidiate upstream
-        for index, row in shp.iterrows():
-            # get the ID of the river segment
-            ID = shp['ID'].loc[index]
-            # find the immidate upstream
-            ind = shp.index[shp['Down_ID'] == ID]
-            indup = shp['ID'].loc[ind].tolist()
-            shp['Up_ID'] = str(indup)
-            # assign the upstream list
-            for i in np.arange(len(indup)):
-                field_name = 'Up'+str(i+1)+'_ID'
-                shp.iloc[index, shp.columns.get_loc(field_name)] = indup[i]
-                # --- old code that uses 'chained indexing' - cleaner to use iloc[] to find both row and column
-                #shp[field_name].iloc[index] = indup[i]
-        if dem_tif_in:
-            values = self.extract_value_tiff (np.array(shp['start_lon'])+grid_size/2,
-                                              np.array(shp['start_lat'])-grid_size/2,
-                                              dem_tif_in)
-            shp['start_ele'] = values
-            values = self.extract_value_tiff (np.array(shp['end_lon'])+grid_size/2,
-                                              np.array(shp['end_lat'])-grid_size/2,
-                                              dem_tif_in)
-            shp['end_ele'] = values
-        if acc_tif_in:
-            values = self.extract_value_tiff (np.array(shp['end_lon_b'])+grid_size/2,
-                                              np.array(shp['end_lat_b'])-grid_size/2,
-                                              acc_tif_in)
-            shp['end_acc'] = values
-            shp = shp.sort_values(by='end_acc')
-        # save the shapefile
-#         for index, _ in shp.iterrows():
-#             polys = shp.geometry.iloc[index] # get the shape
-#             polys = shapely.affinity.translate(polys, xoff=+grid_size/2, yoff=-grid_size/2, zoff=0.0)
-#             shp.geometry.iloc[index] = polys
-        shp.to_file(outfile_river_NTopo)
-
-    def subbasin_creation(  self,
-                            dir_tif_in,
-                            gauges_shp_in,
-                            subbasin_tiff_out,
-                            dirmap = (64,  128,  1,   2,    4,   8,    16,  32)):#N, NE, E, SE, S, SW, W, NW
-        from pysheds.grid import Grid
-        import geopandas as gpd
-        import numpy as np
-        grid = Grid.from_raster(dir_tif_in, data_name='dir')
-        A = gpd.read_file(gauges_shp_in)
-        # sort based on accumulation
-        warnings.simplefilter('ignore')
-        A['lat'] = A.centroid.y
-        A['lon'] = A.centroid.x
-        warnings.simplefilter('default')
-        # initializing the sub_basin raster
-        z1 = np.zeros(grid.shape)
-        # loop over each segment of the river
-        for index, row in A.iterrows():
-            cat_ID = A['ID'].iloc[index] # get the ID of that river segment
-            c = grid.catchment(A['lon'].iloc[index], A['lat'].iloc[index], \
-                               data='dir', dirmap=dirmap, xytype='label', inplace=False)
-            z1 += cat_ID * (c != 0).astype(int)
-            idx = np.where(c != 0)
-            grid.dir[idx] = grid.dir.nodata
-        # Add z1 to grid
-        idx = np.where(z1 == 0)
-        z1[idx] = np.nan
-        grid.add_gridded_data(z1, data_name='sub_basin', affine=grid.affine,
-                              shape=grid.shape, crs=grid.crs, nodata=np.nan)
-        # Write to raster
-        grid.to_raster('sub_basin', subbasin_tiff_out, view=False)
-
-    def visualize_tiff (self,
-                        geotiff_path,
-                        fig_size = (14,7),
-                        cmap='jet',
-                        colorbar_label = '',
-                        title ='',
-                        xlable = '',
-                        ylable=''):
-        from pysheds.grid import Grid
-        import matplotlib.pyplot as plt
-        import numpy as np
-        import json
-        import geopandas as gpd
-        from shapely.geometry import Point
-        from geopandas import GeoSeries
-        # set the font and font size for plots
-        plt.rcParams["font.family"] = "Times New Roman"
-        plt.rcParams.update({'font.size': 16})
-
-        grid = Grid.from_raster(geotiff_path, data_name='temp') # part of Missouri River
-
-        ID = np.where(grid.temp!=grid.temp.nodata) # the missing values is set to -9999 removing them from min and max for colorbar
-        plt.figure(figsize = fig_size)
-        plt.imshow(grid.temp.astype(float), extent=grid.extent, cmap=cmap, zorder=1,
-                   vmin=np.min(grid.temp[ID]), vmax=np.max(grid.temp[ID]))
-        plt.colorbar(label=colorbar_label) # creating the colorbar and its name and unit
-        plt.grid(zorder=0) # creating the grid on the map
-        plt.title(title) # creating title
-        plt.xlabel(xlable) #xlable which is long
-        plt.ylabel(ylable) #ylable which is lat
-        plt.tight_layout()
