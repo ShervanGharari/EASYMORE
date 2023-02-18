@@ -17,7 +17,7 @@ import json
 class easymore:
 
     def __init__(self):
-        self.delet_attr()  # remove the existing varibales
+        self.delet_attr()                 # remove the existing varibales
         self.case_name                 =  'case_temp' # name of the case
         self.target_shp                =  '' # sink/target shapefile
         self.target_shp_ID             =  '' # name of the column ID in the sink/target shapefile
@@ -48,6 +48,8 @@ class easymore:
         self.fill_value_list           =  ['-9999'] # missing values set to -9999
         self.remap_csv                 =  '' # name of the remapped file if provided
         self.only_create_remap_csv     =  False # is true it does not remap any nc files
+        self.save_temp_shp             =  True # if set to false does not save the temporary shapefile in the temp folder for large shapefiles
+        self.correction_shp_lon        =  True # correct for -180 to 180 and 0 to 360 longitude
         self.author_name               =  '' # name of the authour
         self.license                   =  '' # data license
         self.tolerance                 =  10**-5 # tolerance
@@ -63,7 +65,7 @@ class easymore:
     ##############################################################
 
     def delet_attr(self):
-
+        # remove attributes that are not function from the easymore object for initialization
         for label in vars(self).keys():
             delattr(self, l)
             print('deleted ', l)
@@ -76,17 +78,16 @@ class easymore:
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
-        This function read a text file to a json file
+        This function read a json file
         config_file_name: name of the
         """
         # reading the data from the file
         with open(config_file_name) as f:
             data = f.read()
-        # reconstructing the data as a dictionary
+        # reconstructing the data as a json
         config_dict = json.loads(data)
         # return
         return config_dict
-
 
     def init_from_dict (self,
                         dict_name):
@@ -96,16 +97,14 @@ class easymore:
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
-        This function take a dict_name and populate the varibales needed to be initialized
+        This function take a dict_name and populate the varibales needed to be initialized for EASYMORE
         """
-        # pass dictionary if it is a dic
-        if isinstance(dict_name, str):
+        if isinstance(dict_name, str): # read the file is string is provided
             dictionary = self.read_config_dict(dict_name)
-        elif isinstance(dict_name, dict):
+        elif isinstance(dict_name, dict): # pass the dictionary
             dictionary = dict_name
         else:
-            sys.exit('config dictionary should be a file name, string, or a dictionary')
-        # populate from the dictionary
+            sys.exit('configuration dictionary should be a file name [string], or a dictionary')
         # loop over the dictionary keys
         for key in list(dictionary.keys()):
             if key in list(vars(self).keys()):
@@ -124,7 +123,7 @@ class easymore:
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
-        This function runs a set of EASYMORE function which can remap from a srouce shapefile
+        This function runs a set of EASYMORE function which can remap variable(s) from a srouce shapefile
         with regular, roated, irregular to a target shapefile
         """
         # check EASYMORE input
@@ -134,69 +133,70 @@ class easymore:
         # if remap is not provided then create the remapping file
         if self.remap_csv == '':
             import geopandas as gpd
-            # check the target shapefile
+            # read and check the target shapefile
             target_shp_gpd = gpd.read_file(self.target_shp)
             target_shp_gpd = self.check_target_shp(target_shp_gpd)
             # save the standard target shapefile
-            print('EASYMORE will save standard shapefile for EASYMORE claculation as:')
-            print(self.temp_dir+self.case_name+'_target_shapefile.shp')
-            target_shp_gpd.to_file(self.temp_dir+self.case_name+'_target_shapefile.shp') # save
+            if self.save_temp_shp:
+                print('EASYMORE will save target shapefile for EASYMORE claculation as:')
+                print(self.temp_dir+self.case_name+'_target_shapefile.shp')
+                target_shp_gpd.to_file(self.temp_dir+self.case_name+'_target_shapefile.shp') # save
             # find the case
             self.NetCDF_SHP_lat_lon()
             # create the source shapefile for case 1 and 2 if shapefile is not provided
-            if (self.case == 1 or self.case == 2)  and (self.source_shp == ''):
-                if self.case == 1:
-                    if hasattr(self, 'lat_expanded') and hasattr(self, 'lon_expanded'):
-                        self.lat_lon_SHP(self.lat_expanded, self.lon_expanded,\
-                            self.temp_dir+self.case_name+'_source_shapefile.shp')
+            if (self.case == 1 or self.case == 2):
+                if (self.source_shp == ''):
+                    if self.case == 1 and hasattr(self, 'lat_expanded') and hasattr(self, 'lon_expanded'):
+                        source_shp_gpd = self.lat_lon_SHP(self.lat_expanded, self.lon_expanded,crs="epsg:4326")
                     else:
-                        self.lat_lon_SHP(self.lat, self.lon,\
-                            self.temp_dir+self.case_name+'_source_shapefile.shp')
+                        source_shp_gpd = self.lat_lon_SHP(self.lat, self.lon,crs="epsg:4326")
                 else:
-                    self.lat_lon_SHP(self.lat, self.lon,\
-                        self.temp_dir+self.case_name+'_source_shapefile.shp')
-                print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
-                print(self.temp_dir+self.case_name+'_source_shapefile.shp')
-            if (self.case == 1 or self.case == 2)  and (self.source_shp != ''):
-                source_shp_gpd = gpd.read_file(self.source_shp)
-                source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
-                    self.source_shp_lon, self.source_shp_ID)
-                source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
-                print('EASYMORE detect the shapefile is provided and will resave it here:')
-                print(self.temp_dir+self.case_name+'_source_shapefile.shp')
+                    source_shp_gpd = gpd.read_file(self.source_shp)
+                    source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
+                                                                 self.source_shp_lon, self.source_shp_ID)
+                if self.save_temp_shp:
+                    source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
+                    print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
+                    print(self.temp_dir+self.case_name+'_source_shapefile.shp')
             # if case 3
             if (self.case == 3):
                 if (self.source_shp != ''): # source shapefile is provided
                     self.check_source_nc_shp() # check the lat lon in soure shapefile and nc file
                     source_shp_gpd = gpd.read_file(self.source_shp)
                     source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
-                        self.source_shp_lon, self.source_shp_ID)
-                    source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
-                    print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
-                    print(self.temp_dir+self.case_name+'_source_shapefile.shp')
+                                                                 self.source_shp_lon, self.source_shp_ID)
                 if (self.source_shp == ''): # source shapefile is not provided goes for voronoi
                     # Create the source shapefile using Voronio diagram
                     print('EASYMORE detect that source shapefile is not provided for irregulat lat lon source NetCDF')
                     print('EASYMORE will create the voronoi source shapefile based on the lat lon')
-                    voronoi = self.shp_from_irregular_nc (station_shp_file_name = self.temp_dir+self.case_name+'_source_shapefile_points.shp')
+                    source_shp_gpd = self.shp_from_irregular_nc (station_shp_file_name = self.temp_dir+self.case_name+'_source_shapefile_points.shp')
+                if self.save_temp_shp:
+                    source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
                     print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
-                    voronoi.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
+                    print(self.temp_dir+self.case_name+'_source_shapefile.shp')
             # intersection of the source and sink/target shapefile
-            shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_target_shapefile.shp')
-            shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
+            if self.save_temp_shp:
+                shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_target_shapefile.shp')
+                shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
+            else:
+                shp_1 = target_shp_gpd
+                shp_2 = source_shp_gpd
             # correction of the source and target shapefile to frame of -180 to 180
-            shp_1 = self.shp_lon_correction(shp_1)
-            shp_2 = self.shp_lon_correction(shp_2)
-            shp_1.to_file(self.temp_dir+self.case_name+'_target_shapefile_corrected_frame.shp')
-            shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_corrected_frame.shp')
+            if self.correction_shp_lon:
+                shp_1 = self.shp_lon_correction(shp_1)
+                shp_2 = self.shp_lon_correction(shp_2)
+            if self.save_temp_shp:
+                shp_1.to_file(self.temp_dir+self.case_name+'_target_shapefile_corrected_frame.shp')
+                shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_corrected_frame.shp')
             # reprojections to equal area
             if (str(shp_1.crs).lower() == str(shp_2.crs).lower()) and ('epsg:4326' in str(shp_1.crs).lower()):
                 shp_1 = shp_1.to_crs ("EPSG:6933") # project to equal area
-                shp_1.to_file(self.temp_dir+self.case_name+'test.shp')
-                shp_1 = gpd.read_file(self.temp_dir+self.case_name+'test.shp')
                 shp_2 = shp_2.to_crs ("EPSG:6933") # project to equal area
-                shp_2.to_file(self.temp_dir+self.case_name+'test.shp')
-                shp_2 = gpd.read_file(self.temp_dir+self.case_name+'test.shp')
+                if self.save_temp_shp:
+                    shp_1.to_file(self.temp_dir+self.case_name+'test.shp')
+                    shp_1 = gpd.read_file(self.temp_dir+self.case_name+'test.shp')
+                    shp_2.to_file(self.temp_dir+self.case_name+'test.shp')
+                    shp_2 = gpd.read_file(self.temp_dir+self.case_name+'test.shp')
                 # remove test files
                 removeThese = glob.glob(self.temp_dir+self.case_name+'test.*')
                 for file in removeThese:
@@ -206,7 +206,8 @@ class easymore:
             shp_int = self.intersection_shp(shp_1, shp_2)
             shp_int = shp_int.sort_values(by=['S_1_ID_t']) # sort based on ID_t
             shp_int = shp_int.to_crs ("EPSG:4326") # project back to WGS84
-            shp_int.to_file(self.temp_dir+self.case_name+'_intersected_shapefile.shp') # save the intersected files
+            if self.save_temp_shp:
+                shp_int.to_file(self.temp_dir+self.case_name+'_intersected_shapefile.shp') # save the intersected files
             shp_int = shp_int.drop(columns=['geometry']) # remove the geometry
             # rename dictionary
             dict_rename = {'S_1_ID_t' : 'ID_t',
@@ -276,42 +277,42 @@ class easymore:
             if self.temp_dir[-1] != '/':
                 sys.exit('the provided temporary folder for EASYMORE should end with (/)')
             if not os.path.isdir(self.temp_dir):
-                os.mkdir(self.temp_dir)
+                os.makedirs(self.temp_dir)
         if self.output_dir == '':
             sys.exit('the provided folder for EASYMORE remapped netCDF output is missing; please provide that')
         if self.output_dir != '':
             if self.output_dir[-1] != '/':
                 sys.exit('the provided output folder for EASYMORE should end with (/)')
             if not os.path.isdir(self.output_dir):
-                os.mkdir(self.output_dir)
+                os.makedirs(self.output_dir)
         if self.temp_dir == '':
             print("No temporary folder is provided for EASYMORE; this will result in EASYMORE saving the files in the same directory as python script")
         if self.author_name == '':
-            print("no author name is provide and the author name is changed to (author name)!")
+            print("no author name is provided. The author name is changed to (author name)!")
             self.author_name = "author name"
         if (len(self.var_names) != 1) and (len(self.format_list) == 1) and (len(self.fill_value_list) ==1):
             if (len(self.var_names) != len(self.fill_value_list)) and \
             (len(self.var_names) != len(self.format_list)) and \
             (len(self.format_list) == 1) and (len(self.fill_value_list) ==1):
-                print('EASYMORE is given multiple varibales to be remapped but only on format and fill value'+\
-                    'EASYMORE repeat the format and fill value for all the variables in output files')
+                print('EASYMORE is given multiple variables for remapping but only on format and fill value. '+\
+                      'EASYMORE repeats the format and fill value for all the variables in output files')
                 self.format_list     = self.format_list     * len(self.var_names)
                 self.fill_value_list = self.fill_value_list * len(self.var_names)
             else:
-                sys.exit('number of varibales and fill values and formats do not match')
+                sys.exit('number of variables and fill values and formats do not match')
         if self.remap_csv != '':
-            print('remap file is provided; EASYMORE will use this file and skip calculation of remapping')
+            print('remap file is provided; EASYMORE will use this file and skip creation of remapping file')
         if len(self.var_names) != len(set(self.var_names)):
-            sys.exit('the name of the variables you have provided from the source NetCDF file to be remapped are not unique')
+            sys.exit('names of variables provided from the source NetCDF file to be remapped are not unique')
         if self.var_names_remapped:
             if len(self.var_names_remapped) != len(set(self.var_names_remapped)):
                 sys.exit('the name of the variables you have provided as the rename in the remapped file are not unique')
             if len(self.var_names_remapped) != len(self.var_names):
                 sys.exit('the number of provided variables from the source file and names to be remapped are not the same length')
-        if not self.var_names_remapped:
+        else:
             self.var_names_remapped = self.var_names
         for i in np.arange(len(self.var_names)):
-            print('EASYMORE will remap variable ',self.var_names[i],' from source file to variable ',self.var_names_remapped[i],' in remapped NeCDF file')
+            print('EASYMORE will remap variable ',self.var_names[i],' from source file to variable ',self.var_names_remapped[i],' in remapped netCDF file')
 
     def check_target_shp (self,shp):
         """
@@ -661,7 +662,7 @@ in dimensions of the varibales and latitude and longitude')
             lon = ncid.variables[self.var_lon][:]
             #print(lat, lon)
             if self.var_ID  == '':
-                print('EASYMORE detects that no varibale for ID of the source netCDF file; an arbitatiry ID will be provided')
+                print('EASYMORE detects that no variable for ID of the source netCDF file; an arbitatiry ID will be added')
                 ID =  np.arange(len(lat))+1 # pass arbitarary values
             else:
                 ID = ncid.variables[self.var_ID][:]
@@ -765,8 +766,10 @@ in dimensions of the varibales and latitude and longitude')
         """
 
         from   shapely.geometry import Polygon
+        import geopandas as gpd
 
-
+        # empty dataframe
+        df = pd.DataFrame()
         # get the lats and lons of surrounding grids
         df['Lat_Up_Left']   = lat [  :-2 ,   :-2].flatten()
         df['Lat_Left']      = lat [ 1:-1 ,   :-2].flatten()
@@ -1750,7 +1753,9 @@ to correct for lon above 180')
         # removing the geometry from the column names
         column_names.remove('geometry')
         # renaming the column with S_1
-        shp_1 = shp_1.add_prefix('S_1_')
+        column_names_new = ['S_1_' + s for s in column_names]
+        renaming = dict(zip(column_names, column_names_new))
+        shp_1.rename(columns = renaming, inplace=True)
         # Caclulate the area for shp1
         shp_1['AS1']  = shp_1.area
         shp_1['IDS1'] = np.arange(shp_1.shape[0])+1
@@ -1760,7 +1765,9 @@ to correct for lon above 180')
         # removing the geometry from the colomn names
         column_names.remove('geometry')
         # renaming the column with S_2
-        shp_2 = shp_2.add_prefix('S_2_')
+        column_names_new = ['S_2_' + s for s in column_names]
+        renaming = dict(zip(column_names, column_names_new))
+        shp_2.rename(columns = renaming, inplace=True)
         # Caclulate the area for shp2
         shp_2['AS2']  = shp_2.area
         shp_2['IDS2'] = np.arange(shp_2.shape[0])+1
@@ -1771,8 +1778,8 @@ to correct for lon above 180')
         result['AP1']  = result['AINT']/result['AS1']
         result['AP2']  = result['AINT']/result['AS2']
         # Calculate the normalized area for AP1 and AP2 to conserve mass
-        result['AP1N'] = df.groupby('IDS1')['AP1'].apply(lambda x: (x / x.sum()) )
-        result['AP2N'] = df.groupby('IDS2')['AP2'].apply(lambda x: (x / x.sum()) )
+        result['AP1N'] = result.groupby('IDS1')['AP1'].apply(lambda x: (x / x.sum()) )
+        result['AP2N'] = result.groupby('IDS2')['AP2'].apply(lambda x: (x / x.sum()) )
         # return
         return result
 
