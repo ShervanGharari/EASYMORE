@@ -50,6 +50,7 @@ class easymore:
         self.only_create_remap_csv     =  False # is true it does not remap any nc files
         self.save_temp_shp             =  True # if set to false does not save the temporary shapefile in the temp folder for large shapefiles
         self.correction_shp_lon        =  True # correct for -180 to 180 and 0 to 360 longitude
+        self.rescaledweights           =  True # if set true the weights are rescaled
         self.author_name               =  '' # name of the authour
         self.license                   =  '' # data license
         self.tolerance                 =  10**-5 # tolerance
@@ -141,39 +142,12 @@ class easymore:
                 print('EASYMORE will save target shapefile for EASYMORE claculation as:')
                 print(self.temp_dir+self.case_name+'_target_shapefile.shp')
                 target_shp_gpd.to_file(self.temp_dir+self.case_name+'_target_shapefile.shp') # save
-            # find the case
-            self.NetCDF_SHP_lat_lon()
-            # create the source shapefile for case 1 and 2 if shapefile is not provided
-            if (self.case == 1 or self.case == 2):
-                if (self.source_shp == ''):
-                    if self.case == 1 and hasattr(self, 'lat_expanded') and hasattr(self, 'lon_expanded'):
-                        source_shp_gpd = self.lat_lon_SHP(self.lat_expanded, self.lon_expanded,crs="epsg:4326")
-                    else:
-                        source_shp_gpd = self.lat_lon_SHP(self.lat, self.lon,crs="epsg:4326")
-                else:
-                    source_shp_gpd = gpd.read_file(self.source_shp)
-                    source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
-                                                                 self.source_shp_lon, self.source_shp_ID)
-                if self.save_temp_shp:
-                    source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
-                    print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
-                    print(self.temp_dir+self.case_name+'_source_shapefile.shp')
-            # if case 3
-            if (self.case == 3):
-                if (self.source_shp != ''): # source shapefile is provided
-                    self.check_source_nc_shp() # check the lat lon in soure shapefile and nc file
-                    source_shp_gpd = gpd.read_file(self.source_shp)
-                    source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
-                                                                 self.source_shp_lon, self.source_shp_ID)
-                if (self.source_shp == ''): # source shapefile is not provided goes for voronoi
-                    # Create the source shapefile using Voronio diagram
-                    print('EASYMORE detect that source shapefile is not provided for irregulat lat lon source NetCDF')
-                    print('EASYMORE will create the voronoi source shapefile based on the lat lon')
-                    source_shp_gpd = self.shp_from_irregular_nc (station_shp_file_name = self.temp_dir+self.case_name+'_source_shapefile_points.shp')
-                if self.save_temp_shp:
-                    source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
-                    print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
-                    print(self.temp_dir+self.case_name+'_source_shapefile.shp')
+            # create source shapefile
+            source_shp_gpd = self.create_source_shp()
+            if self.save_temp_shp:
+                source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
+                print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
+                print(self.temp_dir+self.case_name+'_source_shapefile.shp')
             # intersection of the source and sink/target shapefile
             if self.save_temp_shp:
                 shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_target_shapefile.shp')
@@ -239,6 +213,43 @@ class easymore:
             print('The remapping Located here: ', self.remap_csv)
         else:
             self.__target_nc_creation()
+
+
+    def create_source_shp(self):
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function creates a source shapefile for regular or rotated grid and Voronoi diagram from
+        source netCDF file
+        """
+        # find the case, 1: regular, 2: rotated, 3: irregular Voronoi diagram creation if not provided
+        self.NetCDF_SHP_lat_lon()
+        # create the source shapefile for case 1 and 2 if shapefile is not provided
+        if (self.case == 1 or self.case == 2):
+            if (self.source_shp == ''):
+                if self.case == 1 and hasattr(self, 'lat_expanded') and hasattr(self, 'lon_expanded'):
+                    source_shp_gpd = self.lat_lon_SHP(self.lat_expanded, self.lon_expanded,crs="epsg:4326")
+                else:
+                    source_shp_gpd = self.lat_lon_SHP(self.lat, self.lon,crs="epsg:4326")
+            else:
+                source_shp_gpd = gpd.read_file(self.source_shp)
+                source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
+                                                             self.source_shp_lon, self.source_shp_ID)
+        # if case 3
+        if (self.case == 3):
+            if (self.source_shp != ''): # source shapefile is provided
+                self.check_source_nc_shp() # check the lat lon in soure shapefile and nc file
+                source_shp_gpd = gpd.read_file(self.source_shp)
+                source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
+                                                             self.source_shp_lon, self.source_shp_ID)
+            if (self.source_shp == ''): # source shapefile is not provided goes for voronoi
+                # Create the source shapefile using Voronio diagram
+                print('EASYMORE detect that source shapefile is not provided for irregulat lat lon source NetCDF')
+                print('EASYMORE will create the voronoi source shapefile based on the lat lon')
+                source_shp_gpd = self.shp_from_irregular_nc (station_shp_file_name = self.temp_dir+self.case_name+'_source_shapefile_points.shp')
+        return source_shp_gpd
 
     def get_col_row(self):
         """
@@ -673,80 +684,6 @@ in dimensions of the varibales and latitude and longitude')
             self.lon = lon
             self.ID  = ID
 
-    # def lat_lon_SHP(self,
-    #                 lat,
-    #                 lon,
-    #                 file_name):
-    #     """
-    #     @ author:                  Shervan Gharari, Wouter Knoben
-    #     @ Github:                  https://github.com/ShervanGharari/EASYMORE
-    #     @ author's email id:       sh.gharari@gmail.com
-    #     @ license:                 GNU-GPLv3
-    #     This function creates a shapefile for the source netcdf file
-    #     Arguments
-    #     ---------
-    #     lat: the 2D matrix of lat_2D [n,m,]
-    #     lon: the 2D matrix of lon_2D [n,m,]
-    #     file_name: string, name of the file that the shapefile will be saved at
-    #     """
-    #     # check if lat/lon that are taken in has the same dimension
-    #     import geopandas as gpd
-    #     from   shapely.geometry import Polygon
-    #     import shapefile # pyshed library
-    #     import shapely
-    #     #
-    #     lat_lon_shape = lat.shape
-    #     # write the shapefile
-    #     with shapefile.Writer(file_name) as w:
-    #         w.autoBalance = 1 # turn on function that keeps file stable if number of shapes and records don't line up
-    #         w.field("ID_s",'N') # create (N)umerical attribute fields, integer
-    #         w.field("lat_s",'F',decimal=4) # float with 4 decimals
-    #         w.field("lon_s",'F',decimal=4) # float with 4 decimals
-    #         # preparing the m whcih is a couter for the shapefile arbitrary ID
-    #         m = 0.00
-    #         # itterating to create the shapes of the result shapefile ignoring the first and last rows and columns
-    #         for i in range(1, lat_lon_shape[0] - 1):
-    #             for j in range(1, lat_lon_shape[1] - 1):
-    #                 # checking is lat and lon is located inside the provided bo
-    #                 # empty the polygon variable
-    #                 parts = []
-    #                 # update records
-    #                 m += 1 # ID
-    #                 center_lat = lat[i,j] # lat value of data point in source .nc file
-    #                 center_lon = lon[i,j] # lon value of data point in source .nc file should be within [0,360]
-    #                 # Creating the lat of the shapefile
-    #                 Lat_Up       = (lat[i - 1, j] + lat[i, j]) / 2
-    #                 Lat_UpRright = (lat[i - 1, j] + lat[i - 1, j + 1] + lat[i, j + 1] + lat[i, j]) / 4
-    #                 Lat_Right    = (lat[i, j + 1] + lat[i, j]) / 2
-    #                 Lat_LowRight = (lat[i, j + 1] + lat[i + 1, j + 1] + lat[i + 1, j] + lat[i, j]) / 4
-    #                 Lat_Low      = (lat[i + 1, j] + lat[i, j]) / 2
-    #                 Lat_LowLeft  = (lat[i, j - 1] + lat[i + 1, j - 1] + lat[i + 1, j] + lat[i, j]) / 4
-    #                 Lat_Left     = (lat[i, j - 1] + lat[i, j]) / 2
-    #                 Lat_UpLeft   = (lat[i - 1, j - 1] + lat[i - 1, j] + lat[i, j - 1] + lat[i, j]) / 4
-    #                 # Creating the lon of the shapefile
-    #                 Lon_Up       = (lon[i - 1, j] + lon[i, j]) / 2
-    #                 Lon_UpRright = (lon[i - 1, j] + lon[i - 1, j + 1] + lon[i, j + 1] + lon[i, j]) / 4
-    #                 Lon_Right    = (lon[i, j + 1] + lon[i, j]) / 2
-    #                 Lon_LowRight = (lon[i, j + 1] + lon[i + 1, j + 1] + lon[i + 1, j] + lon[i, j]) / 4
-    #                 Lon_Low      = (lon[i + 1, j] + lon[i, j]) / 2
-    #                 Lon_LowLeft  = (lon[i, j - 1] + lon[i + 1, j - 1] + lon[i + 1, j] + lon[i, j]) / 4
-    #                 Lon_Left     = (lon[i, j - 1] + lon[i, j]) / 2
-    #                 Lon_UpLeft   = (lon[i - 1, j - 1] + lon[i - 1, j] + lon[i, j - 1] + lon[i, j]) / 4
-    #                 # creating the polygon given the lat and lon
-    #                 parts.append([ (Lon_Up,        Lat_Up),\
-    #                                (Lon_UpRright,  Lat_UpRright), \
-    #                                (Lon_Right,     Lat_Right), \
-    #                                (Lon_LowRight,  Lat_LowRight), \
-    #                                (Lon_Low,       Lat_Low), \
-    #                                (Lon_LowLeft,   Lat_LowLeft), \
-    #                                (Lon_Left,      Lat_Left), \
-    #                                (Lon_UpLeft,    Lat_UpLeft), \
-    #                                (Lon_Up,        Lat_Up)])
-    #                 # store polygon
-    #                 w.poly(parts)
-    #                 # update records/fields for the polygon
-    #                 w.record(m, center_lat, center_lon)
-
     def lat_lon_SHP(self,
                     lat,
                     lon,
@@ -1028,7 +965,7 @@ in dimensions of the varibales and latitude and longitude')
         # pass to class
         return rows, cols
 
-    def check_easymore_remap(  self,
+    def check_easymore_remap(self,
                              remap_df):
         """
         @ author:                  Shervan Gharari
@@ -1078,6 +1015,7 @@ in dimensions of the varibales and latitude and longitude')
         """
         print('------REMAPPING------')
         remap = pd.read_csv(self.remap_csv)
+        remap = remap.apply(pd.to_numeric, errors='coerce') # convert non numeric to NaN
         # creating the target_ID_lat_lon
         target_ID_lat_lon = pd.DataFrame()
         target_ID_lat_lon ['ID_t']  = remap ['ID_t']
@@ -1201,6 +1139,7 @@ in dimensions of the varibales and latitude and longitude')
                     var_value  = self.__weighted_average( nc_name,
                                                           target_date_times,
                                                           self.var_names[i],
+                                                          self.fill_value_list[i],
                                                           remap)
                     # Variables writing
                     varid = ncid.createVariable(self.var_names_remapped[i], \
@@ -1264,6 +1203,7 @@ in dimensions of the varibales and latitude and longitude')
                            nc_name,
                            target_time,
                            varibale_name,
+                           fill_value,
                            mapping_df):
         """
         @ author:                  Shervan Gharari
@@ -1299,11 +1239,32 @@ in dimensions of the varibales and latitude and longitude')
             if self.case ==3:
                 values = data [self.rows]
             values = np.array(values)
-            # add values to data frame, weighted average and pass to data frame again
+            # add values to data frame
             mapping_df['values'] = values
-            mapping_df['values_w'] = mapping_df['weight']*mapping_df['values']
-            df_temp = mapping_df.groupby(['order_t'],as_index=False).agg({'values_w': 'sum'})
-            df_temp = df_temp.sort_values(by=['order_t'])
+            # replace non-numeric or np.nan with NaN
+            mapping_df['values'] = pd.to_numeric(mapping_df['values'], errors='coerce')
+            # if there are NaN values then rescale the weights if needed
+            if self.rescaledweights and mapping_df['values'].isna().any():
+                sum_weights = mapping_df.loc[~mapping_df['values'].isna(), 'weight'].sum() # sum of weights
+                mapping_df['Rweight'] = np.where(mapping_df['values'].isna(),
+                                                 np.nan,
+                                                 mapping_df['weight'] / sum_weights)
+                mapping_df['Rweight'] = mapping_df.groupby('order_t')['Rweight'].transform(
+                    lambda x: x / x.sum() if x.notna().any() else np.nan)
+                mapping_df['values_w'] = mapping_df['Rweight']*mapping_df['values']
+                df_temp = mapping_df.groupby(['order_t'],as_index=False).agg({'values_w': lambda x: np.nan if all(np.isnan(x)) else x.sum()})
+                df_temp = df_temp.sort_values(by=['order_t'])
+                df_temp['values_w'].fillna(fill_value, inplace=True)
+            else: # no np.nan then no rescaling is needed
+                mapping_df['values_w'] = mapping_df['weight']*mapping_df['values']
+                if mapping_df['weight'].isna().any():
+                    df_temp = mapping_df.groupby(['order_t'],as_index=False).agg({'values_w': lambda x: np.nan if all(np.isnan(x)) else x.sum()}) # test
+                else:
+                    df_temp = mapping_df.groupby(['order_t'],as_index=False).agg({'values_w': 'sum'})
+                #df_temp = mapping_df.groupby(['order_t'],as_index=False).agg({'values_w': lambda x: np.nan if all(np.isnan(x)) else x.sum()}) # test
+                df_temp = df_temp.sort_values(by=['order_t'])
+                df_temp['values_w'].fillna(fill_value, inplace=True)
+            # reweigths and calculats
             weighted_value [m,:] = np.array(df_temp['values_w'])
             m += 1
         return weighted_value
@@ -1783,37 +1744,6 @@ to correct for lon above 180')
         # return
         return result
 
-        # TO BE REMOVED
-        # for i in range(len(column_names)):
-        #     shp_2 = shp_2.rename(
-        #         columns={column_names[i]: 'S_2_' + column_names[i]})
-
-        # for i in range(len(column_names)):
-        #     shp_1 = shp_1.rename(
-        #         columns={column_names[i]: 'S_1_' + column_names[i]})
-
-        # # taking the part of data frame as the numpy to incread the spead
-        # # finding the IDs from shapefile one
-        # ID_S1 = np.array (result['IDS1'])
-        # AP1 = np.array(result['AP1'])
-        # AP1N = AP1 # creating the nnormalized percent area
-        # ID_S1_unique = np.unique(ID_S1) #unique idea
-        # for i in ID_S1_unique:
-        #     INDX = np.where(ID_S1==i) # getting the indeces
-        #     AP1N[INDX] = AP1[INDX] / AP1[INDX].sum() # normalizing for that sum
-        # # taking the part of data frame as the numpy to incread the spead
-        # # finding the IDs from shapefile one
-        # ID_S2 = np.array (result['IDS2'])
-        # AP2 = np.array(result['AP2'])
-        # AP2N = AP2 # creating the nnormalized percent area
-        # ID_S2_unique = np.unique(ID_S2) #unique idea
-        # for i in ID_S2_unique:
-        #     INDX = np.where(ID_S2==i) # getting the indeces
-        #     AP2N[INDX] = AP2[INDX] / AP2[INDX].sum() # normalizing for that sum
-        # result ['AP1N'] = AP1N
-        # result ['AP2N'] = AP2N
-
-
     def spatial_overlays(self,
                          df1,
                          df2,
@@ -2193,7 +2123,6 @@ to correct for lon above 180')
         import os
         import numpy               as      np
         from   datetime            import  datetime
-        from   easymore.easymore   import  easymore
         import sys
 
         font = {'family' :  font_family,
