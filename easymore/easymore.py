@@ -17,21 +17,21 @@ import json
 class easymore:
 
     def __init__(self):
-        self.delet_attr()                 # remove the existing varibales
+        self.delet_attr()                 # remove the existing variables
         self.case_name                 =  'case_temp' # name of the case
         self.target_shp                =  '' # sink/target shapefile
         self.target_shp_ID             =  '' # name of the column ID in the sink/target shapefile
         self.target_shp_lat            =  '' # name of the column latitude in the sink/target shapefile
         self.target_shp_lon            =  '' # name of the column longitude in the sink/target shapefile
         self.source_nc                 =  '' # name of nc file to be remapped
-        self.var_names                 =  [] # list of varibale names to be remapped from the source NetCDF file
-        self.var_lon                   =  '' # name of varibale longitude in the source NetCDF file
-        self.var_lat                   =  '' # name of varibale latitude in the source NetCDF file
-        self.var_time                  =  'time' # name of varibale time in the source NetCDF file
+        self.var_names                 =  [] # list of variable names to be remapped from the source NetCDF file
+        self.var_lon                   =  '' # name of variable longitude in the source NetCDF file
+        self.var_lat                   =  '' # name of variable latitude in the source NetCDF file
+        self.var_time                  =  'time' # name of variable time in the source NetCDF file
         self.var_ID                    =  '' # name of variable ID in the source NetCDF file
         self.var_station               =  '' # name of variable station in the source NetCDF file
-        self.var_names_remapped        =  [] # list of varibale names that will be replaced in the remapped file
-        self.skip_check_all_source_nc  =  False # if set to True only first file will be check for varibales and dimensions and not the all the files (recommneded not to change)
+        self.var_names_remapped        =  [] # list of variable names that will be replaced in the remapped file
+        self.skip_check_all_source_nc  =  False # if set to True only first file will be check for variables and dimensions and not the all the files (recommneded not to change)
         self.source_shp                =  '' # name of source shapefile (essential for case-3)
         self.source_shp_lat            =  '' # name of column latitude in the source shapefile
         self.source_shp_lon            =  '' # name of column longitude in the source shapefile
@@ -48,9 +48,12 @@ class easymore:
         self.fill_value_list           =  ['-9999'] # missing values set to -9999
         self.remap_csv                 =  '' # name of the remapped file if provided
         self.only_create_remap_csv     =  False # is true it does not remap any nc files
+        self.clip_source_shp           =  True # the source shapefile is clipped to the domain of target shapefile to increase intersection speed
+        self.buffer_clip_source_shp    =  2  # 2 degrees for buffer to clip the source shapefile based on target shapefile
         self.save_temp_shp             =  True # if set to false does not save the temporary shapefile in the temp folder for large shapefiles
         self.correction_shp_lon        =  True # correct for -180 to 180 and 0 to 360 longitude
         self.rescaledweights           =  True # if set true the weights are rescaled
+        self.skip_outside_shape        =  False # if set to True it will not carry the nan values for shapes that are outside the source netCDF geographical domain
         self.author_name               =  '' # name of the authour
         self.license                   =  '' # data license
         self.tolerance                 =  10**-5 # tolerance
@@ -98,7 +101,7 @@ class easymore:
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
-        This function take a dict_name and populate the varibales needed to be initialized for EASYMORE
+        This function take a dict_name and populate the variables needed to be initialized for EASYMORE
         """
         if isinstance(dict_name, str): # read the file is string is provided
             dictionary = self.read_config_dict(dict_name)
@@ -162,6 +165,18 @@ class easymore:
             if self.save_temp_shp:
                 shp_1.to_file(self.temp_dir+self.case_name+'_target_shapefile_corrected_frame.shp')
                 shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_corrected_frame.shp')
+            # clip to the region of the target shapefile to speed up the intersection
+            if self.clip_source_shp:
+                min_lon, min_lat, max_lon, max_lat = shp_1.total_bounds
+                min_lon, min_lat, max_lon, max_lat = min_lon - self.buffer_clip_source_shp, min_lat - self.buffer_clip_source_shp,\
+                                                     max_lon + self.buffer_clip_source_shp, max_lat + self.buffer_clip_source_shp
+                shp_2 = shp_2[(shp_2['lat_s']<max_lat) & (shp_2['lat_s']>min_lat) & (shp_2['lon_s']<max_lon) & (shp_2['lon_s']>min_lon)]
+                shp_2.reset_index(drop=True, inplace=True)
+                if self.save_temp_shp:
+                    if self.correction_shp_lon:
+                        shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_corrected_frame_clipped.shp')
+                    else:
+                        shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_clipped.shp')
             # reprojections to equal area
             if (str(shp_1.crs).lower() == str(shp_2.crs).lower()) and ('epsg:4326' in str(shp_1.crs).lower()):
                 shp_1 = shp_1.to_crs ("EPSG:6933") # project to equal area
@@ -177,12 +192,30 @@ class easymore:
                     os.remove(file)
             else:
                 sys.exit('The projection for source and target shapefile are not WGS84, please revise, assign')
+
             shp_int = self.intersection_shp(shp_1, shp_2)
             shp_int = shp_int.sort_values(by=['S_1_ID_t']) # sort based on ID_t
             shp_int = shp_int.to_crs ("EPSG:4326") # project back to WGS84
             if self.save_temp_shp:
                 shp_int.to_file(self.temp_dir+self.case_name+'_intersected_shapefile.shp') # save the intersected files
             shp_int = shp_int.drop(columns=['geometry']) # remove the geometry
+            # compare shp_1 or target shapefile with intersection to see if all the shape exists in intersection
+            order_values_shp_1   = np.unique(np.array(shp_1['S_1_order']))
+            order_values_shp_int = np.unique(np.array(shp_int['S_1_order']))
+            diff = np.setdiff1d(order_values_shp_1, order_values_shp_int)
+            if not (diff.shape == 0) and not (self.skip_outside_shape): # not all the elements of target shapefile are in intersection
+                shp_1_not_int = shp_1[shp_1['S_1_order'].isin(diff)]
+                shp_1_not_int.plot()
+                shp_1_not_int = shp_1_not_int.drop(columns=['geometry']) # remove the geometry
+                shp_1_not_int['S_2_lat_s'] = 0.00 # assign random lat, no influence as weight is non existing in shp_int
+                shp_1_not_int['S_2_lon_s'] = 0.00 # assign random lon, no influence as weight if non existing in shp_int
+                shp_int = pd.concat([shp_int, shp_1_not_int],axis=0) # contact the shp_int and shapes that are not intersected
+                print('Warning: There are shapes that are outside the boundaries of the provided netCDF file. Those shapes '+\
+                      'this will reduce the speed of remapping of the source to remaped netCDF file '+\
+                      'to increase the speed you should make sure that target shapefile is within the boundary of provided '+\
+                      'netCDF file or set the easymore flag of skip_outside_shape to True.'+\
+                      'this flag ensures the shapes that are outside of the netCDF domain are not transfered as nan to remapped '+\
+                      'netCDF files')
             # rename dictionary
             dict_rename = {'S_1_ID_t' : 'ID_t',
                            'S_1_lat_t': 'lat_t',
@@ -426,7 +459,7 @@ class easymore:
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
-        This function checks the consistency of the dimentions and varibales for source netcdf file(s)
+        This function checks the consistency of the dimentions and variables for source netcdf file(s)
         """
         flag_do_not_match = False
         nc_names = sorted(glob.glob (self.source_nc))
@@ -437,8 +470,8 @@ class easymore:
             # check the first file and not all the consistancy of all the files to the first file
             if self.skip_check_all_source_nc and len(nc_names)>1:
                 nc_names = [nc_names[0]]
-                print('EASYMORE only check the first of source netcdf files for consistency of varibales and dimensions '+\
-                      'and assume other netcdf source files are consistent with the first file: ', nc_names[0])
+                print('EASYMORE only checks the first of source netcdf files for consistency of variables and dimensions '+\
+                      'and assumes other netcdf source files are consistent with the first file: ', nc_names[0])
             # continue checking
             ncid      = nc4.Dataset(nc_names[0])
             var_dim   = list(ncid.variables[self.var_names[0]].dimensions)
@@ -487,7 +520,7 @@ class easymore:
                     flag_do_not_match = True
             # dimension check consistancy for variables to be remapped
             for var_name in self.var_names:
-                # get the varibale information of lat, lon and dimensions of the varibale.
+                # get the variable information of lat, lon and dimensions of the variable.
                 for nc_name in nc_names:
                     ncid = nc4.Dataset(nc_name)
                     temp = list(ncid.variables[var_name].dimensions)
@@ -498,26 +531,26 @@ class easymore:
                         for i in np.arange(len(temp)):
                             if temp[i] != var_dim[i]:
                                 flag_do_not_match = True
-            # check varibale time and dimension time are the same name so time is coordinate
+            # check variable time and dimension time are the same name so time is coordinate
             for nc_name in nc_names:
                 ncid = nc4.Dataset(nc_name)
                 temp = ncid.variables[self.var_time].dimensions
                 if len(temp) != 1:
-                    sys.exit('EASYMORE expects 1D time varibale, it seems time varibales has more than 1 dimension')
+                    sys.exit('EASYMORE expects 1D time variable, it seems time variables has more than 1 dimension')
                 if str(temp[0]) != self.var_time:
-                    sys.exit('EASYMORE expects time varibale and dimension to be different, they should be the same\
+                    sys.exit('EASYMORE expects time variable and dimension to be different, they should be the same\
                     for xarray to consider time dimension as coordinates')
         if flag_do_not_match:
-            sys.exit('EASYMORE detects that all the provided netCDF files and varibale \
-has different dimensions for the varibales or latitude and longitude')
+            sys.exit('EASYMORE detects that all the provided netCDF files and variables \
+has different dimensions for the variables or latitude and longitude')
         else:
-            print('EASYMORE detects that the varibales from the netCDF files are identical\
-in dimensions of the varibales and latitude and longitude')
-            print('EASYMORE detects that all the varibales have dimensions of:')
+            print('EASYMORE detects that the variables from the netCDF files are identical\
+in dimensions of the variables and latitude and longitude')
+            print('EASYMORE detects that all the variables have dimensions of:')
             print(var_dim)
-            print('EASYMORE detects that the longitude varibales has dimensions of:')
+            print('EASYMORE detects that the longitude variables has dimensions of:')
             print(lon_dim)
-            print('EASYMORE detects that the latitude varibales has dimensions of:')
+            print('EASYMORE detects that the latitude variables has dimensions of:')
             print(lat_dim)
 
     def check_source_nc_shp (self):
@@ -538,10 +571,10 @@ in dimensions of the varibales and latitude and longitude')
         multi_source = False
         nc_names = glob.glob (self.source_nc)
         ncid = nc4.Dataset(nc_names[0])
-        # sink/target shapefile is what we want the varibales to be remapped to
+        # sink/target shapefile is what we want the variables to be remapped to
         shp = gpd.read_file(self.source_shp)
         if 'epsg:4326' not in str(shp.crs).lower():
-            sys.exit('please project your source shapefile and varibales in source nc files to WGS84 (epsg:4326)')
+            sys.exit('please project your source shapefile and variables in source nc files to WGS84 (epsg:4326)')
         else: # check if the projection is WGS84 (or epsg:4326)
             print('EASYMORE detects that source shapefile is in WGS84 (epsg:4326)')
         # get the lat/lon from source shapfile and nc files
@@ -596,7 +629,7 @@ in dimensions of the varibales and latitude and longitude')
         (len(ncid.variables[self.var_names[0]].dimensions)==3):
             print('EASYMORE detects case 1 - regular lat/lon')
             self.case = 1
-            # get the list of dimensions for the ncid sample varibale
+            # get the list of dimensions for the ncid sample variable
             list_dim_name = list(ncid.variables[self.var_names[0]].dimensions)
             # get the location of lat dimensions
             location_of_lat = list_dim_name.index(list(ncid.variables[self.var_lat].dimensions)[0])
@@ -1065,11 +1098,11 @@ in dimensions of the varibales and latitude and longitude')
             if 'units' in ncids.variables[self.var_time].ncattrs():
                 time_unit = ncids.variables[self.var_time].units
             else:
-                sys.exit('units is not provided for the time varibale for source NetCDF of'+ nc_name)
+                sys.exit('units is not provided for the time variable for source NetCDF of'+ nc_name)
             if 'calendar' in ncids.variables[self.var_time].ncattrs():
                 time_cal = ncids.variables[self.var_time].calendar
             else:
-                sys.exit('calendar is not provided for the time varibale for source NetCDF of'+ nc_name)
+                sys.exit('calendar is not provided for the time variable for source NetCDF of'+ nc_name)
             time_var = ncids[self.var_time][:]
             self.length_of_time = len(time_var)
             target_date_times = nc4.num2date(time_var,units = time_unit,calendar = time_cal)
@@ -1127,7 +1160,7 @@ in dimensions of the varibales and latitude and longitude')
                 ncid.License = self.license
                 ncid.History = 'Created ' + time.ctime(time.time())
                 ncid.Source = 'Case: ' +self.case_name + '; remapped by script from library of Shervan Gharari (https://github.com/ShervanGharari/EASYMORE).'
-                # write varibales
+                # write variables
                 # check chunking choice
                 if self.remapped_chunk_size == None:
                     chunk_sizes = None # Use netCDF4 default values, i.e. (1,n) chunk lengths for (unlimited,limited) dimensions, where n is the length of the limited dim
@@ -1165,7 +1198,7 @@ in dimensions of the varibales and latitude and longitude')
                     df = pd.DataFrame(data=np.array(ds[self.var_names_remapped[i]]), columns=column_name)
                     # df ['time'] = ds.time
                     df.insert(loc=0, column='time', value=ds.time)
-                    # get the unit for the varibale if exists
+                    # get the unit for the variable if exists
                     unit_name = ''
                     if 'units' in ds[self.var_names_remapped[i]].attrs.keys():
                         unit_name = ds[self.var_names_remapped[i]].attrs['units']
@@ -1202,7 +1235,7 @@ in dimensions of the varibales and latitude and longitude')
     def __weighted_average(self,
                            nc_name,
                            target_time,
-                           varibale_name,
+                           variable_name,
                            fill_value,
                            mapping_df):
         """
@@ -1215,7 +1248,7 @@ in dimensions of the varibales and latitude and longitude')
         ---------
         nc_name: string, name of the netCDF file
         target_time: string,
-        varibale_name: string, name of varibale from source netcsf file to be remapped
+        variable_name: string, name of variable from source netcsf file to be remapped
         mapping_df: pandas dataframe, including the row and column of the source data and weight
         Returns
         -------
@@ -1223,7 +1256,7 @@ in dimensions of the varibales and latitude and longitude')
         """
         # open dataset
         ds = xr.open_dataset(nc_name)
-        # rename time varibale to time
+        # rename time variable to time
         if self.var_time != 'time':
             ds = ds.rename({self.var_time:'time'})
         # prepared the numpy array for ouptut
@@ -1231,7 +1264,7 @@ in dimensions of the varibales and latitude and longitude')
         m = 0 # counter
         for date in target_time: # loop over time
             ds_temp = ds.sel(time=date.strftime("%Y-%m-%d %H:%M:%S"),method="nearest")
-            data = np.array(ds_temp[varibale_name])
+            data = np.array(ds_temp[variable_name])
             data = np.squeeze(data)
             # get values from the rows and cols and pass to np data array
             if self.case ==1 or self.case ==2:
@@ -1503,8 +1536,8 @@ to correct for lon above 180')
         nc_file_path: the path to where the nc file will be saved, string
         data_frame_DateTime_column: in case data_frame is path to csv file then column data_frame_DateTime_column should be provided, string
         variable_name: name of variable name to be saved in nc file, string
-        unit_of_variable: unit of varibale name to be saved in nc file, string
-        variable_long_name: varibale long name to be saved in nc file, string
+        unit_of_variable: unit of variable name to be saved in nc file, string
+        variable_long_name: variable long name to be saved in nc file, string
         Fill_value: fill value to be saved in nc file, string
         station_info_data: pandas dataframe or path to csv file including the information of stations or grid for data_frame
         station_info_column: the column that include the information of station from station_info_data, string
@@ -2132,7 +2165,6 @@ to correct for lon above 180')
 
         #
         colorbar_do_not_exists = True
-
         # initializing EASYMORE object and find the case of source netcdf file
         # check of the source_nc_names is string and doesnt have * in it
         if isinstance(source_nc_name, str):
@@ -2152,10 +2184,8 @@ to correct for lon above 180')
         remapped_nc_exists = False
         if remapped_nc_name:
             remapped_nc_exists = True
-
         # deciding the case
         self.NetCDF_SHP_lat_lon() # to find the case and lat/lon
-
         #
         ds_source = xr.open_dataset(source_nc_name) # source
         if source_shp_name:
@@ -2172,14 +2202,12 @@ to correct for lon above 180')
         time_stamp = df_slice['timestamp']
         print('the closest time step to what is provided for vizualization ', time_step_of_viz,\
               ' is ', time_stamp)
-
         # load the data and get the max and min values of remppaed file for the taarget variable
         max_value = ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest').max().item() # get the max of remapped
         min_value = ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest').min().item() # get the min of remapped
         print('min: {}, max: {} for variable: {} in source nc file for the time step: {}'.format(\
             min_value, max_value, source_nc_var_name, time_stamp))
-
-        # check if remapped file exists and check the time varibales to source nc file
+        # check if remapped file exists and check the time variables to source nc file
         if remapped_nc_exists:
             ds_remapped = xr.open_dataset(remapped_nc_name) # the remap of above
             # check if the times are identical in source and remapped
@@ -2195,7 +2223,6 @@ to correct for lon above 180')
             shp_target = gpd.read_file(shp_target_name) # load the target shapefile
             if (min_lon is None) or (min_lat is None) or (max_lon is None) or (max_lat is None):
                 min_lon, min_lat, max_lon, max_lat = shp_target.total_bounds
-
         # correct min and max if the are given
         if min_value_colorbar:
             min_value = min_value_colorbar
@@ -2203,10 +2230,8 @@ to correct for lon above 180')
         if max_value_colorbar:
             max_value = max_value_colorbar
             print('max values for colorbar is provided as: ',max_value)
-
         # visualize
         fig, ax = plt.subplots(figsize=fig_size)
-
         if (self.case == 1 or self.case ==2) and show_source_flag:
             ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest').plot.pcolormesh(x=source_nc_var_lon,
                                                                 y=source_nc_var_lat,
@@ -2217,7 +2242,6 @@ to correct for lon above 180')
                                                                 vmax=max_value,
                                                                 alpha=alpha_source)
             colorbar_do_not_exists = False
-
         if self.case == 3 and show_source_flag:
             # dataframe
             df = pd.DataFrame()
@@ -2225,12 +2249,10 @@ to correct for lon above 180')
             df ['value'] = ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest') # assumes times is first
             df = df.sort_values(by=['ID'])
             df = df.reset_index(drop=True)
-
             # shapefile
             shp_source = shp_source[shp_source[source_shp_field_ID].isin(df['ID'])]
             shp_source = shp_source.sort_values(by=[source_shp_field_ID])
             shp_source = shp_source.reset_index(drop=True)
-
             # pass the values from datarame to geopandas and visuazlie
             shp_source ['value'] = df ['value']
             shp_source.plot(column= 'value',
@@ -2241,7 +2263,6 @@ to correct for lon above 180')
                             vmin=min_value,
                             vmax=max_value,
                             alpha=alpha_source)
-
             if add_colorbar_flag:
                 # provide the time and date and other parameters
                 ax.set_title('time: '+time_stamp)
@@ -2255,7 +2276,6 @@ to correct for lon above 180')
                 else:
                     cbar.ax.set_ylabel(remapped_nc_var_name)
                 colorbar_do_not_exists = False
-
         if remapped_nc_exists:
             if show_remapped_values_flag:
                 show_target_shp_flag = False
@@ -2268,12 +2288,10 @@ to correct for lon above 180')
                 df ['value'] = ds_remapped[remapped_nc_var_name].sel(time=time_stamp,method='nearest')
                 df = df.sort_values(by=['ID'])
                 df = df.reset_index(drop=True)
-
                 # shapefile
                 shp_target = shp_target[shp_target[shp_target_filed_ID].isin(df['ID'])]
                 shp_target = shp_target.sort_values(by=[shp_target_filed_ID])
                 shp_target = shp_target.reset_index(drop=True)
-
                 # pass the values from datarame to geopandas and visuazlie
                 shp_target ['value'] = df ['value']
                 shp_target.plot(column= 'value',
@@ -2296,14 +2314,11 @@ to correct for lon above 180')
                     cbar.ax.set_ylabel(remapped_nc_var_name+' ['+unit_name+']')
                 else:
                     cbar.ax.set_ylabel(remapped_nc_var_name)
-
         #
         if min_lat and min_lon and max_lat and max_lon:
             ax.set_ylim([min_lat-margin,max_lat+margin])
             ax.set_xlim([min_lon-margin,max_lon+margin])
-
-        # print(min max lat lon)
-        # print('min_lon, min_lat, max_lon, max_lat', min_lon, min_lat, max_lon, max_lat)
+        #
         print('min_lon:{}, min_lat:{}, max_lon:{}, max_lat:{}'.format(min_lon, min_lat, max_lon, max_lat))
 
         # create the folder to save

@@ -69,11 +69,10 @@ setup(
         'geopandas',
         'shapely',
         'pyshp',
-        'pysheds',
         'gdal'+get_installed_gdal_version(),
         'geovoronoi',
         'json5',
-        'rasterio',
+        'matplotlib',
         'rtree'
     ],
     packages=find_packages(),
