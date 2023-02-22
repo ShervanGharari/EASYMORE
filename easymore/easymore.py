@@ -142,15 +142,15 @@ class easymore:
             target_shp_gpd = self.check_target_shp(target_shp_gpd)
             # save the standard target shapefile
             if self.save_temp_shp:
-                print('EASYMORE will save target shapefile for EASYMORE claculation as:')
-                print(self.temp_dir+self.case_name+'_target_shapefile.shp')
                 target_shp_gpd.to_file(self.temp_dir+self.case_name+'_target_shapefile.shp') # save
+                print('EASYMORE saved target shapefile for EASYMORE claculation as:')
+                print(self.temp_dir+self.case_name+'_target_shapefile.shp')
             # create source shapefile
             source_shp_gpd = self.create_source_shp()
             if self.save_temp_shp:
                 source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
-                print('EASYMORE is creating the shapefile from the netCDF file and saving it here:')
                 print(self.temp_dir+self.case_name+'_source_shapefile.shp')
+                print('EASYMORE created the shapefile from the netCDF file and saved it here:')
             # intersection of the source and sink/target shapefile
             if self.save_temp_shp:
                 shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_target_shapefile.shp')
@@ -159,9 +159,20 @@ class easymore:
                 shp_1 = target_shp_gpd
                 shp_2 = source_shp_gpd
             # correction of the source and target shapefile to frame of -180 to 180
-            if self.correction_shp_lon:
-                shp_1 = self.shp_lon_correction(shp_1)
-                shp_2 = self.shp_lon_correction(shp_2)
+            min_lon_t, min_lat_t, max_lon_t, max_lat_t = shp_1.total_bounds # target
+            min_lon_s, min_lat_s, max_lon_s, max_lat_s = shp_2.total_bounds # source
+            if not ((min_lon_s<min_lon_t) and (max_lon_s>max_lon_t) and \
+                    (min_lat_s<min_lat_t) and (max_lat_s>max_lat_t)): # heck if taret is not in source
+                print('EASMORE detects that target shapefile is outside the boundary of source netCDF file ',
+                      'and therefore correction for longitude values -180 to 180 or 0 to 360 if correction_shp_lon ',
+                      'flag is set to True [default is True]')
+                if self.correction_shp_lon:
+                    shp_1 = self.shp_lon_correction(shp_1)
+                    shp_2 = self.shp_lon_correction(shp_2)
+            else: # it target is in source
+                print('EASMORE detects that target shapefile is inside the boundary of source netCDF file ',
+                      'and therefore correction for longitude values -180 to 180 or 0 to 360 is not performed even if ',
+                      'the correction_shp_lon flag is set to True [default is True]')
             if self.save_temp_shp:
                 shp_1.to_file(self.temp_dir+self.case_name+'_target_shapefile_corrected_frame.shp')
                 shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_corrected_frame.shp')
@@ -192,8 +203,10 @@ class easymore:
                     os.remove(file)
             else:
                 sys.exit('The projection for source and target shapefile are not WGS84, please revise, assign')
-
+            # intersection
+            warnings.simplefilter('ignore')
             shp_int = self.intersection_shp(shp_1, shp_2)
+            warnings.simplefilter('default')
             shp_int = shp_int.sort_values(by=['S_1_ID_t']) # sort based on ID_t
             shp_int = shp_int.to_crs ("EPSG:4326") # project back to WGS84
             if self.save_temp_shp:
@@ -1514,10 +1527,10 @@ to correct for lon above 180')
 
     def dataframe_to_netcdf_xr (self,
                                 data_frame,
-                                nc_file_name,
+                                nc_file_name = None,
                                 nc_file_path = None,
                                 data_frame_DateTime_column = None,
-                                variable_name = 'values',
+                                variable_name = 'variable',
                                 variable_dim_name = 'n',
                                 unit_of_variable = None,
                                 variable_long_name = None,
@@ -1569,7 +1582,7 @@ to correct for lon above 180')
         # preparation of dataset_info
         # encoding for station info
         encoding = {}
-        if station_info_data:
+        if not (station_info_data is None):
             if not station_info_column:
                 sys.exit('The station name column should be provided')
             if isinstance(station_info_data, pd.DataFrame):
@@ -1584,13 +1597,17 @@ to correct for lon above 180')
                 sys.exit('The station info data input type is not recognized')
             station_info_data = station_info_data.set_index(station_info_column)
             station_info_data = station_info_data.rename_axis(index=None)
-
             # check if all station info info is exsiting in the station info
             if set(list(data_frame.columns)) <= set(list(station_info_data.columns)):
                 print('EASYMORE detects that the necessary information for the station are provided')
             else:
-                sys.exit('EASYMORE detects the data frame provided for data, columns names, '+\
-                        'are partly missing in the station information')
+                # try tranposing the station info
+                station_info_data = station_info_data.transpose()
+                if set(list(data_frame.columns)) <= set(list(station_info_data.columns)):
+                    print('EASYMORE detects that the necessary information for the station are provided with transpose')
+                else:
+                    sys.exit('EASYMORE detects the data frame provided for data, columns names, '+\
+                             'are partly missing in the station information')
             # subset the station infromation for the provided data
             station_info_data = station_info_data [station_info_data.columns.intersection(list(data_frame.columns))]
             data_frame = data_frame[list(station_info_data.columns)] # reorder columns to match station into
@@ -1642,14 +1659,17 @@ to correct for lon above 180')
             temp = {variable_name:{'dtype': 'object'}}
         print(temp)
 
-        # create the path
-        if nc_file_path:
-            if (not os.path.isdir(nc_file_path)):
-                os.makedirs(nc_file_path)
-            nc_file_name = nc_file_path+nc_file_name
-        # save the file
-        data.to_netcdf(nc_file_name, encoding=temp)
-        print("EASYMORE saved the nc file here: ",nc_file_name)
+        if nc_file_name:
+            # create the path
+            if nc_file_path:
+                if (not os.path.isdir(nc_file_path)):
+                    os.makedirs(nc_file_path)
+                nc_file_name = nc_file_path+nc_file_name
+            # save the file
+            data.to_netcdf(nc_file_name, encoding=temp)
+            print("EASYMORE saved the nc file here: ",nc_file_name)
+        # return xarray dataset
+        return data
 
 
     def check_if_row_is_numeric (self,
