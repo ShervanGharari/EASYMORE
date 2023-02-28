@@ -218,7 +218,6 @@ class easymore:
             diff = np.setdiff1d(order_values_shp_1, order_values_shp_int)
             if not (diff.shape == 0) and not (self.skip_outside_shape): # not all the elements of target shapefile are in intersection
                 shp_1_not_int = shp_1[shp_1['S_1_order'].isin(diff)]
-                shp_1_not_int.plot()
                 shp_1_not_int = shp_1_not_int.drop(columns=['geometry']) # remove the geometry
                 shp_1_not_int['S_2_lat_s'] = 0.00 # assign random lat, no influence as weight is non existing in shp_int
                 shp_1_not_int['S_2_lon_s'] = 0.00 # assign random lon, no influence as weight if non existing in shp_int
