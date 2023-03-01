@@ -293,7 +293,7 @@ class easymore:
                 # Create the source shapefile using Voronio diagram
                 print('EASYMORE detect that source shapefile is not provided for irregulat lat lon source NetCDF')
                 print('EASYMORE will create the voronoi source shapefile based on the lat lon')
-                source_shp_gpd = self.shp_from_irregular_nc (station_shp_file_name = self.temp_dir+self.case_name+'_source_shapefile_points.shp')
+                source_shp_gpd, source_shp_point_gpd = self.shp_from_irregular_nc (station_shp_file_name = self.temp_dir+self.case_name+'_source_shapefile_points.shp')
         return source_shp_gpd
 
     def get_col_row(self):
@@ -2024,8 +2024,6 @@ to correct for lon above 180')
                                         crs = crs)
         # creating the voronoi diagram
         voronoi = self.voronoi_diagram(points,
-                                       'lon_s',
-                                       'lat_s',
                                        ID_field_name = 'ID_s',
                                        voronoi_shp_file_name = voronoi_shp_file_name)
         # return the shapefile
@@ -2070,6 +2068,10 @@ to correct for lon above 180')
         # get the crs from the point shapefile
         crs_org = stations.crs
         print('crs from the point geopandas: ', crs_org)
+        if (crs_org == 'None') or (crs_org is None):
+            print('crs from the point geopandas is not defined and will be assigned as WGS84')
+            stations = stations.set_crs('epsg:4326')
+            crs_org = stations.crs
         # add the ID_t to the point shapefiles
         if not ID_field_name:
             stations ['ID_s'] = np.arange(len(stations))+1
@@ -2142,7 +2144,7 @@ to correct for lon above 180')
                remapped_nc_var_time            = None,
                remapped_nc_var_name            = None,
                shp_target_name                 = None,
-               shp_target_filed_ID             = None,
+               shp_target_field_ID             = None,
                time_step_of_viz                = None,
                location_save_fig               = None,
                fig_name                        = None,
@@ -2151,7 +2153,7 @@ to correct for lon above 180')
                show_remapped_values_flag       = None,
                show_source_flag                = True,
                cmap                            = None,
-               margin                          = None,
+               margin                          = 0.1, #degree
                linewidth_source                = None,
                linewidth_remapped              = None,
                alpha_source                    = None,
@@ -2237,7 +2239,7 @@ to correct for lon above 180')
             max_value = ds_remapped[remapped_nc_var_name].sel(time=time_stamp, method='nearest').max().item() # get the max of remapped
             min_value = ds_remapped[remapped_nc_var_name].sel(time=time_stamp, method='nearest').min().item() # get the min of remapped
             print('min: {}, max: {} for variable: {} in remapped nc file for the time step: {}'.format(\
-            min_value, max_value, remapped_nc_var_time, time_stamp))
+            min_value, max_value, remapped_nc_var_name, time_stamp))
             #
             shp_target = gpd.read_file(shp_target_name) # load the target shapefile
             if (min_lon is None) or (min_lat is None) or (max_lon is None) or (max_lat is None):
@@ -2308,8 +2310,8 @@ to correct for lon above 180')
                 df = df.sort_values(by=['ID'])
                 df = df.reset_index(drop=True)
                 # shapefile
-                shp_target = shp_target[shp_target[shp_target_filed_ID].isin(df['ID'])]
-                shp_target = shp_target.sort_values(by=[shp_target_filed_ID])
+                shp_target = shp_target[shp_target[shp_target_field_ID].isin(df['ID'])]
+                shp_target = shp_target.sort_values(by=[shp_target_field_ID])
                 shp_target = shp_target.reset_index(drop=True)
                 # pass the values from datarame to geopandas and visuazlie
                 shp_target ['value'] = df ['value']
@@ -2337,9 +2339,6 @@ to correct for lon above 180')
         if min_lat and min_lon and max_lat and max_lon:
             ax.set_ylim([min_lat-margin,max_lat+margin])
             ax.set_xlim([min_lon-margin,max_lon+margin])
-        #
-        print('min_lon:{}, min_lat:{}, max_lon:{}, max_lat:{}'.format(min_lon, min_lat, max_lon, max_lat))
-
         # create the folder to save
         if location_save_fig and fig_name:
             if not os.path.isdir(location_save_fig):
