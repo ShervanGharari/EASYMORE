@@ -2253,6 +2253,7 @@ to correct for lon above 180')
             print('max values for colorbar is provided as: ',max_value)
         # visualize
         fig, ax = plt.subplots(figsize=fig_size)
+        fig.set_facecolor("white")
         if (self.case == 1 or self.case ==2) and show_source_flag:
             ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest').plot.pcolormesh(x=source_nc_var_lon,
                                                                 y=source_nc_var_lat,
@@ -2340,8 +2341,9 @@ to correct for lon above 180')
             ax.set_ylim([min_lat-margin,max_lat+margin])
             ax.set_xlim([min_lon-margin,max_lon+margin])
         # create the folder to save
+        plt.tight_layout()
         if location_save_fig and fig_name:
             if not os.path.isdir(location_save_fig):
                 os.makedirs(location_save_fig)
-            plt.savefig(location_save_fig+fig_name)
+            plt.savefig(location_save_fig+fig_name, bbox_inches='tight')
 
