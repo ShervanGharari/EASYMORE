@@ -176,18 +176,18 @@ class easymore:
             if self.save_temp_shp:
                 shp_1.to_file(self.temp_dir+self.case_name+'_target_shapefile_corrected_frame.shp')
                 shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_corrected_frame.shp')
-            # clip to the region of the target shapefile to speed up the intersection
-            if self.clip_source_shp:
-                min_lon, min_lat, max_lon, max_lat = shp_1.total_bounds
-                min_lon, min_lat, max_lon, max_lat = min_lon - self.buffer_clip_source_shp, min_lat - self.buffer_clip_source_shp,\
-                                                     max_lon + self.buffer_clip_source_shp, max_lat + self.buffer_clip_source_shp
-                shp_2 = shp_2[(shp_2['lat_s']<max_lat) & (shp_2['lat_s']>min_lat) & (shp_2['lon_s']<max_lon) & (shp_2['lon_s']>min_lon)]
-                shp_2.reset_index(drop=True, inplace=True)
-                if self.save_temp_shp:
-                    if self.correction_shp_lon:
-                        shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_corrected_frame_clipped.shp')
-                    else:
-                        shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_clipped.shp')
+            # # clip to the region of the target shapefile to speed up the intersection
+            # if self.clip_source_shp:
+            #     min_lon, min_lat, max_lon, max_lat = shp_1.total_bounds
+            #     min_lon, min_lat, max_lon, max_lat = min_lon - self.buffer_clip_source_shp, min_lat - self.buffer_clip_source_shp,\
+            #                                          max_lon + self.buffer_clip_source_shp, max_lat + self.buffer_clip_source_shp
+            #     shp_2 = shp_2[(shp_2['lat_s']<max_lat) & (shp_2['lat_s']>min_lat) & (shp_2['lon_s']<max_lon) & (shp_2['lon_s']>min_lon)]
+            #     shp_2.reset_index(drop=True, inplace=True)
+            #     if self.save_temp_shp:
+            #         if self.correction_shp_lon:
+            #             shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_corrected_frame_clipped.shp')
+            #         else:
+            #             shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_clipped.shp')
             # reprojections to equal area
             if (str(shp_1.crs).lower() == str(shp_2.crs).lower()) and ('epsg:4326' in str(shp_1.crs).lower()):
                 shp_1 = shp_1.to_crs ("EPSG:6933") # project to equal area
