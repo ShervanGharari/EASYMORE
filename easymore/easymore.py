@@ -216,18 +216,22 @@ class easymore:
             order_values_shp_1   = np.unique(np.array(shp_1['S_1_order']))
             order_values_shp_int = np.unique(np.array(shp_int['S_1_order']))
             diff = np.setdiff1d(order_values_shp_1, order_values_shp_int)
-            if not (diff.shape == 0) and not (self.skip_outside_shape): # not all the elements of target shapefile are in intersection
-                shp_1_not_int = shp_1[shp_1['S_1_order'].isin(diff)]
-                shp_1_not_int = shp_1_not_int.drop(columns=['geometry']) # remove the geometry
-                shp_1_not_int['S_2_lat_s'] = 0.00 # assign random lat, no influence as weight is non existing in shp_int
-                shp_1_not_int['S_2_lon_s'] = 0.00 # assign random lon, no influence as weight if non existing in shp_int
-                shp_int = pd.concat([shp_int, shp_1_not_int],axis=0) # contact the shp_int and shapes that are not intersected
-                print('Warning: There are shapes that are outside the boundaries of the provided netCDF file. Those shapes '+\
-                      'this will reduce the speed of remapping of the source to remaped netCDF file '+\
-                      'to increase the speed you should make sure that target shapefile is within the boundary of provided '+\
-                      'netCDF file or set the easymore flag of skip_outside_shape to True.'+\
-                      'this flag ensures the shapes that are outside of the netCDF domain are not transfered as nan to remapped '+\
-                      'netCDF files')
+            if (diff.size > 0):
+                np.savetxt(self.temp_dir+self.case_name+'ID_not_intersected.txt', diff, fmt='%d')
+                print('Warning: There are shapes that are outside the boundaries of the provided netCDF file. The IDs of those'+\
+                      'shapes are saved in: \n'+self.temp_dir+self.case_name+'ID_not_intersected.txt')
+                if not (self.skip_outside_shape): # not all the elements of target shapefile are in intersection
+                    shp_1_not_int = shp_1[shp_1['S_1_order'].isin(diff)]
+                    shp_1_not_int = shp_1_not_int.drop(columns=['geometry']) # remove the geometry
+                    shp_1_not_int['S_2_lat_s'] = 0.00 # assign random lat, no influence as weight is non existing in shp_int
+                    shp_1_not_int['S_2_lon_s'] = 0.00 # assign random lon, no influence as weight if non existing in shp_int
+                    shp_int = pd.concat([shp_int, shp_1_not_int],axis=0) # contact the shp_int and shapes that are not intersected
+                    print('Warning: There are shapes that are outside the boundaries of the provided netCDF file. Those shapes '+\
+                          'this will reduce the speed of remapping of the source to remaped netCDF file '+\
+                          'to increase the speed you should make sure that target shapefile is within the boundary of provided '+\
+                          'netCDF file or set the easymore flag of skip_outside_shape to True.'+\
+                          'this flag ensures the shapes that are outside of the netCDF domain are not transfered as nan to remapped '+\
+                          'netCDF files')
             # rename dictionary
             dict_rename = {'S_1_ID_t' : 'ID_t',
                            'S_1_lat_t': 'lat_t',
@@ -1135,8 +1139,9 @@ in dimensions of the variables and latitude and longitude')
             elif 'int' in time_dtype.lower():
                 time_dtype_code = 'i4'
             # reporting
-            print('Remapping '+nc_name+' to '+target_name)
-            print('Started at date and time '+str(datetime.now()))
+            statement_print = 'Remapping '+nc_name+' to '+target_name+' \n'
+            time_start = datetime.now()
+            statement_print = statement_print + 'Started at date and time '+ str(time_start) + ' \n'
             with nc4.Dataset(target_name, "w", format="NETCDF4") as ncid: # creating the NetCDF file
                 # define the dimensions
                 dimid_N = ncid.createDimension(self.remapped_dim_id, len(hruID_var))  # limited dimensiton equal the number of hruID
@@ -1198,9 +1203,6 @@ in dimensions of the variables and latitude and longitude')
                         varid.long_name = ncids.variables[self.var_names[i]].long_name
                     if 'units' in ncids.variables[self.var_names[i]].ncattrs():
                         varid.units = ncids.variables[self.var_names[i]].units
-                # reporting
-                print('Ended   at date and time '+str(datetime.now()))
-                print('------')
             if self.save_csv:
                 ds = xr.open_dataset(target_name)
                 for i in np.arange(len(self.var_names_remapped)):
@@ -1238,11 +1240,17 @@ in dimensions of the variables and latitude and longitude')
                     maps [1,:] = lon_data
                     df_map = pd.DataFrame(data=maps, index=["lat","lon"], columns=column_name)
                     df.to_csv(target_name_csv)
-                    print('Converting variable '+ self.var_names_remapped[i] +' from remapped file of '+target_name+\
-                        ' to '+target_name_csv)
                     df_map.to_csv(target_name_map)
-                    print('Saving the ID, lat, lon map at '+target_name_csv)
-                print('------')
+                    statement_print = statement_print + 'Converting variable '+ self.var_names_remapped[i] +\
+                    ' from remapped file of '+target_name+' to '+target_name_csv + ' \n'
+                    statement_print = statement_print + 'Saving the ID, lat, lon map at '+target_name_csv+ ' \n'
+            time_end = datetime.now()
+            time_diff = time_end-time_start
+            statement_print = statement_print + 'Ended at date and time ' + str(time_end) + ' \n'
+            statement_print = statement_print + 'It took '+ str(time_diff.total_seconds()) +\
+            ' seconds to finish the remapping of variable(s)' +' \n'+ ('---------------------')
+            print(statement_print)
+        print('---------------------')
 
     def __weighted_average(self,
                            nc_name,
@@ -1289,27 +1297,33 @@ in dimensions of the variables and latitude and longitude')
             # replace non-numeric or np.nan with NaN
             mapping_df['values'] = pd.to_numeric(mapping_df['values'], errors='coerce')
             # if there are NaN values then rescale the weights if needed
-            if self.rescaledweights and mapping_df['values'].isna().any():
-                sum_weights = mapping_df.loc[~mapping_df['values'].isna(), 'weight'].sum() # sum of weights
-                mapping_df['Rweight'] = np.where(mapping_df['values'].isna(),
-                                                 np.nan,
-                                                 mapping_df['weight'] / sum_weights)
-                mapping_df['Rweight'] = mapping_df.groupby('order_t')['Rweight'].transform(
-                    lambda x: x / x.sum() if x.notna().any() else np.nan)
-                mapping_df['values_w'] = mapping_df['Rweight']*mapping_df['values']
-                df_temp = mapping_df.groupby(['order_t'],as_index=False).agg({'values_w': lambda x: np.nan if all(np.isnan(x)) else x.sum()})
-                df_temp = df_temp.sort_values(by=['order_t'])
+            there_is_nan = (mapping_df['values'].isna().any() or mapping_df['weight'].isna().any())
+            if self.rescaledweights and there_is_nan:
+                idx = mapping_df[~mapping_df['values'].isna() & ~mapping_df['weight'].isna()].index
+                mapping_df['row'] = np.nan; mapping_df.loc[idx,'row'] = 1 # 1 for the once with values in both values and weight columns
+                mapping_df['weight_row'] = mapping_df['weight'] * mapping_df['row']
+                mapping_df['values_row'] = mapping_df['values'] * mapping_df['row']
+                # rescaling the weight
+                mapping_df['weight_row_sum']  = mapping_df['order_t'].map(mapping_df.groupby('order_t')['weight_row'].sum())
+                mapping_df['weight_rescaled'] = mapping_df['weight'] / mapping_df['weight_row_sum'] # rescaled weight
+                idx = mapping_df[mapping_df['weight_rescaled'] > 1.0].index
+                mapping_df.loc[idx,'weight_rescaled'] = np.nan # if there is inf or devision by zero replace with nan
+            else:
+                mapping_df['weight_rescaled'] = mapping_df['weight']
+            mapping_df['values_w']   = mapping_df['values'] * mapping_df['weight_rescaled']
+            df_temp = mapping_df.groupby(['order_t'],as_index=False).agg({'values_w': 'sum'})
+            if there_is_nan:
+                idx                      = mapping_df[~mapping_df['values_w'].isna()].index
+                mapping_df_slice         = mapping_df.loc[idx].copy()
+                order_t_IDs_not_all_nan  = np.unique(mapping_df_slice['order_t'])
+                order_t_IDs_all          = np.unique(mapping_df['order_t'])
+                order_t_IDs_all_nan      = np.setdiff1d(order_t_IDs_all, order_t_IDs_not_all_nan).flatten()
+                # put back NaN for the order_t that are all NaN values
+                idx = df_temp[df_temp['order_t'].isin(order_t_IDs_all_nan)].index
+                df_temp_slice = df_temp.loc[idx].copy()
+                if not df_temp_slice.empty:
+                    df_temp.loc[df_temp_slice.index,'values_w'] = np.nan
                 df_temp['values_w'].fillna(fill_value, inplace=True)
-            else: # no np.nan then no rescaling is needed
-                mapping_df['values_w'] = mapping_df['weight']*mapping_df['values']
-                if mapping_df['weight'].isna().any():
-                    df_temp = mapping_df.groupby(['order_t'],as_index=False).agg({'values_w': lambda x: np.nan if all(np.isnan(x)) else x.sum()}) # test
-                else:
-                    df_temp = mapping_df.groupby(['order_t'],as_index=False).agg({'values_w': 'sum'})
-                #df_temp = mapping_df.groupby(['order_t'],as_index=False).agg({'values_w': lambda x: np.nan if all(np.isnan(x)) else x.sum()}) # test
-                df_temp = df_temp.sort_values(by=['order_t'])
-                df_temp['values_w'].fillna(fill_value, inplace=True)
-            # reweigths and calculats
             weighted_value [m,:] = np.array(df_temp['values_w'])
             m += 1
         return weighted_value
