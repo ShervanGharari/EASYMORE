@@ -137,6 +137,9 @@ class easymore:
         # if remap is not provided then create the remapping file
         if self.remap_csv == '':
             import geopandas as gpd
+            print('--CREATING-REMAPPING-FILE--')
+            time_start = datetime.now()
+            print('Started at date and time ' + str(time_start))
             # read and check the target shapefile
             target_shp_gpd = gpd.read_file(self.target_shp)
             target_shp_gpd = self.check_target_shp(target_shp_gpd)
@@ -251,6 +254,11 @@ class easymore:
             int_df = self.create_remap(int_df, lat_source, lon_source)
             int_df.to_csv(self.temp_dir+self.case_name+'_remapping.csv')
             self.remap_csv = self.temp_dir+self.case_name+'_remapping.csv'
+            time_end = datetime.now()
+            time_diff = time_end-time_start
+            print('Ended at date and time ' + str(time_end))
+            print('It took '+ str(time_diff.total_seconds())+' seconds to finish creating of the remapping file')
+            print('---------------------------')
         else:
             # check the remap file if provided
             int_df  = pd.read_csv(self.remap_csv)
@@ -273,6 +281,7 @@ class easymore:
         This function creates a source shapefile for regular or rotated grid and Voronoi diagram from
         source netCDF file
         """
+        import geopandas as gpd
         # find the case, 1: regular, 2: rotated, 3: irregular Voronoi diagram creation if not provided
         self.NetCDF_SHP_lat_lon()
         # create the source shapefile for case 1 and 2 if shapefile is not provided
@@ -2168,14 +2177,14 @@ to correct for lon above 180')
                show_source_flag                = True,
                cmap                            = None,
                margin                          = 0.1, #degree
-               linewidth_source                = None,
-               linewidth_remapped              = None,
-               alpha_source                    = None,
-               alpha_remapped                  = None,
+               linewidth_source                = 1,
+               linewidth_remapped              = 1,
+               alpha_source                    = 1,
+               alpha_remapped                  = 1,
                font_size                       = 40,
                font_family                     = 'Times New Roman',
                font_weigth                     = 'bold',
-               add_colorbar_flag               = None,
+               add_colorbar_flag               = True,
                min_value_colorbar              = None,
                max_value_colorbar              = None,
                min_lon                         = None,
@@ -2192,12 +2201,11 @@ to correct for lon above 180')
         import numpy               as      np
         from   datetime            import  datetime
         import sys
-
+        #
         font = {'family' :  font_family,
                 'weight' :  font_weigth,
                 'size'   :  font_size}
         mpl.rc('font', **font)
-
         #
         colorbar_do_not_exists = True
         # initializing EASYMORE object and find the case of source netcdf file
@@ -2281,20 +2289,21 @@ to correct for lon above 180')
         if self.case == 3 and show_source_flag:
             # dataframe
             df = pd.DataFrame()
-            df ['ID'] = ds_source[source_nc_var_ID][:]
+            df ['ID'] = ds_source[source_nc_var_ID][:].values.astype(int)
             df ['value'] = ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest') # assumes times is first
             df = df.sort_values(by=['ID'])
             df = df.reset_index(drop=True)
             # shapefile
+            shp_source[source_shp_field_ID] = shp_source[source_shp_field_ID].astype(int)
             shp_source = shp_source[shp_source[source_shp_field_ID].isin(df['ID'])]
             shp_source = shp_source.sort_values(by=[source_shp_field_ID])
             shp_source = shp_source.reset_index(drop=True)
             # pass the values from datarame to geopandas and visuazlie
             shp_source ['value'] = df ['value']
-            shp_source.plot(column= 'value',
+            shp_source.plot(column='value',
                             edgecolor='k',
-                            linewidth = linewidth_source,
-                            ax = ax,
+                            linewidth=linewidth_source,
+                            ax=ax,
                             cmap=cmap,
                             vmin=min_value,
                             vmax=max_value,
@@ -2320,20 +2329,21 @@ to correct for lon above 180')
             if show_remapped_values_flag:
                 # dataframe
                 df = pd.DataFrame()
-                df ['ID'] = ds_remapped[remapped_nc_var_ID][:]
+                df ['ID'] = ds_remapped[remapped_nc_var_ID][:].values.astype(int)
                 df ['value'] = ds_remapped[remapped_nc_var_name].sel(time=time_stamp,method='nearest')
                 df = df.sort_values(by=['ID'])
                 df = df.reset_index(drop=True)
                 # shapefile
+                shp_target[shp_target_field_ID] = shp_target[shp_target_field_ID].astype(int)
                 shp_target = shp_target[shp_target[shp_target_field_ID].isin(df['ID'])]
                 shp_target = shp_target.sort_values(by=[shp_target_field_ID])
                 shp_target = shp_target.reset_index(drop=True)
                 # pass the values from datarame to geopandas and visuazlie
                 shp_target ['value'] = df ['value']
-                shp_target.plot(column= 'value',
+                shp_target.plot(column='value',
                                 edgecolor='k',
-                                linewidth = linewidth_remapped,
-                                ax = ax,
+                                linewidth=linewidth_remapped,
+                                ax=ax,
                                 cmap=cmap,
                                 vmin=min_value,
                                 vmax=max_value,
