@@ -1048,7 +1048,7 @@ in dimensions of the variables and latitude and longitude')
         if 'easymore_case' in remap_df.columns:
             print('EASYMORE case exists in the remap file')
         else:
-            sys.exit('EASYMORE case field do not esits in the remap file; make sure to include this and take care if your do it manually!')
+            sys.exit('EASYMORE case field does not exits in the remap file; make sure to include this if you create the remapping file manually!')
         # check if all the easymore_case is unique for the data set
         if not (len(np.unique(np.array(remap_df['easymore_case'])))==1):
             sys.exit('the EASYMORE_case is not unique in the remapping file')
@@ -1060,7 +1060,7 @@ in dimensions of the variables and latitude and longitude')
         # check if the needed columns are existing
         if not set(['ID_t','lat_t','lon_t','order_t','ID_s','lat_s','lon_s','weight']) <= set(remap_df.columns):
             sys.exit('provided remapping file does not have one of the needed fields: \n'+\
-                'ID_t, lat_t, lon_t, order_t, ID_2, lat_s, lon_s, weight')
+                'ID_t, lat_t, lon_t, order_t, ID_s, lat_s, lon_s, weight')
 
     def __target_nc_creation(self):
         """
@@ -1673,7 +1673,7 @@ to correct for lon above 180')
 
         # remove the existing file to save
         if nc_file_name:
-            os.system ('rm '+nc_file_name)
+            os.remove (nc_file_name)
         # save
         if data_frame.applymap(lambda x: isinstance(x, (int, float))).all().all():
             temp = {variable_name:{'dtype': 'object', '_FillValue': -9999}}
