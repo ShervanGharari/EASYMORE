@@ -1688,7 +1688,7 @@ to correct for lon above 180')
             if os.path.isfile(nc_file_path+nc_file_name):
                 os.remove(nc_file_path+nc_file_name)
             data.to_netcdf(nc_file_path+nc_file_name, encoding=temp)
-            print("EASYMORE saved the nc file here: ",nc_file_name)
+            print("EASYMORE saved the nc file here: ",nc_file_path+nc_file_name)
         # return xarray dataset
         return data
 
