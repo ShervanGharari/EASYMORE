@@ -45,7 +45,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name='easymore',
-    version='0.0.5',
+    version='1.0.0',
     license='GPLv3',
     author=('Shervan Gharari', 'Wouter Knoben'),
     author_email = 'sh.gharari@gmail.com',
@@ -69,11 +69,10 @@ setup(
         'geopandas',
         'shapely',
         'pyshp',
-        'pysheds',
         'gdal'+get_installed_gdal_version(),
         'geovoronoi',
         'json5',
-        'rasterio',
+        'matplotlib',
         'rtree'
     ],
     packages=find_packages(),

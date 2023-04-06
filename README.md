@@ -9,8 +9,6 @@ EASYMORE is a collection of functions that allows extraction of the data from a 
 
 EASYMORE is very efficient as it uses pandas `groupby` functionality. Remapping of the entire north American domain from ERA5 with resolution of 0.25 degree to 500,000 subbasins of MERIT-Hydro watershed for 7 variables in 1.2 seconds for one time step (the time varying from device to device and depending on the source netCDF files sizes and their temporal aggregation).
 
-In addition, EASYMORE can perform geospatial processes that are often needed for setting up a hydroligcal or land model. These steps are zonal statistics of raster given a shapefile, zonal statistics of two shapefiles, creation of subbasins and river network topology given hydrologically conditioned DEM such as MERIT-Hydro.
-
 ## The code can be used for the following purposes:
 
 1. Remapping the relevant forcing variables, such as precipitation or temperature and other variables for the effortless model set up. This transfer can be from Thiessen polygon or gridded data, for example, to computational units, hydrological model for example.
@@ -36,18 +34,17 @@ pip install .
 
 ## Flexibilities:
 
-1. EASYMORE allow for commbination of the remapping of NetCDF on local computer or remote high performance computer. For example, the the GIS steps of creating remapping file can be done locally on a sample file that contains few time step of the data (but all the domain). EASYMORE can then be directed to remapping file on the HPC and will skip all the needed GIS steps and directly start remapping process of bulk of the data. For installing without gis packages you can simply do:
+1. EASYMORE allow for commbination of the remapping of NetCDF on local computer or remote high performance computer. For example, the the GIS steps of creating remapping file can be done locally on a sample file that contains few time step of the data (but all the domain). EASYMORE can then be directed to remapping file on the HPC and will skip all the needed GIS steps and directly start remapping process of bulk of the data.
 
 ## Examples:
 
-1. [Remapping a regular lat/lon gridded data or model output to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/Chapter1_E1.ipynb)
-2. [Remapping a rotate lat/lon gridded data or model output to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/Chapter1_E2.ipynb)
-3. [Remapping an irregular shapefile data, such as Thiessen polygon for example, to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/Chapter1_E3.ipynb)
-4. [Extract the data for points (such as location of stations, cities, etc) from the grided or irregular shapefiles; temprature example](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/Chapter1_E4.ipynb)
-5. [Resampling of regular, rotated or irregular data and model output to any resolution density of the points](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/Chapter1_E5.ipynb)
-6. [Manipulation of remapped variables such as lapse rate to temperature based on elevation difference (can be applied to slope and aspect, etc)](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/Chapter1_E6.ipynb)
-7. [Creation of subbasins for hydrologically conditioned MERIT-Hydro DEM and perform spatial processes for finding elevation and land cover characteistics of all the subbasins](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/Chapter2_E1.ipynb)
-8. [Creation of Thiessen polygons, sampling a from a geotif based on point shapefile](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/Chapter2_E2.ipynb)
+1. [Remap variables from a regular lat/lon gridded data or model output to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/01_ERA5_Regular_Lat_Lon.ipynb)
+2. [Remap variables from a regular lat/lon gridded data or model output to irregular shapes with missing values and non-overlapping extent.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/02_ERA5_Regular_Lat_Lon_NaN.ipynb)
+3. [Remap variables from a rotate lat/lon gridded data or model output to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/03_WRF_Rotated_Lat_Lon.ipynb)
+4. [Remap variables from an irregular shapefile data from Thiessen polygons of station data to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/04_Thiessen_Polygons_SCDNA.ipynb)
+5. [Remap variables from irregular shapefile data, such as administrative boundaries for example, to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/05_irregular_shapes.ipynb)
+5. [Extract variables for points (such as locations of stations, cities, etc) from the grided or irregular shapefiles; temperature example](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/07_GRACE_capitals.ipynb)
+6. [Interpolate regular, rotated, or irregular data and model output to any resolution density of the points by reconstructing the remapping file](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/92_WRF_interpolation.ipynb)
 
 The two figures show remapping of the gridded temperature from ERA5 data set to subbasin of South Saskatchewan River at Medicine Hat.
 
