@@ -1671,25 +1671,24 @@ to correct for lon above 180')
         # merging the data and data information
         data = xr.merge([data, info])
 
-        # remove the existing file to save
-        if nc_file_name:
-            os.remove (nc_file_name)
-        # save
-        if data_frame.applymap(lambda x: isinstance(x, (int, float))).all().all():
-            temp = {variable_name:{'dtype': 'object', '_FillValue': -9999}}
-        else:
-            temp = {variable_name:{'dtype': 'object'}}
-        print(temp)
-
-        if nc_file_name:
-            # create the path
-            if nc_file_path:
+        # save the file if nc_file is provided
+        if not (nc_file_name is None):
+            # there is nc_file_name to save
+            if nc_file_path is None:
+                nc_file_path = ''
+            else:
                 if (not os.path.isdir(nc_file_path)):
                     os.makedirs(nc_file_path)
-                nc_file_name = nc_file_path+nc_file_name
-            # save the file
-            data.to_netcdf(nc_file_name, encoding=temp)
-            print("EASYMORE saved the nc file here: ",nc_file_name)
+            if Fill_value is None:
+                Fill_value = -9999
+            if data_frame.applymap(lambda x: isinstance(x, (int, float))).all().all():
+                temp = {variable_name:{'dtype': 'object', '_FillValue': Fill_value}}
+            else:
+                temp = {variable_name:{'dtype': 'object'}}
+            if os.path.isfile(nc_file_path+nc_file_name):
+                os.remove(nc_file_path+nc_file_name)
+            data.to_netcdf(nc_file_path+nc_file_name, encoding=temp)
+            print("EASYMORE saved the nc file here: ",nc_file_path+nc_file_name)
         # return xarray dataset
         return data
 
