@@ -16,6 +16,10 @@ After the environment is created we can activate this and check its information:
 conda activate easymore-env
 conda info
 ```
+Then install gdal from inside the virtual env
+```
+conda install -c conda-forge gdal
+```
 We can then install packages needed for testing the examples:
 ```
 python3.8 -m pip install --upgrade pip
@@ -42,5 +46,5 @@ jupyter notebook
 Or convert the jupyter notebook into python and use python to run the scripts:
 ```
 jupyter nbconvert *.ipynb --to python # converts all the files to .py
-python 01_ERA5_Regular_Lat_Lon.py
+python3.8 01_ERA5_Regular_Lat_Lon.py
 ```

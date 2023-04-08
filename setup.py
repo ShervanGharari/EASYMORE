@@ -1,7 +1,7 @@
 from setuptools import find_packages, setup
-import subprocess
-from sys import platform
-import re
+# import subprocess
+#from sys import platform
+#import re
 
 # def check_gdal_version_string(string):
 #     '''Returns boolean True if string is in format x.x.x'''

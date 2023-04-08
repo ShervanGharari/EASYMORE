@@ -1813,6 +1813,10 @@ to correct for lon above 180')
         result['AP1']  = result['AINT']/result['AS1']
         result['AP2']  = result['AINT']/result['AS2']
         # Calculate the normalized area for AP1 and AP2 to conserve mass
+        result['IDS1'] = result['IDS1'].astype(int)
+        result['IDS2'] = result['IDS2'].astype(int)
+        print(result)
+        result.to_csv('test.csv')
         result['AP1N'] = result.groupby('IDS1')['AP1'].apply(lambda x: (x / x.sum())).reset_index(drop=True)
         result['AP2N'] = result.groupby('IDS2')['AP2'].apply(lambda x: (x / x.sum())).reset_index(drop=True)
         # return
@@ -2334,11 +2338,17 @@ to correct for lon above 180')
                 df ['value'] = ds_remapped[remapped_nc_var_name].sel(time=time_stamp,method='nearest')
                 df = df.sort_values(by=['ID'])
                 df = df.reset_index(drop=True)
+                print(df)
+                print(len(df))
                 # shapefile
+                print(shp_target)
+                print(len(shp_target))
                 shp_target[shp_target_field_ID] = shp_target[shp_target_field_ID].astype(int)
                 shp_target = shp_target[shp_target[shp_target_field_ID].isin(df['ID'])]
                 shp_target = shp_target.sort_values(by=[shp_target_field_ID])
                 shp_target = shp_target.reset_index(drop=True)
+                print(shp_target)
+                print(len(shp_target))
                 # pass the values from datarame to geopandas and visuazlie
                 shp_target ['value'] = df ['value']
                 shp_target.plot(column='value',
