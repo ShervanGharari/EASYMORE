@@ -397,7 +397,7 @@ class easymore:
         # load the needed packages
         import geopandas as gpd
         from   shapely.geometry import Polygon
-        import shapefile # pyshed library
+        #import shapefile # pyshed library
         import shapely
         # sink/target shapefile check the projection
         if 'epsg:4326' not in str(shp.crs).lower():
@@ -590,7 +590,7 @@ in dimensions of the variables and latitude and longitude')
         # load the needed packages
         import geopandas as gpd
         from   shapely.geometry import Polygon
-        import shapefile # pyshed library
+        #import shapefile # pyshed library
         import shapely
         #
         multi_source = False
@@ -640,7 +640,7 @@ in dimensions of the variables and latitude and longitude')
         """
         import geopandas as gpd
         from   shapely.geometry import Polygon
-        import shapefile # pyshed library
+        #import shapefile # pyshed library
         import shapely
         #
         nc_names = glob.glob (self.source_nc)
@@ -857,7 +857,7 @@ in dimensions of the variables and latitude and longitude')
         """
         import geopandas as gpd
         from   shapely.geometry import Polygon
-        import shapefile # pyshed library
+        #import shapefile # pyshed library
         import shapely
         shp['lat_s'] = shp [source_shp_lat].astype(float)
         shp['lon_s'] = shp [source_shp_lon].astype(float)
@@ -889,7 +889,7 @@ in dimensions of the variables and latitude and longitude')
         """
         import geopandas as gpd
         from   shapely.geometry import Polygon
-        import shapefile # pyshed library
+        #import shapefile # pyshed library
         import shapely
         # put a check to see if there is lon_s and lat_s, ID_s
         column_names = shp.columns
@@ -1757,7 +1757,7 @@ to correct for lon above 180')
                             shp_2):
         import geopandas as gpd
         from   shapely.geometry import Polygon
-        import shapefile # pyshed library
+        #import shapefile # pyshed library
         import shapely
         """
         @ author:                  Shervan Gharari
@@ -1813,8 +1813,8 @@ to correct for lon above 180')
         result['AP1']  = result['AINT']/result['AS1']
         result['AP2']  = result['AINT']/result['AS2']
         # Calculate the normalized area for AP1 and AP2 to conserve mass
-        result['AP1N'] = result.groupby('IDS1')['AP1'].apply(lambda x: (x / x.sum()) )
-        result['AP2N'] = result.groupby('IDS2')['AP2'].apply(lambda x: (x / x.sum()) )
+        result['AP1N'] = result.groupby('IDS1')['AP1'].apply(lambda x: (x / x.sum())).reset_index(drop=True)
+        result['AP2N'] = result.groupby('IDS2')['AP2'].apply(lambda x: (x / x.sum())).reset_index(drop=True)
         # return
         return result
 
@@ -1825,7 +1825,7 @@ to correct for lon above 180')
                          reproject=True):
         import geopandas as gpd
         from   shapely.geometry import Polygon
-        import shapefile # pyshed library
+        #import shapefile # pyshed library
         import shapely
         """
         Perform spatial overlay between two polygons.
@@ -2075,7 +2075,7 @@ to correct for lon above 180')
         -------
         Thiessen: geopandas dataframe, Voronio or Thiessen diagram
         """
-        import shapefile # as part of pyshp
+        #import shapefile # as part of pyshp
         import geovoronoi
         import os
         from   shapely.geometry import Polygon
@@ -2238,10 +2238,12 @@ to correct for lon above 180')
                           columns=["step"],
                           index=date)
         df['timestamp'] = df.index.strftime('%Y-%m-%d %H:%M:%S')
-        df_slice = df.iloc[df.index.get_loc(datetime.strptime(time_step_of_viz,\
-                                                        '%Y-%m-%d %H:%M:%S'),method='nearest')]
+        # df_slice = df.iloc[df.index.get_indexer(datetime.strptime(time_step_of_viz,\
+        #                                                 '%Y-%m-%d %H:%M:%S'),method='nearest')]
+        idx = df.index.get_indexer([pd.Timestamp(time_step_of_viz)], method='nearest').item()
+        df_slice = df.iloc[idx:idx+1]
         step = df_slice['step'].item()
-        time_stamp = df_slice['timestamp']
+        time_stamp = df_slice['timestamp'].item()
         print('the closest time step to what is provided for vizualization ', time_step_of_viz,\
               ' is ', time_stamp)
         # load the data and get the max and min values of remppaed file for the taarget variable
