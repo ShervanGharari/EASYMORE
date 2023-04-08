@@ -1815,10 +1815,18 @@ to correct for lon above 180')
         # Calculate the normalized area for AP1 and AP2 to conserve mass
         result['IDS1'] = result['IDS1'].astype(int)
         result['IDS2'] = result['IDS2'].astype(int)
-        print(result)
-        result.to_csv('test.csv')
-        result['AP1N'] = result.groupby('IDS1')['AP1'].apply(lambda x: (x / x.sum())).reset_index(drop=True)
-        result['AP2N'] = result.groupby('IDS2')['AP2'].apply(lambda x: (x / x.sum())).reset_index(drop=True)
+        #
+        df = pd.DataFrame()
+        df['AP1'] = result['AP1'].values
+        df['IDS1'] = result['IDS1'].values
+        df['AP1N'] = df.groupby('IDS1')['AP1'].apply(lambda x: (x / x.sum())).reset_index(drop=True)
+        result['AP1N'] = df['AP1N'].values
+        #
+        df = pd.DataFrame()
+        df['AP2'] = result['AP2'].values
+        df['IDS2'] = result['IDS2'].values
+        df['AP2N'] = df.groupby('IDS2')['AP2'].apply(lambda x: (x / x.sum())).reset_index(drop=True)
+        result['AP2N'] = df['AP2N'].values
         # return
         return result
 
@@ -2083,6 +2091,7 @@ to correct for lon above 180')
         import geovoronoi
         import os
         from   shapely.geometry import Polygon
+        from   shapely.geometry import box
         import numpy as np
         import pandas as pd
         import geopandas as gpd
@@ -2109,21 +2118,25 @@ to correct for lon above 180')
         # get the total boundary of the shapefile
         stations_buffert = stations.buffer(buffer) # add a buffer
         minx, miny, maxx, maxy = stations_buffert.total_bounds
-        # create the bounding shapefile
-        parts = []
-        with shapefile.Writer(self.temp_dir+'test.shp') as w:
-            w.autoBalance = 1 # turn on function that keeps file stable if number of shapes and records don't line up
-            w.field("ID_bounding",'N') # create (N)umerical attribute fields, integer
-            # creating the polygon given the lat and lon
-            parts.append([ (minx, miny),\
-                           (minx, maxy),\
-                           (maxx, maxy),\
-                           (maxx, miny),\
-                           (minx, miny)])
-            # store polygon
-            w.poly(parts)
-            # update records/fields for the polygon
-            w.record(1)
+        bbox = box(minx, miny, maxx, maxy)
+        gdf = gpd.GeoDataFrame(geometry=[bbox])
+        gdf.to_file(self.temp_dir+'test.shp')
+        # # create the bounding shapefile
+        # parts = []
+        # with shapefile.Writer(self.temp_dir+'test.shp') as w:
+        #     w.autoBalance = 1 # turn on function that keeps file stable if number of shapes and records don't line up
+        #     w.field("ID_bounding",'N') # create (N)umerical attribute fields, integer
+        #     # creating the polygon given the lat and lon
+        #     parts.append([ (minx, miny),\
+        #                    (minx, maxy),\
+        #                    (maxx, maxy),\
+        #                    (maxx, miny),\
+        #                    (minx, miny)])
+        #     # store polygon
+        #     w.poly(parts)
+        #     # update records/fields for the polygon
+        #     w.record(1)
+
         boundary = gpd.read_file(self.temp_dir+'test.shp')
         for f in glob.glob(self.temp_dir+'test.*'):
             os.remove(f)
@@ -2338,17 +2351,11 @@ to correct for lon above 180')
                 df ['value'] = ds_remapped[remapped_nc_var_name].sel(time=time_stamp,method='nearest')
                 df = df.sort_values(by=['ID'])
                 df = df.reset_index(drop=True)
-                print(df)
-                print(len(df))
                 # shapefile
-                print(shp_target)
-                print(len(shp_target))
                 shp_target[shp_target_field_ID] = shp_target[shp_target_field_ID].astype(int)
                 shp_target = shp_target[shp_target[shp_target_field_ID].isin(df['ID'])]
                 shp_target = shp_target.sort_values(by=[shp_target_field_ID])
                 shp_target = shp_target.reset_index(drop=True)
-                print(shp_target)
-                print(len(shp_target))
                 # pass the values from datarame to geopandas and visuazlie
                 shp_target ['value'] = df ['value']
                 shp_target.plot(column='value',
