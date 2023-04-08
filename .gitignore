@@ -5,3 +5,5 @@
 /examples/output/
 /examples/temporary/
 /examples/fig/
+/example/__pycache__/
+/example/.*/
