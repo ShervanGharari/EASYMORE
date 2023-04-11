@@ -192,7 +192,7 @@ class easymore:
             #         else:
             #             shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_clipped.shp')
             # reprojections to equal area
-            if (str(shp_1.crs).lower() == str(shp_2.crs).lower()) and ('epsg:4326' in str(shp_1.crs).lower()):
+            if self.check_shp_crs(shp_1) and self.check_shp_crs(shp_2): #(str(shp_1.crs).lower() == str(shp_2.crs).lower()) and ('epsg:4326' in str(shp_1.crs).lower()):
                 shp_1 = shp_1.to_crs ("EPSG:6933") # project to equal area
                 shp_2 = shp_2.to_crs ("EPSG:6933") # project to equal area
                 if self.save_temp_shp:
@@ -400,7 +400,7 @@ class easymore:
         #import shapefile # pyshed library
         import shapely
         # sink/target shapefile check the projection
-        if 'epsg:4326' not in str(shp.crs).lower():
+        if not self.check_shp_crs(shp):
             sys.exit('please project your shapefile to WGS84 (epsg:4326)')
         else: # check if the projection is WGS84 (or epsg:4326)
             print('EASYMORE detects that target shapefile is in WGS84 (epsg:4326)')
@@ -598,7 +598,7 @@ in dimensions of the variables and latitude and longitude')
         ncid = nc4.Dataset(nc_names[0])
         # sink/target shapefile is what we want the variables to be remapped to
         shp = gpd.read_file(self.source_shp)
-        if 'epsg:4326' not in str(shp.crs).lower():
+        if not self.check_shp_crs(shp):
             sys.exit('please project your source shapefile and variables in source nc files to WGS84 (epsg:4326)')
         else: # check if the projection is WGS84 (or epsg:4326)
             print('EASYMORE detects that source shapefile is in WGS84 (epsg:4326)')
@@ -628,6 +628,44 @@ in dimensions of the variables and latitude and longitude')
             # print
             #sys.exit('The latitude and longitude in source NetCDF files are not unique')
             print('The latitude and longitude in source NetCDF files are not unique')
+
+
+    def check_shp_crs (self, shp, check_list = ['epsg:4326', 'epsg 4326', 'epsg: 4326', \
+                                                'wgs84', 'wgs:84', 'wgs 84', 'wgs_84'\
+                                                'wgs1984', 'wgs:1984', 'wgs 1984', 'wgs_1984']):
+
+        """
+        @ author:                  Shervan Gharari
+        @ Github:                  https://github.com/ShervanGharari/EASYMORE
+        @ author's email id:       sh.gharari@gmail.com
+        @ license:                 GNU-GPLv3
+        This function checks the shapefile crs to provided substrings
+        Arguments
+        ---------
+        shp: geopandas dataframe
+        check_list: list of substring to check against
+        """
+
+        conforming = False
+
+        # check if name is available in the check_list
+        if str(shp.crs.name).lower() in check_list:
+            conforming = True
+        #else:
+        #    epsg_code = shp.crs.to_epsg()
+        #    print(f'EPSG:{epsg_code}')
+
+        # check if the shp.crs include the element
+        for element in check_list:
+            if element in str(shp.crs).lower():
+                conforming = True
+
+        if conforming:
+            print(conforming)
+
+
+        return conforming
+
 
     def NetCDF_SHP_lat_lon(self):
         """
@@ -1525,7 +1563,7 @@ to correct for lon above 180')
         """
         # in equal projection
         print('calculating centroid of shapes in equal area projection')
-        if "epsg:4326" not in str(shp.crs).lower():
+        if not self.check_shp_crs(shp): # "epsg:4326" not in str(shp.crs).lower():
             sys.exit('shapefile should be in WGS84 projection');
         minx, miny, maxx, maxy = shp.total_bounds
         if maxx > 180:
