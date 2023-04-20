@@ -1852,13 +1852,15 @@ to correct for lon above 180')
         df = pd.DataFrame()
         df['AP1'] = result['AP1'].values
         df['IDS1'] = result['IDS1'].values
-        df['AP1N'] = df.groupby('IDS1')['AP1'].apply(lambda x: (x / x.sum())).reset_index(drop=True)
+        df['AP1N'] = df['AP1'] / df.groupby('IDS1')['AP1'].transform('sum')
+        # df['AP1N'] = df.groupby('IDS1')['AP1'].apply(lambda x: (x / x.sum())).reset_index(drop=True)
         result['AP1N'] = df['AP1N'].values
         #
         df = pd.DataFrame()
         df['AP2'] = result['AP2'].values
         df['IDS2'] = result['IDS2'].values
-        df['AP2N'] = df.groupby('IDS2')['AP2'].apply(lambda x: (x / x.sum())).reset_index(drop=True)
+        df['AP2N'] = df['AP2'] / df.groupby('IDS2')['AP2'].transform('sum')
+        #df['AP2N'] = df.groupby('IDS2')['AP2'].apply(lambda x: (x / x.sum())).reset_index(drop=True)
         result['AP2N'] = df['AP2N'].values
         # return
         return result
