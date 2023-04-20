@@ -659,11 +659,6 @@ in dimensions of the variables and latitude and longitude')
         for element in check_list:
             if element in str(shp.crs).lower():
                 conforming = True
-
-        if conforming:
-            print(conforming)
-
-
         return conforming
 
 
@@ -2083,8 +2078,10 @@ to correct for lon above 180')
                   'more points are identical given the tolerance values of ',str(tolerance))
             print('ID of those points are:')
             print(points['ID_s'].loc[idx].values)
-            points['lat'].loc[idx]=points['lat'].loc[idx]+tolerance
-            points['lon'].loc[idx]=points['lon'].loc[idx]+tolerance
+            #points['lat'].loc[idx]=points['lat'].loc[idx]+tolerance
+            #points['lon'].loc[idx]=points['lon'].loc[idx]+tolerance
+            points.loc[idx,'lat']=points.loc[idx,'lat']+tolerance
+            points.loc[idx,'lon']=points.loc[idx,'lon']+tolerance
         points = points.sort_values(by='ID_s')
         points.rename(columns = {'lat':'lat_s','lon':'lon_s'},inplace=True)
         points = points.drop(columns=['lon_next','lat_next','ID_test','ID_test_next','distance'])
@@ -2216,12 +2213,20 @@ to correct for lon above 180')
                source_nc_var_name              = None,
                source_shp_name                 = None,
                source_shp_field_ID             = None,
+               source_shp_field_lat            = None,
+               source_shp_field_lon            = None,
+               source_shp_center_flag          = False,
+               source_shp_center_color         = 'red',
                remapped_nc_name                = None,
                remapped_nc_var_ID              = None,
                remapped_nc_var_time            = None,
                remapped_nc_var_name            = None,
-               shp_target_name                 = None,
-               shp_target_field_ID             = None,
+               target_shp_name                 = None,
+               target_shp_field_ID             = None,
+               target_shp_field_lat            = None,
+               target_shp_field_lon            = None,
+               target_shp_center_flag          = False,
+               target_shp_center_color         = 'red',
                time_step_of_viz                = None,
                location_save_fig               = None,
                fig_name                        = None,
@@ -2319,7 +2324,7 @@ to correct for lon above 180')
             print('min: {}, max: {} for variable: {} in remapped nc file for the time step: {}'.format(\
             min_value, max_value, remapped_nc_var_name, time_stamp))
             #
-            shp_target = gpd.read_file(shp_target_name) # load the target shapefile
+            shp_target = gpd.read_file(target_shp_name) # load the target shapefile
             if (min_lon is None) or (min_lat is None) or (max_lon is None) or (max_lat is None):
                 min_lon, min_lat, max_lon, max_lat = shp_target.total_bounds
         # correct min and max if the are given
@@ -2377,6 +2382,17 @@ to correct for lon above 180')
                 else:
                     cbar.ax.set_ylabel(remapped_nc_var_name)
                 colorbar_do_not_exists = False
+        if source_shp_center_flag: # add points into the source such as centroid
+            if source_shp_name:
+                shp_source = gpd.read_file(source_shp_name)
+            else:
+                sys.exit('Source shapefile is not provided while source_shp_center_flag is \
+                    set to true, provide source shapefile with lat and lon')
+            shp_source_points = shp_source.copy()
+            crs_org = shp_source_points.crs
+            shp_source_points = shp_source_points.drop(columns=['geometry'])
+            shp_points = self.make_shape_point(shp_source_points, source_shp_field_lon, source_shp_field_lat, crs=crs_org)
+            shp_points.plot(color=source_shp_center_color, ax=ax)
         if remapped_nc_exists:
             if show_remapped_values_flag:
                 show_target_shp_flag = False
@@ -2390,9 +2406,9 @@ to correct for lon above 180')
                 df = df.sort_values(by=['ID'])
                 df = df.reset_index(drop=True)
                 # shapefile
-                shp_target[shp_target_field_ID] = shp_target[shp_target_field_ID].astype(int)
-                shp_target = shp_target[shp_target[shp_target_field_ID].isin(df['ID'])]
-                shp_target = shp_target.sort_values(by=[shp_target_field_ID])
+                shp_target[target_shp_field_ID] = shp_target[target_shp_field_ID].astype(int)
+                shp_target = shp_target[shp_target[target_shp_field_ID].isin(df['ID'])]
+                shp_target = shp_target.sort_values(by=[target_shp_field_ID])
                 shp_target = shp_target.reset_index(drop=True)
                 # pass the values from datarame to geopandas and visuazlie
                 shp_target ['value'] = df ['value']
@@ -2416,6 +2432,12 @@ to correct for lon above 180')
                     cbar.ax.set_ylabel(remapped_nc_var_name+' ['+unit_name+']')
                 else:
                     cbar.ax.set_ylabel(remapped_nc_var_name)
+            if target_shp_center_flag: # add points into the source such as centroid
+                shp_target_points = shp_target.copy()
+                crs_org = shp_target_points.crs
+                shp_target_points = shp_target_points.drop(columns=['geometry'])
+                shp_points = self.make_shape_point(shp_target_points, target_shp_field_lon, target_shp_field_lat, crs=crs_org)
+                shp_points.plot(color=target_shp_center_color, ax=ax)
         #
         if min_lat and min_lon and max_lat and max_lon:
             ax.set_ylim([min_lat-margin,max_lat+margin])
