@@ -18,6 +18,8 @@ EASYMORE is very efficient as it uses pandas `groupby` functionality. Remapping 
 
 ## How to install:
 
+Examples and more detailed information on installation is provided in the [env](https://github.com/ShervanGharari/EASYMORE/tree/main/env) folder.
+
 ### From PyPI:
 
 `pip install easymore`
@@ -38,13 +40,14 @@ pip install .
 
 ## Examples:
 
-1. [Remap variables from a regular lat/lon gridded data or model output to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/01_ERA5_Regular_Lat_Lon.ipynb)
-2. [Remap variables from a regular lat/lon gridded data or model output to irregular shapes with missing values and non-overlapping extent.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/02_ERA5_Regular_Lat_Lon_NaN.ipynb)
-3. [Remap variables from a rotate lat/lon gridded data or model output to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/03_WRF_Rotated_Lat_Lon.ipynb)
-4. [Remap variables from an irregular shapefile data from Thiessen polygons of station data to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/04_Thiessen_Polygons_SCDNA.ipynb)
-5. [Remap variables from irregular shapefile data, such as administrative boundaries for example, to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/05_irregular_shapes.ipynb)
-5. [Extract variables for points (such as locations of stations, cities, etc) from the grided or irregular shapefiles; temperature example](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/07_GRACE_capitals.ipynb)
-6. [Interpolate regular, rotated, or irregular data and model output to any resolution density of the points by reconstructing the remapping file](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/92_WRF_interpolation.ipynb)
+1. [Illustrative example.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/00_test_example.ipynb)
+2. [Remap variables from a regular lat/lon gridded data or model output to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/01_ERA5_Regular_Lat_Lon.ipynb)
+3. [Remap variables from a regular lat/lon gridded data or model output to irregular shapes with missing values and non-overlapping extent.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/02_ERA5_Regular_Lat_Lon_NaN.ipynb)
+4. [Remap variables from a rotate lat/lon gridded data or model output to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/03_WRF_Rotated_Lat_Lon.ipynb)
+5. [Remap variables from an irregular shapefile data from Thiessen polygons of station data to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/04_Thiessen_Polygons_SCDNA.ipynb)
+6. [Remap variables from irregular shapefile data, such as administrative boundaries for example, to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/05_irregular_shapes.ipynb)
+7. [Extract variables for points (such as locations of stations, cities, etc) from the grided or irregular shapefiles; temperature example](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/07_GRACE_capitals.ipynb)
+8. [Interpolate regular, rotated, or irregular data and model output to any resolution density of the points by reconstructing the remapping file](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/92_WRF_interpolation.ipynb)
 
 The two figures show remapping of the gridded temperature from ERA5 data set to subbasin of South Saskatchewan River at Medicine Hat.
 
