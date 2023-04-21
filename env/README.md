@@ -94,7 +94,7 @@ jupyter nbconvert *.ipynb --to python # converts all the files to .py
 python 00_test_example.py # compare the result with repository
 python 01_ERA5_Regular_Lat_Lon.py # compare the result with repository
 ```
-In addition, we have provided an example of a requirements file that is tested with EASYMORE development team for Python 3.9.X is provided. The users can install all the needed packages before installing EASYMORE by `pip install -r path/to/easymore/env/requirements_win.txt`.
+In addition, we have provided an example of a requirements file that is tested with EASYMORE development team for Python 3.9 is provided. The users can install all the needed packages before installing EASYMORE by `pip install -r path/to/easymore/env/requirements_win.txt`.
 
 ## Linux
 
