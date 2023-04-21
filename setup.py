@@ -47,7 +47,7 @@ setup(
     name='easymore',
     version='1.0.0',
     license='GPLv3',
-    author=('Shervan Gharari', 'Wouter Knoben'),
+    author=('Shervan Gharari'),
     author_email = 'sh.gharari@gmail.com',
     url = 'https://github.com/ShervanGharari/EASYMORE',
     description=(
