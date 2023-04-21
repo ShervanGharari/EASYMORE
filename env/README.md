@@ -10,8 +10,8 @@ First, we need to have `gdal` source files. On Mac, this can be done by:
 ```brew install gdal```
 If you already have installed `gdal`, you can create a virtual env. For this example we create the virtual environment by installing `virtualenv` first:
 ```
-pip install virtualenv
-virtualenv easymore-env
+python -m pip install virtualenv
+python -m virtualenv easymore-env
 ```
 After the environment is created we can activate this virtual environment and check its information:
 ```
@@ -19,31 +19,32 @@ source easymore-env/bin/activate
 ```
 We can then install easymore from PyPI:
 ```
-pip install easymore
+python -m pip install easymore
 ```
 Or this can be done from the latest code from easymore GitHub repository:
 ```
-git clone https://github.com/ShervanGharari/EASYMORE.git /path/to/easymore
-pip install /path/to/easymore
+git clone https://github.com/ShervanGharari/EASYMORE.git path/to/easymore
+python -m pip install path/to/easymore
 ```
 In order to be able to run the examples with jupyter notebook, we need to install jupyter and ipykernel and link it to the virtual environment.
 ```
-pip install jupyter
-pip install ipykernel
-ipykernel install --name=easymore-env # Add the new virtual environment to Jupyter
+python -m pip install jupyter
+python -m pip install ipykernel
+python -m ipykernel install --name=easymore-env # Add the new virtual environment to Jupyter
 jupyter kernelspec list # list existing Jupyter virtual environments
 ```
 The example can be tested by navigating to the examples folder of the cloned EASYMORE repo
 ```
-cd /path/to/easymore/examples
+cd path/to/easymore/examples
 jupyter notebook
 ```
 Make sure the jupyter notebook kernel is the same as your env name.
 Another way to run the example is to convert the jupyter notebook to python and simulate them as follow:
 ```
-cd /path/to/easymore/examples
+cd path/to/easymore/examples
 jupyter nbconvert *.ipynb --to python # converts all the files to .py
-python 01_ERA5_Regular_Lat_Lon.py
+python 00_test_example.py # compare the result with repository
+python 01_ERA5_Regular_Lat_Lon.py # compare the result with repository
 ```
 In addition, we have provided an example of a requirements file that is tested with EASYMORE development team for Python 3.11.2 is provided. The users can install all the needed packages before installing EASYMORE by `pip install -r path/to/easymore/env/requirements_mac.txt`.
 
@@ -70,27 +71,28 @@ python -m pip install easymore
 ```
  or from local repository:
 ```
-git clone https://github.com/ShervanGharari/EASYMORE.git /path/to/easymore
-python -m pip install /path/to/easymore
+git clone https://github.com/ShervanGharari/EASYMORE.git path/to/easymore
+python -m pip install path/to/easymore
 ```
 In order to be able to run the examples with jupyter notebook, we need to install jupyter and ipykernel and link it to the virtual environment.
 ```
 python -m pip install jupyter
 python -m pip install ipykernel
-ipykernel install --name=easymore-env # Add the new virtual environment to Jupyter
+python -m ipykernel install --name=easymore-env # Add the new virtual environment to Jupyter
 jupyter kernelspec list # list existing Jupyter virtual environments
 ```
 The example can be tested by navigating to the examples folder of the cloned EASYMORE repo
 ```
-cd /path/to/easymore/examples
+cd path/to/easymore/examples
 jupyter notebook
 ```
 Make sure the jupyter notebook kernel is the same as your env name.
 Another way to run the example is to convert the jupyter notebook to Python and simulate them as follows:
 ```
-cd /path/to/easymore/examples
+cd path/to/easymore/examples
 jupyter nbconvert *.ipynb --to python # converts all the files to .py
-python 01_ERA5_Regular_Lat_Lon.py
+python 00_test_example.py # compare the result with repository
+python 01_ERA5_Regular_Lat_Lon.py # compare the result with repository
 ```
 In addition, we have provided an example of a requirements file that is tested with EASYMORE development team for Python 3.9.X is provided. The users can install all the needed packages before installing EASYMORE by `pip install -r path/to/easymore/env/requirements_win.txt`.
 
@@ -112,16 +114,17 @@ module load python/3.8.10 scipy-stack/2022a mpi4py/3.0.3
 rm -rf ~/easymore-env
 virtualenv ~/easymore-env
 source ~/easymore-env/bin/activate
-pip install --no-index --upgrade pip
-pip install --no-index easymore # install from pypi, similar to above this can be installed locally as well
+pip install --upgrade pip
+pip install easymore # install from pypi, similar to above this can be installed locally as well
 
 # check if the code runs smoothly given the example on the easymore github repo
 cd # go to home
 rm -rf EASYMORE
 git clone https://github.com/ShervanGharari/EASYMORE.git
 cd EASYMORE/examples
-pip install --no-index jupyter
-jupyter nbconvert Chapter1_E1.ipynb --to python
-python Chapter1_E1.py
+pip install jupyter
+jupyter nbconvert *.ipynb --to python
+python 00_test_example.py # compare the result with repository
+python 01_ERA5_Regular_Lat_Lon.py # compare the result with repository
 #
 ```
