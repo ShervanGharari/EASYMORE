@@ -54,11 +54,11 @@ The two figures show remapping of the gridded temperature from ERA5 data set to 
 
 ### Original gridded temperature field:
 
-![](https://github.com/ShervanGharari/EASYMORE/blob/main/fig/Gird.png)
+![](https://github.com/ShervanGharari/EASYMORE/blob/main/fig/Gird_new.png)
 
 ### Remapped temperature field to the subbasins:
 
-![](https://github.com/ShervanGharari/EASYMORE/blob/main/fig/Remapped.png)
+![](https://github.com/ShervanGharari/EASYMORE/blob/main/fig/Remapped_new.png)
 
 ## Publication that have used EASYMORE so far:
 
