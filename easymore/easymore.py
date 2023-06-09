@@ -24,6 +24,7 @@ class easymore:
         self.target_shp_lat            =  '' # name of the column latitude in the sink/target shapefile
         self.target_shp_lon            =  '' # name of the column longitude in the sink/target shapefile
         self.source_nc                 =  '' # name of nc file to be remapped
+        self.target_nc                 =  '' # name of nc file to be created
         self.var_names                 =  [] # list of variable names to be remapped from the source NetCDF file
         self.var_lon                   =  '' # name of variable longitude in the source NetCDF file
         self.var_lat                   =  '' # name of variable latitude in the source NetCDF file
@@ -1164,7 +1165,11 @@ in dimensions of the variables and latitude and longitude')
             time_var = ncids[self.var_time][:]
             self.length_of_time = len(time_var)
             target_date_times = nc4.num2date(time_var,units = time_unit,calendar = time_cal)
-            target_name = self.output_dir + self.case_name + '_remapped_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.nc'
+            if self.target_nc is not None:
+                target_name = self.output_dir + self.target_nc
+            else:
+                target_name = self.output_dir + self.case_name + '_remapped_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.nc'
+            print(f'netcdf output file written to: {target_name}')
             if os.path.exists(target_name):
                 if self.overwrite_remapped_nc:
                     print('Removing existing remapped .nc file.')
