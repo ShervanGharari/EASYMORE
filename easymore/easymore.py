@@ -36,6 +36,9 @@ class easymore:
         self.source_shp_lat            =  '' # name of column latitude in the source shapefile
         self.source_shp_lon            =  '' # name of column longitude in the source shapefile
         self.source_shp_ID             =  '' # name of column ID in the source shapefile
+        self.source_cor_lon_flag       =  False, # if there is lon correction needed for example for values above 360 or lon jump from adjacent grids
+        self.source_cor_lon_param      =  ['greater',360, -180], # parameter for lon correction form can be ['greater',360, -180] which means 180 will be deducted from values greater
+        # than 360; another example is ['smaller',-180, 180] smaller values less than -180 will be sum with 180.
         self.remapped_var_id           =  'ID' # name of the ID variable in the new nc file; default 'ID'
         self.remapped_var_lat          =  'latitude' # name of the latitude variable in the new nc file; default 'latitude'
         self.remapped_var_lon          =  'longitude' # name of the longitude variable in the new nc file; default 'longitude'
@@ -60,7 +63,7 @@ class easymore:
         self.save_csv                  =  False # save csv
         self.sort_ID                   =  False # to sort the remapped based on the target shapfile ID; self.target_shp_ID should be given
         self.complevel                 =  4 # netcdf compression level from 1 to 9. Any other value or object will mean no compression.
-        self.version                   =  '1.0.0' # version of the easymore
+        self.version                   =  '1.1.0' # version of the easymore
         print('EASYMORE version '+self.version+ ' is initiated.')
 
 
@@ -288,9 +291,17 @@ class easymore:
         if (self.case == 1 or self.case == 2):
             if (self.source_shp == ''):
                 if self.case == 1 and hasattr(self, 'lat_expanded') and hasattr(self, 'lon_expanded'):
-                    source_shp_gpd = self.lat_lon_SHP(self.lat_expanded, self.lon_expanded,crs="epsg:4326")
+                    source_shp_gpd = self.lat_lon_SHP(self.lat_expanded,\
+                                                      self.lon_expanded,\
+                                                      correction_lon_flag = self.source_cor_lon_flag,
+                                                      correction_lon_param = self.source_cor_lon_param,
+                                                      crs="epsg:4326")
                 else:
-                    source_shp_gpd = self.lat_lon_SHP(self.lat, self.lon,crs="epsg:4326")
+                    source_shp_gpd = self.lat_lon_SHP(self.lat,\
+                                                      self.lon,\
+                                                      correction_lon_flag = self.source_cor_lon_flag,
+                                                      correction_lon_param = self.source_cor_lon_param,
+                                                      crs="epsg:4326")
             else:
                 source_shp_gpd = gpd.read_file(self.source_shp)
                 source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
@@ -778,6 +789,8 @@ in dimensions of the variables and latitude and longitude')
     def lat_lon_SHP(self,
                     lat,
                     lon,
+                    correction_lon_flag = False,
+                    correction_lon_param = ['greater',360, -180],
                     crs = None,
                     file_name = None):
         """
@@ -816,8 +829,25 @@ in dimensions of the variables and latitude and longitude')
         df['Lon_Up_Right']  = lon [  :-2 ,  2:  ].flatten()
         df['Lon_Up']        = lon [  :-2 ,  1:-1].flatten()
         # get the center of grid
+        # lat
         df['Lat_C']         = lat [ 1:-1 ,  1:-1].flatten()
-        df['Lon_C']         = lon [ 1:-1 ,  1:-1].flatten()
+        # lon with possible correction of lon values
+        if correction_lon_flag: # if correction is needed
+            df['Lon_O']          = lon [ 1:-1 ,  1:-1].flatten()
+            lon_new              = lon [ 1:-1 ,  1:-1]
+            if correction_lon_param[0].lower() == 'greater':
+                lon_new[lon_new>correction_lon_param[1]] += correction_lon_param[2]
+            elif correction_lon_param[0].lower() == 'smaller':
+                lon_new[lon_new<correction_lon_param[1]] += correction_lon_param[2]
+            else:
+                sys.exit('correction_lon_param is not given correct, it should be a list with '+
+                         'form of such as ['greater', 360, -180] meaning that deduct 180 from values '+
+                         'greater than 360, or similar to ['smaller',-180,180] which means add 180 '+
+                         'to values smaller than -180')
+            df['Lon_C']          = lon_new [ 1:-1 ,  1:-1].flatten()
+        else: # if correction is not needed
+            df['Lon_O']          = lon [ 1:-1 ,  1:-1].flatten()
+            df['Lon_C']          = df['Lon_O']
 
 
         # calculate the mid point with surrounding grids
@@ -853,10 +883,10 @@ in dimensions of the variables and latitude and longitude')
 
         # Create a new column "geometry" in the DataFrame containing Polygons
         df["geometry"] = df.apply(make_polygon, axis=1)
-        df = df.loc[:, ['geometry', 'Lat_C', 'Lon_C']]
+        df = df.loc[:, ['geometry', 'Lat_C', 'Lon_O', 'Lon_C']]
         df ['ID_s'] = np.arange(len(df))+1
         df = df.rename(columns={'Lat_C': 'lat_s',
-                                'Lon_C': 'lon_s'})
+                                'Lon_O': 'lon_s'})
         # to geodataframe
         gdf = gpd.GeoDataFrame(df, geometry="geometry")
         # assining the crs
@@ -1325,7 +1355,8 @@ in dimensions of the variables and latitude and longitude')
         weighted_value = np.zeros([self.length_of_time,self.number_of_target_elements])
         m = 0 # counter
         for date in target_time: # loop over time
-            ds_temp = ds.sel(time=date.strftime("%Y-%m-%d %H:%M:%S"),method="nearest")
+            # ds_temp = ds.sel(time=date.strftime("%Y-%m-%d %H:%M:%S"),method="nearest")
+            ds_temp = ds.isel(time=m)
             data = np.array(ds_temp[variable_name])
             data = np.squeeze(data)
             # get values from the rows and cols and pass to np data array
@@ -1435,91 +1466,97 @@ to correct for lon above 180')
             # intersection if shp has a larger lon of 180 so it is 0 to 360,
             if (180 < max_lon) and (-180 < min_lon):
                 print('EASYMORE detects that shapefile longitude is between 0 and 360, correction is performed to transfer to -180 to 180')
-                # shapefile with 180 to 360 lon
-                gdf1 = {'geometry': [Polygon([(  180.0+self.tolerance, -90.0+self.tolerance), ( 180.0+self.tolerance,  90.0-self.tolerance),\
-                                              (  360.0-self.tolerance,  90.0-self.tolerance), ( 360.0-self.tolerance, -90.0+self.tolerance)])]}
-                gdf1 = gpd.GeoDataFrame(gdf1)
-                gdf1 = gdf1.set_crs ("epsg:4326")
-                warnings.simplefilter('ignore')
-                shp_int1 = self.intersection_shp(shp, gdf1)
-                warnings.simplefilter('default')
-                col_names = shp_int1.columns
-                col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
-                col_names.append('geometry')
-                shp_int1 = shp_int1[shp_int1.columns.intersection(col_names)]
-                col_names.remove('geometry')
-                # rename columns without S_1_
-                for col_name in col_names:
-                    col_name = str(col_name)
-                    col_name_n = col_name.replace("S_1_","");
-                    shp_int1 = shp_int1.rename(columns={col_name: col_name_n})
-                #
-                for index, _ in shp_int1.iterrows():
-                    polys = shp_int1.geometry.iloc[index] # get the shape
-                    polys = shapely.affinity.translate(polys, xoff=-360.0, yoff=0.0, zoff=0.0)
-                    shp_int1.geometry.iloc[index] = polys
-                # shapefile with -180 to 180 lon
-                gdf2 = {'geometry': [Polygon([( -180.0+self.tolerance, -90.0+self.tolerance), (-180.0+self.tolerance,  90.0-self.tolerance),\
-                                              (  180.0-self.tolerance,  90.0-self.tolerance), ( 180.0-self.tolerance, -90.0+self.tolerance)])]}
-                gdf2 = gpd.GeoDataFrame(gdf2)
-                gdf2 = gdf2.set_crs ("epsg:4326")
-                warnings.simplefilter('ignore')
-                shp_int2 = self.intersection_shp(shp, gdf2)
-                warnings.simplefilter('default')
-                col_names = shp_int2.columns
-                col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
-                col_names.append('geometry')
-                shp_int2 = shp_int2[shp_int2.columns.intersection(col_names)]
-                col_names.remove('geometry')
-                # rename columns without S_1_
-                for col_name in col_names:
-                    col_name = str(col_name)
-                    col_name_n = col_name.replace("S_1_","");
-                    shp_int2 = shp_int2.rename(columns={col_name: col_name_n})
+                # between 180 and 360
+                if (180 < max_lon) and (max_lon < 360):
+                    # shapefile with 180 to 360 lon
+                    gdf1 = {'geometry': [Polygon([(  180.0+self.tolerance, -90.0+self.tolerance), ( 180.0+self.tolerance,  90.0-self.tolerance),\
+                                                  (  360.0-self.tolerance,  90.0-self.tolerance), ( 360.0-self.tolerance, -90.0+self.tolerance)])]}
+                    gdf1 = gpd.GeoDataFrame(gdf1)
+                    gdf1 = gdf1.set_crs ("epsg:4326")
+                    warnings.simplefilter('ignore')
+                    shp_int1 = self.intersection_shp(shp, gdf1)
+                    warnings.simplefilter('default')
+                    col_names = shp_int1.columns
+                    col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
+                    col_names.append('geometry')
+                    shp_int1 = shp_int1[shp_int1.columns.intersection(col_names)]
+                    col_names.remove('geometry')
+                    # rename columns without S_1_
+                    for col_name in col_names:
+                        col_name = str(col_name)
+                        col_name_n = col_name.replace("S_1_","");
+                        shp_int1 = shp_int1.rename(columns={col_name: col_name_n})
+                    #
+                    for index, _ in shp_int1.iterrows():
+                        polys = shp_int1.geometry.iloc[index] # get the shape
+                        polys = shapely.affinity.translate(polys, xoff=-360.0, yoff=0.0, zoff=0.0)
+                        shp_int1.geometry.iloc[index] = polys
+                # between -180 and 180
+                if (-180 < max_lon) and (max_lon < 180):
+                    # shapefile with -180 to 180 lon
+                    gdf2 = {'geometry': [Polygon([( -180.0+self.tolerance, -90.0+self.tolerance), (-180.0+self.tolerance,  90.0-self.tolerance),\
+                                                  (  180.0-self.tolerance,  90.0-self.tolerance), ( 180.0-self.tolerance, -90.0+self.tolerance)])]}
+                    gdf2 = gpd.GeoDataFrame(gdf2)
+                    gdf2 = gdf2.set_crs ("epsg:4326")
+                    warnings.simplefilter('ignore')
+                    shp_int2 = self.intersection_shp(shp, gdf2)
+                    warnings.simplefilter('default')
+                    col_names = shp_int2.columns
+                    col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
+                    col_names.append('geometry')
+                    shp_int2 = shp_int2[shp_int2.columns.intersection(col_names)]
+                    col_names.remove('geometry')
+                    # rename columns without S_1_
+                    for col_name in col_names:
+                        col_name = str(col_name)
+                        col_name_n = col_name.replace("S_1_","");
+                        shp_int2 = shp_int2.rename(columns={col_name: col_name_n})
             #
             if (max_lon < 180) and (min_lon < -180):
-                print('EASYMORE detects that shapefile longitude is between 0 and 360, correction is performed to transfer to -180 to 180')
+                print('EASYMORE detects that shapefile longitude is between -360 and 180, correction is performed to transfer to -180 to 180')
                 # shapefile with -180 to -360 lon
-                gdf1 = {'geometry': [Polygon([( -360.0+self.tolerance, -90.0+self.tolerance), (-360.0+self.tolerance,  90.0-self.tolerance),\
-                                              ( -180.0-self.tolerance,  90.0-self.tolerance), (-180.0-self.tolerance, -90.0+self.tolerance)])]}
-                gdf1 = gpd.GeoDataFrame(gdf1)
-                gdf1 = gdf1.set_crs ("epsg:4326")
-                warnings.simplefilter('ignore')
-                shp_int1 = self.intersection_shp(shp, gdf1)
-                warnings.simplefilter('default')
-                col_names = shp_int1.columns
-                col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
-                col_names.append('geometry')
-                shp_int1 = shp_int1[shp_int1.columns.intersection(col_names)]
-                col_names.remove('geometry')
-                # rename columns without S_1_
-                for col_name in col_names:
-                    col_name = str(col_name)
-                    col_name_n = col_name.replace("S_1_","");
-                    shp_int1 = shp_int1.rename(columns={col_name: col_name_n})
-                #
-                for index, _ in shp_int1.iterrows():
-                    polys = shp_int1.geometry.iloc[index] # get the shape
-                    polys = shapely.affinity.translate(polys, xoff=+360.0, yoff=0.0, zoff=0.0)
-                    shp_int1.geometry.iloc[index] = polys
+                if (-360 < max_lon) and (max_lon < -180):
+                    gdf1 = {'geometry': [Polygon([( -360.0+self.tolerance, -90.0+self.tolerance), (-360.0+self.tolerance,  90.0-self.tolerance),\
+                                                  ( -180.0-self.tolerance,  90.0-self.tolerance), (-180.0-self.tolerance, -90.0+self.tolerance)])]}
+                    gdf1 = gpd.GeoDataFrame(gdf1)
+                    gdf1 = gdf1.set_crs ("epsg:4326")
+                    warnings.simplefilter('ignore')
+                    shp_int1 = self.intersection_shp(shp, gdf1)
+                    warnings.simplefilter('default')
+                    col_names = shp_int1.columns
+                    col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
+                    col_names.append('geometry')
+                    shp_int1 = shp_int1[shp_int1.columns.intersection(col_names)]
+                    col_names.remove('geometry')
+                    # rename columns without S_1_
+                    for col_name in col_names:
+                        col_name = str(col_name)
+                        col_name_n = col_name.replace("S_1_","");
+                        shp_int1 = shp_int1.rename(columns={col_name: col_name_n})
+                    #
+                    for index, _ in shp_int1.iterrows():
+                        polys = shp_int1.geometry.iloc[index] # get the shape
+                        polys = shapely.affinity.translate(polys, xoff=+360.0, yoff=0.0, zoff=0.0)
+                        shp_int1.geometry.iloc[index] = polys
                 # shapefile with -180 to 180 lon
-                gdf2 = {'geometry': [Polygon([( -180.0+self.tolerance, -90.0+self.tolerance), (-180.0+self.tolerance,  90.0-self.tolerance),\
-                                              (  180.0-self.tolerance,  90.0-self.tolerance), ( 180.0-self.tolerance, -90.0+self.tolerance)])]}
-                gdf2 = gpd.GeoDataFrame(gdf2)
-                gdf2 = gdf2.set_crs ("epsg:4326")
-                warnings.simplefilter('ignore')
-                shp_int2 = self.intersection_shp(shp, gdf2)
-                warnings.simplefilter('default')
-                col_names = shp_int2.columns
-                col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
-                col_names.append('geometry')
-                shp_int2 = shp_int2[shp_int2.columns.intersection(col_names)]
-                col_names.remove('geometry')
-                # rename columns without S_1_
-                for col_name in col_names:
-                    col_name = str(col_name)
-                    col_name_n = col_name.replace("S_1_","");
-                    shp_int2 = shp_int2.rename(columns={col_name: col_name_n})
+                if (-180 < max_lon) and (max_lon < +180):
+                    gdf2 = {'geometry': [Polygon([( -180.0+self.tolerance, -90.0+self.tolerance), (-180.0+self.tolerance,  90.0-self.tolerance),\
+                                                  (  180.0-self.tolerance,  90.0-self.tolerance), ( 180.0-self.tolerance, -90.0+self.tolerance)])]}
+                    gdf2 = gpd.GeoDataFrame(gdf2)
+                    gdf2 = gdf2.set_crs ("epsg:4326")
+                    warnings.simplefilter('ignore')
+                    shp_int2 = self.intersection_shp(shp, gdf2)
+                    warnings.simplefilter('default')
+                    col_names = shp_int2.columns
+                    col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
+                    col_names.append('geometry')
+                    shp_int2 = shp_int2[shp_int2.columns.intersection(col_names)]
+                    col_names.remove('geometry')
+                    # rename columns without S_1_
+                    for col_name in col_names:
+                        col_name = str(col_name)
+                        col_name_n = col_name.replace("S_1_","");
+                        shp_int2 = shp_int2.rename(columns={col_name: col_name_n})
         # merging the two shapefiles
         if not shp_int1.empty and not shp_int2.empty:
             shp_final = pd.concat([shp_int1,shp_int2])
