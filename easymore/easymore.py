@@ -36,8 +36,8 @@ class easymore:
         self.source_shp_lat            =  '' # name of column latitude in the source shapefile
         self.source_shp_lon            =  '' # name of column longitude in the source shapefile
         self.source_shp_ID             =  '' # name of column ID in the source shapefile
-        self.source_cor_lon_flag       =  False, # if there is lon correction needed for example for values above 360 or lon jump from adjacent grids
-        self.source_cor_lon_param      =  ['greater',360, -180], # parameter for lon correction form can be ['greater',360, -180] which means 180 will be deducted from values greater
+        self.source_cor_lon_flag       =  False # if there is lon correction needed for example for values above 360 or lon jump from adjacent grids
+        self.source_cor_lon_param      =  ['greater',360, -180] # parameter for lon correction form can be ['greater',360, -180] which means 180 will be deducted from values greater
         # than 360; another example is ['smaller',-180, 180] smaller values less than -180 will be sum with 180.
         self.remapped_var_id           =  'ID' # name of the ID variable in the new nc file; default 'ID'
         self.remapped_var_lat          =  'latitude' # name of the latitude variable in the new nc file; default 'latitude'
@@ -834,15 +834,15 @@ in dimensions of the variables and latitude and longitude')
         # lon with possible correction of lon values
         if correction_lon_flag: # if correction is needed
             df['Lon_O']          = lon [ 1:-1 ,  1:-1].flatten()
-            lon_new              = lon [ 1:-1 ,  1:-1]
-            if correction_lon_param[0].lower() == 'greater':
+            lon_new              = lon
+            if str(correction_lon_param[0]).lower() == 'greater':
                 lon_new[lon_new>correction_lon_param[1]] += correction_lon_param[2]
-            elif correction_lon_param[0].lower() == 'smaller':
+            elif str(correction_lon_param[0]).lower() == 'smaller':
                 lon_new[lon_new<correction_lon_param[1]] += correction_lon_param[2]
             else:
                 sys.exit('correction_lon_param is not given correct, it should be a list with '+
-                         'form of such as ['greater', 360, -180] meaning that deduct 180 from values '+
-                         'greater than 360, or similar to ['smaller',-180,180] which means add 180 '+
+                         'form of such as [''greater'', 360, -180] meaning that deduct 180 from values '+
+                         'greater than 360, or similar to [''smaller'',-180,180] which means add 180 '+
                          'to values smaller than -180')
             df['Lon_C']          = lon_new [ 1:-1 ,  1:-1].flatten()
         else: # if correction is not needed
