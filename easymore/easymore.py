@@ -2329,6 +2329,7 @@ to correct for lon above 180')
         self.NetCDF_SHP_lat_lon() # to find the case and lat/lon
         #
         ds_source = xr.open_dataset(source_nc_name) # source
+        ds_source['lon'][:] = ds_source['lon'][:] - 360
         if source_shp_name:
             shp_source = gpd.read_file(source_shp_name)
         # get the step for the remapped
