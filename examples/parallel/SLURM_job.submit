@@ -4,7 +4,7 @@
 #SBATCH --mem-per-cpu=2G
 #SBATCH --time=00:30:00    # time (DD-HH:MM)
 #SBATCH --job-name=easymore_era5_remapping
-#SBATCH --error= easymore_era5_remapping_error
+#SBATCH --error=easymore_era5_remapping
 
 # load needed modules
 module load StdEnv/2020 gcc/9.3.0 openmpi/4.0.3
