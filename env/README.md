@@ -114,15 +114,15 @@ module load python/3.8.10 scipy-stack/2022a mpi4py/3.0.3
 rm -rf ~/easymore-env
 virtualenv ~/easymore-env
 source ~/easymore-env/bin/activate
-pip install --upgrade pip
-pip install easymore # install from pypi, similar to above this can be installed locally as well
+pip install --no-index --upgrade pip
+pip install --no-index easymore # install from CC wheelhouse, similar to above this can be installed locally or from pypi
 
 # check if the code runs smoothly given the example on the easymore github repo
 cd # go to home
 rm -rf EASYMORE
 git clone https://github.com/ShervanGharari/EASYMORE.git
 cd EASYMORE/examples
-pip install jupyter
+pip install --no-index jupyter
 jupyter nbconvert *.ipynb --to python
 python 00_test_example.py # compare the result with repository
 python 01_ERA5_Regular_Lat_Lon.py # compare the result with repository
