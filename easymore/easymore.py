@@ -2219,6 +2219,8 @@ to correct for lon above 180')
                source_nc_var_ID                = None,
                source_nc_var_time              = None,
                source_nc_var_name              = None,
+               lon_correction_flag             = False,
+               lon_correction_value            = None,
                source_shp_name                 = None,
                source_shp_field_ID             = None,
                source_shp_field_lat            = None,
@@ -2236,6 +2238,7 @@ to correct for lon above 180')
                target_shp_center_flag          = False,
                target_shp_center_color         = 'red',
                time_step_of_viz                = None,
+               step                            = None,
                location_save_fig               = None,
                fig_name                        = None,
                fig_size                        = None,
@@ -2298,26 +2301,37 @@ to correct for lon above 180')
         self.NetCDF_SHP_lat_lon() # to find the case and lat/lon
         #
         ds_source = xr.open_dataset(source_nc_name) # source
-        ds_source['lon'][:] = ds_source['lon'][:] - 360
+        if lon_correction_flag:
+            ds_source[source_nc_var_lon][:] = ds_source[source_nc_var_lon][:] + lon_correction_value
         if source_shp_name:
             shp_source = gpd.read_file(source_shp_name)
         # get the step for the remapped
-        date = pd.DatetimeIndex(ds_source[source_nc_var_time].dt.strftime('%Y-%m-%d %H:%M:%S'))
-        df = pd.DataFrame(np.arange(len(date)),
-                          columns=["step"],
-                          index=date)
-        df['timestamp'] = df.index.strftime('%Y-%m-%d %H:%M:%S')
-        # df_slice = df.iloc[df.index.get_indexer(datetime.strptime(time_step_of_viz,\
-        #                                         '%Y-%m-%d %H:%M:%S'),method='nearest')]
-        idx = df.index.get_indexer([pd.Timestamp(time_step_of_viz)], method='nearest').item()
-        df_slice = df.iloc[idx:idx+1]
-        step = df_slice['step'].item()
-        time_stamp = df_slice['timestamp'].item()
-        print('the closest time step to what is provided for vizualization ', time_step_of_viz,\
-              ' is ', time_stamp)
+        if not step:
+            try:
+                date = pd.DatetimeIndex(ds_source[source_nc_var_time].dt.strftime('%Y-%m-%d %H:%M:%S'))
+                df = pd.DataFrame(np.arange(len(date)),
+                                  columns=["step"],
+                                  index=date)
+                df['timestamp'] = df.index.strftime('%Y-%m-%d %H:%M:%S')
+                idx = df.index.get_indexer([pd.Timestamp(time_step_of_viz)], method='nearest').item()
+                df_slice = df.iloc[idx:idx+1]
+                step = df_slice['step'].item()
+                time_stamp = df_slice['timestamp'].item()
+                print('the closest time step to what is provided for vizualization ', time_step_of_viz,\
+                      ' is ', time_stamp, ' with step in the netcdf file: ', step)
+            except Exception as e:
+                # If an exception is raised, handle it and do something else
+                print("Operation failed:", e)
+                print("This can be due to the non standar calendar of netcdf file or invalid time_step_of_viz.")
+                print("User can specify the step of vizulaization instead of time_step_of_viz")
+        else:
+            # check if step is int and lower than the time dimension of the netcdf file
+            step = min (step, len(ds_source[source_nc_var_time].values)-1)
+        if step is None:
+            sys.exit("step is not defined, either fix the time_step_of_viz or input step parameter")
         # load the data and get the max and min values of remppaed file for the taarget variable
-        max_value = ds_source[source_nc_var_name].isel(time=1).max().item() # get the max of remapped
-        min_value = ds_source[source_nc_var_name].isel(time=1).min().item() # get the min of remapped
+        max_value = ds_source[source_nc_var_name].isel(time=step).max().item() # get the max of remapped
+        min_value = ds_source[source_nc_var_name].isel(time=step).min().item() # get the min of remapped
         print('min: {}, max: {} for variable: {} in source nc file for the time step: {}'.format(\
             min_value, max_value, source_nc_var_name, time_stamp))
         # check if remapped file exists and check the time variables to source nc file
@@ -2328,8 +2342,8 @@ to correct for lon above 180')
                 sys.exit('The source and remapped files seems to have different time; make sure '+\
                          'the remapped files is from the same source file.')
             # update the max min value based on remapped
-            max_value = ds_remapped[remapped_nc_var_name].isel(time=1).max().item() # get the max of remapped
-            min_value = ds_remapped[remapped_nc_var_name].isel(time=1).min().item() # get the min of remapped
+            max_value = ds_remapped[remapped_nc_var_name].isel(time=step).max().item() # get the max of remapped
+            min_value = ds_remapped[remapped_nc_var_name].isel(time=step).min().item() # get the min of remapped
             print('min: {}, max: {} for variable: {} in remapped nc file for the time step: {}'.format(\
             min_value, max_value, remapped_nc_var_name, time_stamp))
             #
@@ -2347,7 +2361,7 @@ to correct for lon above 180')
         fig, ax = plt.subplots(figsize=fig_size)
         fig.set_facecolor("white")
         if (self.case == 1 or self.case ==2) and show_source_flag:
-            ds_source[source_nc_var_name].isel(time=1).plot.pcolormesh(x=source_nc_var_lon,
+            ds_source[source_nc_var_name].isel(time=step).plot.pcolormesh(x=source_nc_var_lon,
                                                                 y=source_nc_var_lat,
                                                                 add_colorbar=add_colorbar_flag,
                                                                 ax = ax,
@@ -2360,7 +2374,7 @@ to correct for lon above 180')
             # dataframe
             df = pd.DataFrame()
             df ['ID'] = ds_source[source_nc_var_ID][:].values.astype(int)
-            df ['value'] = ds_source[source_nc_var_name].isel(time=1) # assumes times is first
+            df ['value'] = ds_source[source_nc_var_name].isel(time=step) # assumes times is first
             df = df.sort_values(by=['ID'])
             df = df.reset_index(drop=True)
             # shapefile
@@ -2411,7 +2425,7 @@ to correct for lon above 180')
                 # dataframe
                 df = pd.DataFrame()
                 df ['ID'] = ds_remapped[remapped_nc_var_ID][:].values.astype(int)
-                df ['value'] = ds_remapped[remapped_nc_var_name].isel(time=1)
+                df ['value'] = ds_remapped[remapped_nc_var_name].isel(time=step)
                 df = df.sort_values(by=['ID'])
                 df = df.reset_index(drop=True)
                 # shapefile
