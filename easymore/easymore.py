@@ -1408,7 +1408,7 @@ to correct for lon above 180')
         shp['ID'] = np.arange(len(shp))+1
         # get the maximum and minimum bound of the total bound
         min_lon, min_lat, max_lon, max_lat = shp.total_bounds
-        print(min_lon, min_lat, max_lon, max_lat)
+        # print(min_lon, min_lat, max_lon, max_lat)
         min_lon = min_lon + self.tolerance
         max_lon = max_lon - self.tolerance
         if (360 < max_lon) and (min_lon<0):
