@@ -60,7 +60,7 @@ class easymore:
         self.save_csv                  =  False # save csv
         self.sort_ID                   =  False # to sort the remapped based on the target shapfile ID; self.target_shp_ID should be given
         self.complevel                 =  4 # netcdf compression level from 1 to 9. Any other value or object will mean no compression.
-        self.version                   =  '1.0.0' # version of the easymore
+        self.version                   =  '1.1.0' # version of the easymore
         print('EASYMORE version '+self.version+ ' is initiated.')
 
 
@@ -170,7 +170,9 @@ class easymore:
                       'and therefore correction for longitude values -180 to 180 or 0 to 360 if correction_shp_lon ',
                       'flag is set to True [default is True]')
                 if self.correction_shp_lon:
+                    print('correcting target shapefile')
                     shp_1 = self.shp_lon_correction(shp_1)
+                    print('correcting source shapefile')
                     shp_2 = self.shp_lon_correction(shp_2)
             else: # it target is in source
                 print('EASMORE detects that target shapefile is inside the boundary of source netCDF file ',
@@ -1325,7 +1327,8 @@ in dimensions of the variables and latitude and longitude')
         weighted_value = np.zeros([self.length_of_time,self.number_of_target_elements])
         m = 0 # counter
         for date in target_time: # loop over time
-            ds_temp = ds.sel(time=date.strftime("%Y-%m-%d %H:%M:%S"),method="nearest")
+            # ds_temp = ds.sel(time=date.strftime("%Y-%m-%d %H:%M:%S"),method="nearest")
+            ds_temp = ds.isel(time=m)
             data = np.array(ds_temp[variable_name])
             data = np.squeeze(data)
             # get values from the rows and cols and pass to np data array
@@ -1405,128 +1408,114 @@ to correct for lon above 180')
         shp['ID'] = np.arange(len(shp))+1
         # get the maximum and minimum bound of the total bound
         min_lon, min_lat, max_lon, max_lat = shp.total_bounds
+        # print(min_lon, min_lat, max_lon, max_lat)
         min_lon = min_lon + self.tolerance
         max_lon = max_lon - self.tolerance
-        shp_int1 = pd.DataFrame()
-        shp_int2 = pd.DataFrame()
         if (360 < max_lon) and (min_lon<0):
-            sys.exit('The minimum longitude is higher than 360 while the minimum longitude is lower that 0')
-        if (max_lon < 180) and (-180 < min_lon):
-            print('EASYMORE detects that shapefile longitude is between -180 and 180, no correction is performed')
-            # shapefile with -180 to 180 lon
-            gdf2 = {'geometry': [Polygon([( -180.0+self.tolerance, -90.0+self.tolerance), (-180.0+self.tolerance,  90.0-self.tolerance),\
-                                          (  180.0-self.tolerance,  90.0-self.tolerance), ( 180.0-self.tolerance, -90.0+self.tolerance)])]}
-            gdf2 = gpd.GeoDataFrame(gdf2)
-            gdf2 = gdf2.set_crs ("epsg:4326")
+            sys.exit('The minimum longitude is higher than 360 while the minimum longitude is lower that 0, EASYMORE cannot handle these cases.')
+        # decide the area
+        area_A_flag = False # area bewteen -360 to -180
+        area_B_flag = False # area between -180 to 180, if only area B is correct then pass the shapefile, no correction
+        area_C_flag = False # area between 180 to 360
+        # check the overlap with regions
+        # overlap with region A
+        if max (-360, min_lon) < min (-180, max_lon):
+            area_A_flag = True
+        # overlap with region B
+        if max (-180, min_lon) < min (180, max_lon):
+            area_B_flag = True
+        # overlap with region C
+        if max (180, min_lon) < min (360, max_lon):
+            area_C_flag = True
+        # initializing empty dataframe
+        shp_intA = pd.DataFrame()
+        shp_intB = pd.DataFrame()
+        shp_intC = pd.DataFrame()
+        #
+        if area_A_flag:
+            print('EASYMORE detects that the shapefile is in region -360 to -180 and correct by moving +360')
+            gdfA = {'geometry': [Polygon([( -360.0+self.tolerance, -90.0+self.tolerance), (-360.0+self.tolerance,  90.0-self.tolerance),\
+                                          ( -180.0-self.tolerance,  90.0-self.tolerance), (-180.0-self.tolerance, -90.0+self.tolerance)])]}
+            gdfA = gpd.GeoDataFrame(gdfA)
+            gdfA = gdfA.set_crs ("epsg:4326")
             warnings.simplefilter('ignore')
-            shp_int2 = self.intersection_shp(shp, gdf2)
+            shp_intA = self.intersection_shp(shp, gdfA)
             warnings.simplefilter('default')
-            col_names = shp_int2.columns
+            col_names = shp_intA.columns
             col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
             col_names.append('geometry')
-            shp_int2 = shp_int2[shp_int2.columns.intersection(col_names)]
+            shp_intA = shp_intA[shp_intA.columns.intersection(col_names)]
             col_names.remove('geometry')
             # rename columns without S_1_
             for col_name in col_names:
                 col_name = str(col_name)
                 col_name_n = col_name.replace("S_1_","");
-                shp_int2 = shp_int2.rename(columns={col_name: col_name_n})
-        else:
-            # intersection if shp has a larger lon of 180 so it is 0 to 360,
-            if (180 < max_lon) and (-180 < min_lon):
-                print('EASYMORE detects that shapefile longitude is between 0 and 360, correction is performed to transfer to -180 to 180')
-                # shapefile with 180 to 360 lon
-                gdf1 = {'geometry': [Polygon([(  180.0+self.tolerance, -90.0+self.tolerance), ( 180.0+self.tolerance,  90.0-self.tolerance),\
-                                              (  360.0-self.tolerance,  90.0-self.tolerance), ( 360.0-self.tolerance, -90.0+self.tolerance)])]}
-                gdf1 = gpd.GeoDataFrame(gdf1)
-                gdf1 = gdf1.set_crs ("epsg:4326")
-                warnings.simplefilter('ignore')
-                shp_int1 = self.intersection_shp(shp, gdf1)
-                warnings.simplefilter('default')
-                col_names = shp_int1.columns
-                col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
-                col_names.append('geometry')
-                shp_int1 = shp_int1[shp_int1.columns.intersection(col_names)]
-                col_names.remove('geometry')
-                # rename columns without S_1_
-                for col_name in col_names:
-                    col_name = str(col_name)
-                    col_name_n = col_name.replace("S_1_","");
-                    shp_int1 = shp_int1.rename(columns={col_name: col_name_n})
-                #
-                for index, _ in shp_int1.iterrows():
-                    polys = shp_int1.geometry.iloc[index] # get the shape
-                    polys = shapely.affinity.translate(polys, xoff=-360.0, yoff=0.0, zoff=0.0)
-                    shp_int1.geometry.iloc[index] = polys
-                # shapefile with -180 to 180 lon
-                gdf2 = {'geometry': [Polygon([( -180.0+self.tolerance, -90.0+self.tolerance), (-180.0+self.tolerance,  90.0-self.tolerance),\
+                shp_intA = shp_intA.rename(columns={col_name: col_name_n})
+            # shift by positive 360
+            for index, _ in shp_intA.iterrows():
+                polys = shp_intA.geometry.iloc[index] # get the shape
+                polys = shapely.affinity.translate(polys, xoff=+360.0, yoff=0.0, zoff=0.0)
+                shp_intA.geometry.iloc[index] = polys
+        #
+        if area_C_flag:
+            print('EASYMORE detects that the shapefile is in region 180 to 360 and correct by moving -360')
+            gdfC = {'geometry': [Polygon([(  180.0+self.tolerance, -90.0+self.tolerance), ( 180.0+self.tolerance,  90.0-self.tolerance),\
+                                          (  360.0-self.tolerance,  90.0-self.tolerance), ( 360.0-self.tolerance, -90.0+self.tolerance)])]}
+            gdfC = gpd.GeoDataFrame(gdfC)
+            gdfC = gdfC.set_crs ("epsg:4326")
+            warnings.simplefilter('ignore')
+            shp_intC = self.intersection_shp(shp, gdfC)
+            warnings.simplefilter('default')
+            col_names = shp_intC.columns
+            col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
+            col_names.append('geometry')
+            shp_intC = shp_intC[shp_intC.columns.intersection(col_names)]
+            col_names.remove('geometry')
+            # rename columns without S_1_
+            for col_name in col_names:
+                col_name = str(col_name)
+                col_name_n = col_name.replace("S_1_","");
+                shp_intC = shp_intC.rename(columns={col_name: col_name_n})
+            # shift by negative 360
+            for index, _ in shp_intC.iterrows():
+                polys = shp_intC.geometry.iloc[index] # get the shape
+                polys = shapely.affinity.translate(polys, xoff=-360.0, yoff=0.0, zoff=0.0)
+                shp_intC.geometry.iloc[index] = polys
+        #
+        if area_B_flag:
+            if (area_A_flag or area_C_flag):
+                print('EASYMORE detects that the shapefile is also in region -180 to 180')
+                gdfB = {'geometry': [Polygon([( -180.0+self.tolerance, -90.0+self.tolerance), (-180.0+self.tolerance,  90.0-self.tolerance),\
                                               (  180.0-self.tolerance,  90.0-self.tolerance), ( 180.0-self.tolerance, -90.0+self.tolerance)])]}
-                gdf2 = gpd.GeoDataFrame(gdf2)
-                gdf2 = gdf2.set_crs ("epsg:4326")
+                gdfB = gpd.GeoDataFrame(gdfB)
+                gdfB = gdfB.set_crs ("epsg:4326")
                 warnings.simplefilter('ignore')
-                shp_int2 = self.intersection_shp(shp, gdf2)
+                shp_intB = self.intersection_shp(shp, gdfB)
                 warnings.simplefilter('default')
-                col_names = shp_int2.columns
+                col_names = shp_intB.columns
                 col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
                 col_names.append('geometry')
-                shp_int2 = shp_int2[shp_int2.columns.intersection(col_names)]
+                shp_intB = shp_intB[shp_intB.columns.intersection(col_names)]
                 col_names.remove('geometry')
                 # rename columns without S_1_
                 for col_name in col_names:
                     col_name = str(col_name)
                     col_name_n = col_name.replace("S_1_","");
-                    shp_int2 = shp_int2.rename(columns={col_name: col_name_n})
-            #
-            if (max_lon < 180) and (min_lon < -180):
-                print('EASYMORE detects that shapefile longitude is between 0 and 360, correction is performed to transfer to -180 to 180')
-                # shapefile with -180 to -360 lon
-                gdf1 = {'geometry': [Polygon([( -360.0+self.tolerance, -90.0+self.tolerance), (-360.0+self.tolerance,  90.0-self.tolerance),\
-                                              ( -180.0-self.tolerance,  90.0-self.tolerance), (-180.0-self.tolerance, -90.0+self.tolerance)])]}
-                gdf1 = gpd.GeoDataFrame(gdf1)
-                gdf1 = gdf1.set_crs ("epsg:4326")
-                warnings.simplefilter('ignore')
-                shp_int1 = self.intersection_shp(shp, gdf1)
-                warnings.simplefilter('default')
-                col_names = shp_int1.columns
-                col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
-                col_names.append('geometry')
-                shp_int1 = shp_int1[shp_int1.columns.intersection(col_names)]
-                col_names.remove('geometry')
-                # rename columns without S_1_
-                for col_name in col_names:
-                    col_name = str(col_name)
-                    col_name_n = col_name.replace("S_1_","");
-                    shp_int1 = shp_int1.rename(columns={col_name: col_name_n})
-                #
-                for index, _ in shp_int1.iterrows():
-                    polys = shp_int1.geometry.iloc[index] # get the shape
-                    polys = shapely.affinity.translate(polys, xoff=+360.0, yoff=0.0, zoff=0.0)
-                    shp_int1.geometry.iloc[index] = polys
-                # shapefile with -180 to 180 lon
-                gdf2 = {'geometry': [Polygon([( -180.0+self.tolerance, -90.0+self.tolerance), (-180.0+self.tolerance,  90.0-self.tolerance),\
-                                              (  180.0-self.tolerance,  90.0-self.tolerance), ( 180.0-self.tolerance, -90.0+self.tolerance)])]}
-                gdf2 = gpd.GeoDataFrame(gdf2)
-                gdf2 = gdf2.set_crs ("epsg:4326")
-                warnings.simplefilter('ignore')
-                shp_int2 = self.intersection_shp(shp, gdf2)
-                warnings.simplefilter('default')
-                col_names = shp_int2.columns
-                col_names = list(filter(lambda x: x.startswith('S_1_'), col_names))
-                col_names.append('geometry')
-                shp_int2 = shp_int2[shp_int2.columns.intersection(col_names)]
-                col_names.remove('geometry')
-                # rename columns without S_1_
-                for col_name in col_names:
-                    col_name = str(col_name)
-                    col_name_n = col_name.replace("S_1_","");
-                    shp_int2 = shp_int2.rename(columns={col_name: col_name_n})
+                    shp_intB = shp_intB.rename(columns={col_name: col_name_n})
+            else:
+                shp_intB = shp # no correction is needed, pass
         # merging the two shapefiles
-        if not shp_int1.empty and not shp_int2.empty:
-            shp_final = pd.concat([shp_int1,shp_int2])
-        elif not shp_int1.empty:
-            shp_final = shp_int1
-        elif not shp_int2.empty:
-            shp_final = shp_int2
+        shp_final = pd.concat([shp_intA,shp_intB,shp_intC])
+
+
+        # if not shp_int1.empty and not shp_int2.empty:
+        #     shp_final = pd.concat([shp_int1,shp_int2])
+        # elif not shp_int1.empty:
+        #     shp_final = shp_int1
+        # elif not shp_int2.empty:
+        #     shp_final = shp_int2
+        # print(shp_final)
+
         # put back the pandas into geopandas
         shp_final = shp_final.set_geometry('geometry')
         shp_final = shp_final.dissolve(by='ID', as_index=False)
@@ -2213,6 +2202,8 @@ to correct for lon above 180')
                source_nc_var_ID                = None,
                source_nc_var_time              = None,
                source_nc_var_name              = None,
+               lon_correction_flag             = False,
+               lon_correction_value            = None,
                source_shp_name                 = None,
                source_shp_field_ID             = None,
                source_shp_field_lat            = None,
@@ -2230,6 +2221,7 @@ to correct for lon above 180')
                target_shp_center_flag          = False,
                target_shp_center_color         = 'red',
                time_step_of_viz                = None,
+               step                            = None,
                location_save_fig               = None,
                fig_name                        = None,
                fig_size                        = None,
@@ -2292,25 +2284,37 @@ to correct for lon above 180')
         self.NetCDF_SHP_lat_lon() # to find the case and lat/lon
         #
         ds_source = xr.open_dataset(source_nc_name) # source
+        if lon_correction_flag:
+            ds_source[source_nc_var_lon][:] = ds_source[source_nc_var_lon][:] + lon_correction_value
         if source_shp_name:
             shp_source = gpd.read_file(source_shp_name)
         # get the step for the remapped
-        date = pd.DatetimeIndex(ds_source[source_nc_var_time].dt.strftime('%Y-%m-%d %H:%M:%S'))
-        df = pd.DataFrame(np.arange(len(date)),
-                          columns=["step"],
-                          index=date)
-        df['timestamp'] = df.index.strftime('%Y-%m-%d %H:%M:%S')
-        # df_slice = df.iloc[df.index.get_indexer(datetime.strptime(time_step_of_viz,\
-        #                                                 '%Y-%m-%d %H:%M:%S'),method='nearest')]
-        idx = df.index.get_indexer([pd.Timestamp(time_step_of_viz)], method='nearest').item()
-        df_slice = df.iloc[idx:idx+1]
-        step = df_slice['step'].item()
-        time_stamp = df_slice['timestamp'].item()
-        print('the closest time step to what is provided for vizualization ', time_step_of_viz,\
-              ' is ', time_stamp)
+        if step is None:
+            try:
+                date = pd.DatetimeIndex(ds_source[source_nc_var_time].dt.strftime('%Y-%m-%d %H:%M:%S'))
+                df = pd.DataFrame(np.arange(len(date)),
+                                  columns=["step"],
+                                  index=date)
+                df['timestamp'] = df.index.strftime('%Y-%m-%d %H:%M:%S')
+                idx = df.index.get_indexer([pd.Timestamp(time_step_of_viz)], method='nearest').item()
+                df_slice = df.iloc[idx:idx+1]
+                step = df_slice['step'].item()
+                time_stamp = df_slice['timestamp'].item()
+                print('the closest time step to what is provided for vizualization ', time_step_of_viz,\
+                      ' is ', time_stamp, ' with step in the netcdf file: ', step)
+            except Exception as e:
+                # If an exception is raised, handle it and do something else
+                print("Operation failed:", e)
+                print("This can be due to the non standar calendar of netcdf file or invalid time_step_of_viz.")
+                print("User can specify the step of vizulaization instead of time_step_of_viz")
+        else:
+            # check if step is int and lower than the time dimension of the netcdf file
+            step = min (step, len(ds_source[source_nc_var_time].values)-1)
+        if step is None:
+            sys.exit("step is not defined, either fix the time_step_of_viz or input step parameter")
         # load the data and get the max and min values of remppaed file for the taarget variable
-        max_value = ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest').max().item() # get the max of remapped
-        min_value = ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest').min().item() # get the min of remapped
+        max_value = ds_source[source_nc_var_name].isel(time=step).max().item() # get the max of remapped
+        min_value = ds_source[source_nc_var_name].isel(time=step).min().item() # get the min of remapped
         print('min: {}, max: {} for variable: {} in source nc file for the time step: {}'.format(\
             min_value, max_value, source_nc_var_name, time_stamp))
         # check if remapped file exists and check the time variables to source nc file
@@ -2321,8 +2325,8 @@ to correct for lon above 180')
                 sys.exit('The source and remapped files seems to have different time; make sure '+\
                          'the remapped files is from the same source file.')
             # update the max min value based on remapped
-            max_value = ds_remapped[remapped_nc_var_name].sel(time=time_stamp, method='nearest').max().item() # get the max of remapped
-            min_value = ds_remapped[remapped_nc_var_name].sel(time=time_stamp, method='nearest').min().item() # get the min of remapped
+            max_value = ds_remapped[remapped_nc_var_name].isel(time=step).max().item() # get the max of remapped
+            min_value = ds_remapped[remapped_nc_var_name].isel(time=step).min().item() # get the min of remapped
             print('min: {}, max: {} for variable: {} in remapped nc file for the time step: {}'.format(\
             min_value, max_value, remapped_nc_var_name, time_stamp))
             #
@@ -2340,7 +2344,7 @@ to correct for lon above 180')
         fig, ax = plt.subplots(figsize=fig_size)
         fig.set_facecolor("white")
         if (self.case == 1 or self.case ==2) and show_source_flag:
-            ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest').plot.pcolormesh(x=source_nc_var_lon,
+            ds_source[source_nc_var_name].isel(time=step).plot.pcolormesh(x=source_nc_var_lon,
                                                                 y=source_nc_var_lat,
                                                                 add_colorbar=add_colorbar_flag,
                                                                 ax = ax,
@@ -2353,7 +2357,7 @@ to correct for lon above 180')
             # dataframe
             df = pd.DataFrame()
             df ['ID'] = ds_source[source_nc_var_ID][:].values.astype(int)
-            df ['value'] = ds_source[source_nc_var_name].sel(time=time_stamp, method='nearest') # assumes times is first
+            df ['value'] = ds_source[source_nc_var_name].isel(time=step) # assumes times is first
             df = df.sort_values(by=['ID'])
             df = df.reset_index(drop=True)
             # shapefile
@@ -2404,7 +2408,7 @@ to correct for lon above 180')
                 # dataframe
                 df = pd.DataFrame()
                 df ['ID'] = ds_remapped[remapped_nc_var_ID][:].values.astype(int)
-                df ['value'] = ds_remapped[remapped_nc_var_name].sel(time=time_stamp,method='nearest')
+                df ['value'] = ds_remapped[remapped_nc_var_name].isel(time=step)
                 df = df.sort_values(by=['ID'])
                 df = df.reset_index(drop=True)
                 # shapefile
@@ -2450,4 +2454,3 @@ to correct for lon above 180')
             if not os.path.isdir(location_save_fig):
                 os.makedirs(location_save_fig)
             plt.savefig(location_save_fig+fig_name, bbox_inches='tight')
-
