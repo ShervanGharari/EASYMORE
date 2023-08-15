@@ -19,9 +19,9 @@ from typing import (
     Union,
 )
 
-from pkg_resources import get_distribution
+from easymore import __version__
 
-VERSION = get_distribution('easymore').version
+VERSION = __version__
 
 class Easymore:
 
@@ -61,7 +61,7 @@ class Easymore:
         buffer_clip_source_shp: int=2,
         save_temp_shp: bool=True,
         correction_shp_lon: bool=True,
-        rescaledweightds: bool=True,
+        rescaledweights: bool=True,
         skip_outside_shape: bool=False,
         author_name: str=None,
         license: str=None,
@@ -260,7 +260,7 @@ class Easymore:
         # check the source nc file
         self.check_source_nc()
         # if remap is not provided then create the remapping file
-        if self.remap_csv == '':
+        if not self.remap_csv:
             import geopandas as gpd
             print('--CREATING-REMAPPING-FILE--')
             time_start = datetime.now()
@@ -332,7 +332,7 @@ class Easymore:
                 for file in removeThese:
                     os.remove(file)
             else:
-                sys.exit('The projection for source and target shapefile are not WGS84, please revise, assign')
+                raise ValueError('The projection for source and target shapefile are not WGS84, please revise, assign')
             # intersection
             warnings.simplefilter('ignore')
             shp_int = self.intersection_shp(shp_1, shp_2)
@@ -471,14 +471,14 @@ class Easymore:
         """
         if self.temp_dir != '':
             if self.temp_dir[-1] != '/':
-                sys.exit('the provided temporary folder for EASYMORE should end with (/)')
+                raise ValueError('the provided temporary folder for EASYMORE should end with (/)')
             if not os.path.isdir(self.temp_dir):
                 os.makedirs(self.temp_dir)
         if self.output_dir == '':
-            sys.exit('the provided folder for EASYMORE remapped netCDF output is missing; please provide that')
+            raise ValueError('the provided folder for EASYMORE remapped netCDF output is missing; please provide that')
         if self.output_dir != '':
             if self.output_dir[-1] != '/':
-                sys.exit('the provided output folder for EASYMORE should end with (/)')
+                raise ValueError('the provided output folder for EASYMORE should end with (/)')
             if not os.path.isdir(self.output_dir):
                 os.makedirs(self.output_dir)
         if self.temp_dir == '':
@@ -495,16 +495,16 @@ class Easymore:
                 self.format_list     = self.format_list     * len(self.var_names)
                 self.fill_value_list = self.fill_value_list * len(self.var_names)
             else:
-                sys.exit('number of variables and fill values and formats do not match')
+                raise ValueError('number of variables and fill values and formats do not match')
         if self.remap_csv != '':
             print('remap file is provided; EASYMORE will use this file and skip creation of remapping file')
         if len(self.var_names) != len(set(self.var_names)):
-            sys.exit('names of variables provided from the source NetCDF file to be remapped are not unique')
+            raise ValueError('names of variables provided from the source NetCDF file to be remapped are not unique')
         if self.var_names_remapped:
             if len(self.var_names_remapped) != len(set(self.var_names_remapped)):
-                sys.exit('the name of the variables you have provided as the rename in the remapped file are not unique')
+                raise ValueError('the name of the variables you have provided as the rename in the remapped file are not unique')
             if len(self.var_names_remapped) != len(self.var_names):
-                sys.exit('the number of provided variables from the source file and names to be remapped are not the same length')
+                raise ValueError('the number of provided variables from the source file and names to be remapped are not the same length')
         else:
             self.var_names_remapped = self.var_names
         for i in np.arange(len(self.var_names)):
@@ -528,11 +528,12 @@ class Easymore:
         import shapely
         # sink/target shapefile check the projection
         if not self.check_shp_crs(shp):
-            sys.exit('please project your shapefile to WGS84 (epsg:4326)')
+            raise ValueError('please project your shapefile to WGS84 (epsg:4326)')
         else: # check if the projection is WGS84 (or epsg:4326)
-            print('EASYMORE detects that target shapefile is in WGS84 (epsg:4326)')
+            if self.verbose:
+                print('EASYMORE detects that target shapefile is in WGS84 (epsg:4326)')
         # check if the ID, latitude, longitude are provided
-        if self.target_shp_ID == '':
+        if not self.target_shp_ID:
             print('EASYMORE detects that no field for ID is provided in sink/target shapefile')
             print('arbitarary values of ID are added in the field ID_t')
             shp['ID_t']  = np.arange(len(shp))+1
@@ -541,9 +542,9 @@ class Easymore:
             # check if the provided IDs are unique
             ID_values = np.array(shp[self.target_shp_ID])
             if len(ID_values) != len(np.unique(ID_values)):
-                sys.exit('The provided IDs in shapefile are not unique; provide unique IDs or do not identify target_shp_ID')
+                raise ValueError('The provided IDs in shapefile are not unique; provide unique IDs or do not identify target_shp_ID')
             shp['ID_t'] = shp[self.target_shp_ID]
-        if self.target_shp_lat == '' or self.target_shp_lon == '':
+        if not any([self.target_shp_lat, self.target_shp_lon]):
             print('EASYMORE detects that either of the fields for latitude or longitude is not provided in sink/target shapefile')
             # in WGS84
             print('calculating centroid of shapes in WGS84 projection;')
@@ -553,14 +554,14 @@ class Easymore:
             df_point ['lat'] = shp.centroid.y
             df_point ['lon'] = shp.centroid.x
             warnings.simplefilter('default') # back to normal
-        if self.target_shp_lat == '':
+        if not self.target_shp_lat:
             print('EASYMORE detects that no field for latitude is provided in sink/target shapefile')
             print('latitude values are added in the field lat_t')
             shp['lat_t']  = df_point ['lat'] # centroid lat from target
         else:
             print('EASYMORE detects that the field latitude is provided in sink/target shapefile')
             shp['lat_t'] = shp[self.target_shp_lat]
-        if self.target_shp_lon == '':
+        if  not self.target_shp_lon:
             print('EASYMORE detects that no field for longitude is provided in sink/target shapefile')
             print('longitude values are added in the field lon_t')
             shp['lon_t']  = df_point ['lon'] # centroid lon from target
@@ -616,7 +617,7 @@ class Easymore:
         flag_do_not_match = False
         nc_names = sorted(glob.glob (self.source_nc))
         if not nc_names:
-            sys.exit('EASYMORE detects no netCDF file; check the path to the soure netCDF files')
+            raise ValueError('EASYMORE detects no netCDF file; check the path to the soure netCDF files')
         else:
             # when skip_check_all_source_nc is True easymore only
             # check the first file and not all the consistancy of all the files to the first file
@@ -688,12 +689,12 @@ class Easymore:
                 ncid = nc4.Dataset(nc_name)
                 temp = ncid.variables[self.var_time].dimensions
                 if len(temp) != 1:
-                    sys.exit('EASYMORE expects 1D time variable, it seems time variables has more than 1 dimension')
+                    raise ValueError('EASYMORE expects 1D time variable, it seems time variables has more than 1 dimension')
                 if str(temp[0]) != self.var_time:
-                    sys.exit('EASYMORE expects time variable and dimension to be different, they should be the same\
+                    raise ValueError('EASYMORE expects time variable and dimension to be different, they should be the same\
                     for xarray to consider time dimension as coordinates')
         if flag_do_not_match:
-            sys.exit('EASYMORE detects that all the provided netCDF files and variables \
+            raise ValueError('EASYMORE detects that all the provided netCDF files and variables \
 has different dimensions for the variables or latitude and longitude')
         else:
             print('EASYMORE detects that the variables from the netCDF files are identical\
@@ -726,7 +727,7 @@ in dimensions of the variables and latitude and longitude')
         # sink/target shapefile is what we want the variables to be remapped to
         shp = gpd.read_file(self.source_shp)
         if not self.check_shp_crs(shp):
-            sys.exit('please project your source shapefile and variables in source nc files to WGS84 (epsg:4326)')
+            raise ValueError('please project your source shapefile and variables in source nc files to WGS84 (epsg:4326)')
         else: # check if the projection is WGS84 (or epsg:4326)
             print('EASYMORE detects that source shapefile is in WGS84 (epsg:4326)')
         # get the lat/lon from source shapfile and nc files
@@ -742,7 +743,7 @@ in dimensions of the variables and latitude and longitude')
         df_temp           = coord_shp.drop_duplicates()
         if len(df_temp)  != len(coord_shp):
             # print
-            sys.exit('The latitude and longitude in source shapefile are not unique')
+            raise ValueError('The latitude and longitude in source shapefile are not unique')
         # first check the model
         coord_nc          = pd.DataFrame()
         coord_nc  ['lon'] = self.lon
@@ -753,7 +754,7 @@ in dimensions of the variables and latitude and longitude')
         df_temp           = coord_nc.drop_duplicates()
         if len(df_temp)  != len(coord_nc):
             # print
-            #sys.exit('The latitude and longitude in source NetCDF files are not unique')
+            #raise ValueError('The latitude and longitude in source NetCDF files are not unique')
             print('The latitude and longitude in source NetCDF files are not unique')
 
 
@@ -1055,7 +1056,7 @@ in dimensions of the variables and latitude and longitude')
         column_names = shp.columns
         column_names = list(column_names)
         if ('lon_s' not in column_names) or ('lat_s' not in column_names) or ('ID_s' not in column_names):
-            sys.exit('the source shapefile does not have column of lon_s lat_s and ID_s')
+            raise ValueError('the source shapefile does not have column of lon_s lat_s and ID_s')
         # check if the shapefile is already expanded
         min_lon, min_lat, max_lon, max_lat = shp.total_bounds
         print(min_lon, min_lat, max_lon, max_lat)
@@ -1110,7 +1111,7 @@ in dimensions of the variables and latitude and longitude')
                         temp = gpd.GeoDataFrame( pd.concat( [temp,shp1] , ignore_index=True )  )
                 temp.to_file(temp_dir+case_name+'_source_shapefile_expanded.shp')
             else:
-                sys.exit('EASYMORE cannot decide about the lat and lon of the shapefiles')
+                raise ValueError('EASYMORE cannot decide about the lat and lon of the shapefiles')
         result = gpd.read_file(temp_dir+case_name+'_source_shapefile_expanded.shp')
         return result
 
@@ -1208,18 +1209,18 @@ in dimensions of the variables and latitude and longitude')
         if 'easymore_case' in remap_df.columns:
             print('EASYMORE case exists in the remap file')
         else:
-            sys.exit('EASYMORE case field does not exits in the remap file; make sure to include this if you create the remapping file manually!')
+            raise ValueError('EASYMORE case field does not exits in the remap file; make sure to include this if you create the remapping file manually!')
         # check if all the easymore_case is unique for the data set
         if not (len(np.unique(np.array(remap_df['easymore_case'])))==1):
-            sys.exit('the EASYMORE_case is not unique in the remapping file')
+            raise ValueError('the EASYMORE_case is not unique in the remapping file')
         if not (np.unique(np.array(remap_df['easymore_case'])) == 1 or\
         np.unique(np.array(remap_df['easymore_case'])) == 2 or\
         np.unique(np.array(remap_df['easymore_case'])) == 3):
-            sys.exit('EASYMORE case should be one of 1, 2 or 3; please refer to the documentation')
+            raise ValueError('EASYMORE case should be one of 1, 2 or 3; please refer to the documentation')
         self.case = np.unique(np.array(remap_df['easymore_case']))
         # check if the needed columns are existing
         if not set(['ID_t','lat_t','lon_t','order_t','ID_s','lat_s','lon_s','weight']) <= set(remap_df.columns):
-            sys.exit('provided remapping file does not have one of the needed fields: \n'+\
+            raise ValueError('provided remapping file does not have one of the needed fields: \n'+\
                 'ID_t, lat_t, lon_t, order_t, ID_s, lat_s, lon_s, weight')
 
     def __target_nc_creation(self):
@@ -1283,11 +1284,11 @@ in dimensions of the variables and latitude and longitude')
             if 'units' in ncids.variables[self.var_time].ncattrs():
                 time_unit = ncids.variables[self.var_time].units
             else:
-                sys.exit('units is not provided for the time variable for source NetCDF of'+ nc_name)
+                raise ValueError('units is not provided for the time variable for source NetCDF of'+ nc_name)
             if 'calendar' in ncids.variables[self.var_time].ncattrs():
                 time_cal = ncids.variables[self.var_time].calendar
             else:
-                sys.exit('calendar is not provided for the time variable for source NetCDF of'+ nc_name)
+                raise ValueError('calendar is not provided for the time variable for source NetCDF of'+ nc_name)
             time_var = ncids[self.var_time][:]
             self.length_of_time = len(time_var)
             target_date_times = nc4.num2date(time_var,units = time_unit,calendar = time_cal)
@@ -1342,8 +1343,10 @@ in dimensions of the variables and latitude and longitude')
                 hruId_varid[:] = hruID_var
                 # general attributes for NetCDF file
                 ncid.Conventions = 'CF-1.6'
-                ncid.Author = 'The data were written by ' + self.author_name
-                ncid.License = self.license
+                if self.author_name:
+                    ncid.Author = 'The data were written by ' + self.author_name
+                if self.license:
+                    ncid.License = self.license
                 ncid.History = 'Created ' + time.ctime(time.time())
                 ncid.Source = 'Case: ' +self.case_name + '; remapped by script from library of Shervan Gharari (https://github.com/ShervanGharari/EASYMORE).'
                 # write variables
@@ -1537,7 +1540,7 @@ to correct for lon above 180')
         min_lon = min_lon + self.tolerance
         max_lon = max_lon - self.tolerance
         if (360 < max_lon) and (min_lon<0):
-            sys.exit('The minimum longitude is higher than 360 while the minimum longitude is lower that 0, EASYMORE cannot handle these cases.')
+            raise ValueError('The minimum longitude is higher than 360 while the minimum longitude is lower that 0, EASYMORE cannot handle these cases.')
         # decide the area
         area_A_flag = False # area bewteen -360 to -180
         area_B_flag = False # area between -180 to 180, if only area B is correct then pass the shapefile, no correction
@@ -1650,7 +1653,7 @@ to correct for lon above 180')
             shp_final = pd.concat([shp_final, df_attribute], axis=1)
         # check if the output has the same number of elements
         if len(shp) != len(shp_final):
-            sys.exit('the element of input shapefile and corrected shapefile area not the same')
+            raise ValueError('the element of input shapefile and corrected shapefile area not the same')
         # return the shapefile
         return shp_final
 
@@ -1673,10 +1676,10 @@ to correct for lon above 180')
         # in equal projection
         print('calculating centroid of shapes in equal area projection')
         if not self.check_shp_crs(shp): # "epsg:4326" not in str(shp.crs).lower():
-            sys.exit('shapefile should be in WGS84 projection');
+            raise ValueError('shapefile should be in WGS84 projection');
         minx, miny, maxx, maxy = shp.total_bounds
         if maxx > 180:
-            sys.exit('it seems that the shapefile has longitude values of more than 180 degree which might make \
+            raise ValueError('it seems that the shapefile has longitude values of more than 180 degree which might make \
             problem in equal area projection; other software can be used');
         shp_temp = shp.to_crs ("EPSG:6933") # source shapefile to equal area
         lat_c = np.array(shp_temp.centroid.y) # centroid lat from target
@@ -1731,12 +1734,12 @@ to correct for lon above 180')
             if isinstance(data_frame.index, pd.DatetimeIndex):
                 print('EASYMORE detects that index is pandas datatime')
             else:
-                sys.exit('EASYMORE detects that the index is not datetime in data input file. ',\
+                raise ValueError('EASYMORE detects that the index is not datetime in data input file. ',\
                          'You use dataframe.index = pd.to_datetime(dataframe.index) to make sure ',\
                          'the index is in <class pandas.core.indexes.datetimes.DatetimeIndex>')
         elif isinstance(data_frame, str):
             if data_frame_DateTime_column is None:
-                sys.exit('dataframe is provided as string csv file,'\
+                raise ValueError('dataframe is provided as string csv file,'\
                          +'please provide the name of time index column')
             # read the data csv
             data_frame = pd.read_csv(data_frame)
@@ -1745,7 +1748,7 @@ to correct for lon above 180')
             data_frame = data_frame.set_index(data_frame_DateTime_column) # set as index
             data_frame.index = pd.to_datetime(data_frame.index) # from index to datetime index
         else:
-            sys.exit('The data input type is not recognized')
+            raise ValueError('The data input type is not recognized')
         data_frame = data_frame.rename_axis(index=None) # remove possible name of the index column
 
         # preparation of dataset_info
@@ -1753,17 +1756,17 @@ to correct for lon above 180')
         encoding = {}
         if not (station_info_data is None):
             if not station_info_column:
-                sys.exit('The station name column should be provided')
+                raise ValueError('The station name column should be provided')
             if isinstance(station_info_data, pd.DataFrame):
                 print('EASYMORE detects that the station data is pandas dataframe')
             elif isinstance(station_info_data, str):
                 if data_frame_DateTime_column is None:
-                    sys.exit('dataframe is provided as string csv file, please'+\
+                    raise ValueError('dataframe is provided as string csv file, please'+\
                              ' provide the name of time index column')
                 # read the data csv
                 station_info_data = pd.read_csv(station_info_data)
             else:
-                sys.exit('The station info data input type is not recognized')
+                raise ValueError('The station info data input type is not recognized')
             station_info_data = station_info_data.set_index(station_info_column)
             station_info_data = station_info_data.rename_axis(index=None)
             # check if all station info info is exsiting in the station info
@@ -1775,7 +1778,7 @@ to correct for lon above 180')
                 if set(list(data_frame.columns)) <= set(list(station_info_data.columns)):
                     print('EASYMORE detects that the necessary information for the station are provided with transpose')
                 else:
-                    sys.exit('EASYMORE detects the data frame provided for data, columns names, '+\
+                    raise ValueError('EASYMORE detects the data frame provided for data, columns names, '+\
                              'are partly missing in the station information')
             # subset the station infromation for the provided data
             station_info_data = station_info_data [station_info_data.columns.intersection(list(data_frame.columns))]
@@ -2310,7 +2313,7 @@ to correct for lon above 180')
         diff = np.setdiff1d(ID_s, ID_s_V, assume_unique=False)
         if diff.size !=0 :
             print(diff)
-            sys.exit('It seems the input points with the following ID do have identical longitude and latitude')
+            raise ValueError('It seems the input points with the following ID do have identical longitude and latitude')
         if not (voronoi_shp_file_name is None):
             Thiessen.to_file(voronoi_shp_file_name)
         return Thiessen
@@ -2390,15 +2393,15 @@ to correct for lon above 180')
         # check of the source_nc_names is string and doesnt have * in it
         if isinstance(source_nc_name, str):
             if ('*' in source_nc_name):
-                sys.exit('you should provide one file name as string and do not use * ')
+                raise ValueError('you should provide one file name as string and do not use * ')
         else:
-            sys.exit('source nc name should be string and without *, should be the link to one file')
+            raise ValueError('source nc name should be string and without *, should be the link to one file')
         self.source_nc = source_nc_name # pass that to the easymore object
         # check of the source_nc_names
         if isinstance(source_nc_var_name, str):
             self.var_names            = [source_nc_var_name] # string to list
         else:
-            sys.exit('the variable should be only one and in string format')
+            raise ValueError('the variable should be only one and in string format')
         self.var_lon                  = source_nc_var_lon
         self.var_lat                  = source_nc_var_lat
         #
@@ -2436,7 +2439,7 @@ to correct for lon above 180')
             # check if step is int and lower than the time dimension of the netcdf file
             step = min (step, len(ds_source[source_nc_var_time].values)-1)
         if step is None:
-            sys.exit("step is not defined, either fix the time_step_of_viz or input step parameter")
+            raise ValueError("step is not defined, either fix the time_step_of_viz or input step parameter")
         # load the data and get the max and min values of remppaed file for the taarget variable
         max_value = ds_source[source_nc_var_name].isel(time=step).max().item() # get the max of remapped
         min_value = ds_source[source_nc_var_name].isel(time=step).min().item() # get the min of remapped
@@ -2447,7 +2450,7 @@ to correct for lon above 180')
             ds_remapped = xr.open_dataset(remapped_nc_name) # the remap of above
             # check if the times are identical in source and remapped
             if not ds_source[source_nc_var_time].equals(ds_remapped[remapped_nc_var_time]):
-                sys.exit('The source and remapped files seems to have different time; make sure '+\
+                raise ValueError('The source and remapped files seems to have different time; make sure '+\
                          'the remapped files is from the same source file.')
             # update the max min value based on remapped
             max_value = ds_remapped[remapped_nc_var_name].isel(time=step).max().item() # get the max of remapped
@@ -2517,7 +2520,7 @@ to correct for lon above 180')
             if source_shp_name:
                 shp_source = gpd.read_file(source_shp_name)
             else:
-                sys.exit('Source shapefile is not provided while source_shp_center_flag is \
+                raise ValueError('Source shapefile is not provided while source_shp_center_flag is \
                     set to true, provide source shapefile with lat and lon')
             shp_source_points = shp_source.copy()
             crs_org = shp_source_points.crs
