@@ -236,8 +236,8 @@ class Easymore:
     ) -> 'easymore':
         """JSON file constructor
         """
-
-        json_data = json.load(json_file)
+        with open(json_file) as f:
+            json_data = json.load(f)
 
         return cls.from_json(json_data)
 
