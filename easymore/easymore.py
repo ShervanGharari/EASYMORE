@@ -68,7 +68,8 @@ class Easymore:
         tolerance: float=1e-5,
         save_csv: bool=False,
         sort_ID: bool=False,
-        complevel: int=4
+        complevel: int=4,
+        verbose: bool=True,
     ) -> None:
         """Main constructor for easymore
 
@@ -161,50 +162,52 @@ class Easymore:
             netcdf compression level from 1 to 9. Any other value or object will mean no compression.
         """
 
-        self.case_name                 = self.case_name               
-        self.target_shp                = self.target_shp              
-        self.target_shp_ID             = self.target_shp_ID           
-        self.target_shp_lat            = self.target_shp_lat          
-        self.target_shp_lon            = self.target_shp_lon          
-        self.source_nc                 = self.source_nc               
-        self.var_names                 = self.var_names               
-        self.var_lon                   = self.var_lon                 
-        self.var_lat                   = self.var_lat                 
-        self.var_time                  = self.var_time                
-        self.var_ID                    = self.var_ID                  
-        self.var_station               = self.var_station             
-        self.var_names_remapped        = self.var_names_remapped      
-        self.skip_check_all_source_nc  = self.skip_check_all_source_nc
-        self.source_shp                = self.source_shp              
-        self.source_shp_lat            = self.source_shp_lat          
-        self.source_shp_lon            = self.source_shp_lon          
-        self.source_shp_ID             = self.source_shp_ID           
-        self.remapped_var_id           = self.remapped_var_id         
-        self.remapped_var_lat          = self.remapped_var_lat        
-        self.remapped_var_lon          = self.remapped_var_lon        
-        self.remapped_dim_id           = self.remapped_dim_id         
-        self.remapped_chunk_size       = self.remapped_chunk_size     
-        self.overwrite_remapped_nc     = self.overwrite_remapped_nc   
-        self.temp_dir                  = self.temp_dir                
-        self.output_dir                = self.output_dir              
-        self.format_list               = self.format_list             
-        self.fill_value_list           = self.fill_value_list         
-        self.remap_csv                 = self.remap_csv               
-        self.only_create_remap_csv     = self.only_create_remap_csv   
-        self.clip_source_shp           = self.clip_source_shp         
-        self.buffer_clip_source_shp    = self.buffer_clip_source_shp  
-        self.save_temp_shp             = self.save_temp_shp           
-        self.correction_shp_lon        = self.correction_shp_lon      
-        self.rescaledweights           = self.rescaledweights         
-        self.skip_outside_shape        = self.skip_outside_shape      
-        self.author_name               = self.author_name             
-        self.license                   = self.license                 
-        self.tolerance                 = self.tolerance               
-        self.save_csv                  = self.save_csv                
-        self.sort_ID                   = self.sort_ID                 
-        self.complevel                 = self.complevel               
-
-        print(f"EASYMORE version {VERSION} is initiated")
+        self.case_name                 = case_name
+        self.target_shp                = target_shp
+        self.target_shp_ID             = target_shp_ID
+        self.target_shp_lat            = target_shp_lat
+        self.target_shp_lon            = target_shp_lon
+        self.source_nc                 = source_nc
+        self.var_names                 = var_names
+        self.var_lon                   = var_lon
+        self.var_lat                   = var_lat
+        self.var_time                  = var_time
+        self.var_ID                    = var_ID
+        self.var_station               = var_station
+        self.var_names_remapped        = var_names_remapped
+        self.skip_check_all_source_nc  = skip_check_all_source_nc
+        self.source_shp                = source_shp
+        self.source_shp_lat            = source_shp_lat
+        self.source_shp_lon            = source_shp_lon
+        self.source_shp_ID             = source_shp_ID
+        self.remapped_var_id           = remapped_var_id
+        self.remapped_var_lat          = remapped_var_lat
+        self.remapped_var_lon          = remapped_var_lon
+        self.remapped_dim_id           = remapped_dim_id
+        self.remapped_chunk_size       = remapped_chunk_size
+        self.overwrite_remapped_nc     = overwrite_remapped_nc
+        self.temp_dir                  = temp_dir
+        self.output_dir                = output_dir
+        self.format_list               = format_list
+        self.fill_value_list           = fill_value_list
+        self.remap_csv                 = remap_csv
+        self.only_create_remap_csv     = only_create_remap_csv
+        self.clip_source_shp           = clip_source_shp
+        self.buffer_clip_source_shp    = buffer_clip_source_shp
+        self.save_temp_shp             = save_temp_shp
+        self.correction_shp_lon        = correction_shp_lon
+        self.rescaledweights           = rescaledweights
+        self.skip_outside_shape        = skip_outside_shape
+        self.author_name               = author_name
+        self.license                   = license
+        self.tolerance                 = tolerance
+        self.save_csv                  = save_csv
+        self.sort_ID                   = sort_ID
+        self.complevel                 = complevel
+        self.verbose                   = verbose
+        
+        if self.verbose:
+            print(f"EASYMORE version {VERSION} is initiated")
 
     @classmethod
     def from_dict(
