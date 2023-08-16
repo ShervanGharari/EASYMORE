@@ -13,6 +13,7 @@ from   datetime     import datetime
 import re
 import json
 
+from easymore import __version__
 
 class easymore:
 
@@ -60,8 +61,8 @@ class easymore:
         self.save_csv                  =  False # save csv
         self.sort_ID                   =  False # to sort the remapped based on the target shapfile ID; self.target_shp_ID should be given
         self.complevel                 =  4 # netcdf compression level from 1 to 9. Any other value or object will mean no compression.
-        self.version                   =  '1.1.0' # version of the easymore
-        print('EASYMORE version '+self.version+ ' is initiated.')
+
+        print(f'EASYMORE version {__version__} is initiated.')
 
 
     ##############################################################
