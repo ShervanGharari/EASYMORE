@@ -235,7 +235,7 @@ class Easymore:
         self.save_csv = save_csv
         self.sort_ID = sort_ID
         self.complevel = complevel
- 
+
         self.version = VERSION
 
         print(f'EASYMORE version {self.version} is initiated.')
@@ -312,7 +312,7 @@ class Easymore:
         # check the source nc file
         self.check_source_nc()
         # if remap is not provided then create the remapping file
-        if self.remap_csv == '':
+        if self.remap_csv is None:
             import geopandas as gpd
             print('--CREATING-REMAPPING-FILE--')
             time_start = datetime.now()
@@ -440,7 +440,7 @@ class Easymore:
             print('---------------------------')
         else:
             # check the remap file if provided
-            int_df  = pd.read_csv(self.remap_csv)
+            int_df = pd.read_csv(self.remap_csv)
             self.check_easymore_remap(int_df)
         # check if the remapping file needs to be generated only
         if self.only_create_remap_csv:
@@ -465,7 +465,7 @@ class Easymore:
         self.NetCDF_SHP_lat_lon()
         # create the source shapefile for case 1 and 2 if shapefile is not provided
         if (self.case == 1 or self.case == 2):
-            if (self.source_shp == ''):
+            if (self.source_shp is None):
                 if self.case == 1 and hasattr(self, 'lat_expanded') and hasattr(self, 'lon_expanded'):
                     source_shp_gpd = self.lat_lon_SHP(self.lat_expanded, self.lon_expanded,crs="epsg:4326")
                 else:
@@ -481,7 +481,7 @@ class Easymore:
                 source_shp_gpd = gpd.read_file(self.source_shp)
                 source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
                                                              self.source_shp_lon, self.source_shp_ID)
-            if (self.source_shp == ''): # source shapefile is not provided goes for voronoi
+            if (self.source_shp is None): # source shapefile is not provided goes for voronoi
                 # Create the source shapefile using Voronio diagram
                 print('EASYMORE detect that source shapefile is not provided for irregulat lat lon source NetCDF')
                 print('EASYMORE will create the voronoi source shapefile based on the lat lon')
@@ -526,16 +526,16 @@ class Easymore:
                 sys.exit('the provided temporary folder for EASYMORE should end with (/)')
             if not os.path.isdir(self.temp_dir):
                 os.makedirs(self.temp_dir)
-        if self.output_dir == '':
+        if self.output_dir is None:
             sys.exit('the provided folder for EASYMORE remapped netCDF output is missing; please provide that')
         if self.output_dir != '':
             if self.output_dir[-1] != '/':
                 sys.exit('the provided output folder for EASYMORE should end with (/)')
             if not os.path.isdir(self.output_dir):
                 os.makedirs(self.output_dir)
-        if self.temp_dir == '':
+        if not self.temp_dir:
             print("No temporary folder is provided for EASYMORE; this will result in EASYMORE saving the files in the same directory as python script")
-        if self.author_name == '':
+        if self.author_name is None:
             print("no author name is provided. The author name is changed to (author name)!")
             self.author_name = "author name"
         if (len(self.var_names) != 1) and (len(self.format_list) == 1) and (len(self.fill_value_list) ==1):
@@ -584,7 +584,7 @@ class Easymore:
         else: # check if the projection is WGS84 (or epsg:4326)
             print('EASYMORE detects that target shapefile is in WGS84 (epsg:4326)')
         # check if the ID, latitude, longitude are provided
-        if self.target_shp_ID == '':
+        if self.target_shp_ID is None:
             print('EASYMORE detects that no field for ID is provided in sink/target shapefile')
             print('arbitarary values of ID are added in the field ID_t')
             shp['ID_t']  = np.arange(len(shp))+1
@@ -595,7 +595,7 @@ class Easymore:
             if len(ID_values) != len(np.unique(ID_values)):
                 sys.exit('The provided IDs in shapefile are not unique; provide unique IDs or do not identify target_shp_ID')
             shp['ID_t'] = shp[self.target_shp_ID]
-        if self.target_shp_lat == '' or self.target_shp_lon == '':
+        if None in [self.target_shp_lat, self.target_shp_lon]:
             print('EASYMORE detects that either of the fields for latitude or longitude is not provided in sink/target shapefile')
             # in WGS84
             print('calculating centroid of shapes in WGS84 projection;')
@@ -605,14 +605,14 @@ class Easymore:
             df_point ['lat'] = shp.centroid.y
             df_point ['lon'] = shp.centroid.x
             warnings.simplefilter('default') # back to normal
-        if self.target_shp_lat == '':
+        if self.target_shp_lat is None:
             print('EASYMORE detects that no field for latitude is provided in sink/target shapefile')
             print('latitude values are added in the field lat_t')
             shp['lat_t']  = df_point ['lat'] # centroid lat from target
         else:
             print('EASYMORE detects that the field latitude is provided in sink/target shapefile')
             shp['lat_t'] = shp[self.target_shp_lat]
-        if self.target_shp_lon == '':
+        if self.target_shp_lon is None:
             print('EASYMORE detects that no field for longitude is provided in sink/target shapefile')
             print('longitude values are added in the field lon_t')
             shp['lon_t']  = df_point ['lon'] # centroid lon from target
@@ -942,7 +942,7 @@ in dimensions of the variables and latitude and longitude')
             lat = ncid.variables[self.var_lat][:]
             lon = ncid.variables[self.var_lon][:]
             #print(lat, lon)
-            if self.var_ID  == '':
+            if self.var_ID  is None: 
                 print('EASYMORE detects that no variable for ID of the source netCDF file; an arbitatiry ID will be added')
                 ID =  np.arange(len(lat))+1 # pass arbitarary values
             else:
@@ -1322,7 +1322,7 @@ in dimensions of the variables and latitude and longitude')
             nc_att_list = ncids.ncattrs()
             nc_att_list = [each_att for each_att in nc_att_list]
             nc_att_list_lower = [each_att.lower() for each_att in nc_att_list]
-            if self.license == '' and ('license' not in nc_att_list_lower):
+            if self.license is None and ('license' not in nc_att_list_lower):
                 self.license == 'the original license of the source NetCDF file is not provided'
             if ('license' in nc_att_list_lower):
                 if 'license' in nc_att_list:
@@ -1394,8 +1394,10 @@ in dimensions of the variables and latitude and longitude')
                 hruId_varid[:] = hruID_var
                 # general attributes for NetCDF file
                 ncid.Conventions = 'CF-1.6'
-                ncid.Author = 'The data were written by ' + self.author_name
-                ncid.License = self.license
+                if self.author_name:
+                    ncid.Author = 'The data were written by ' + self.author_name
+                if self.license:
+                    ncid.License = self.license
                 ncid.History = 'Created ' + time.ctime(time.time())
                 ncid.Source = 'Case: ' +self.case_name + '; remapped by script from library of Shervan Gharari (https://github.com/ShervanGharari/EASYMORE).'
                 # write variables
