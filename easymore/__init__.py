@@ -15,4 +15,4 @@ except Exception:
     # Disable minimum version checks on downstream libraries.
     __version__ = "999"
 
-from easymore.easymore import easymore
+from .easymore import Easymore

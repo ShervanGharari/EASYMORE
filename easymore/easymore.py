@@ -1,68 +1,244 @@
-# section 1 load all the necessary modules and packages
+"""
+This package allows you to extract and aggregate the relevant values from
+a cfconventions compliant netcdf files given shapefiles.
+
+EASYMORE is a collection of functions that allows extraction of the data
+from a NetCDF file for a given shapefile such as a basin, catchment,
+points or lines. It can map gridded data or model output to any given
+shapefile and provide area average for a target variable.
+
+EASYMORE is very efficient as it uses pandas groupby functionality.
+Remapping of the entire north American domain from ERA5 with resolution of
+0.25 degree to 500,000 subbasins of MERIT-Hydro watershed for 7 variables
+in 1.2 seconds for one time step (the time varying from device to device
+and depending on the source netCDF files sizes and their temporal
+aggregation).
+"""
 
 import glob
 import time
-import netCDF4      as nc4
-import numpy        as np
-import pandas       as pd
-import xarray       as xr
 import sys
 import os
 import warnings
-from   datetime     import datetime
 import re
 import json
 
+from datetime import datetime
+from typing import (
+    List,
+)
+
+import netCDF4 as nc4
+import numpy as np
+import pandas as pd
+import xarray as xr
+
 from easymore import __version__
 
-class easymore:
+VERSION = __version__
 
-    def __init__(self):
-        self.delet_attr()                 # remove the existing variables
-        self.case_name                 =  'case_temp' # name of the case
-        self.target_shp                =  '' # sink/target shapefile
-        self.target_shp_ID             =  '' # name of the column ID in the sink/target shapefile
-        self.target_shp_lat            =  '' # name of the column latitude in the sink/target shapefile
-        self.target_shp_lon            =  '' # name of the column longitude in the sink/target shapefile
-        self.source_nc                 =  '' # name of nc file to be remapped
-        self.var_names                 =  [] # list of variable names to be remapped from the source NetCDF file
-        self.var_lon                   =  '' # name of variable longitude in the source NetCDF file
-        self.var_lat                   =  '' # name of variable latitude in the source NetCDF file
-        self.var_time                  =  'time' # name of variable time in the source NetCDF file
-        self.var_ID                    =  '' # name of variable ID in the source NetCDF file
-        self.var_station               =  '' # name of variable station in the source NetCDF file
-        self.var_names_remapped        =  [] # list of variable names that will be replaced in the remapped file
-        self.skip_check_all_source_nc  =  False # if set to True only first file will be check for variables and dimensions and not the all the files (recommneded not to change)
-        self.source_shp                =  '' # name of source shapefile (essential for case-3)
-        self.source_shp_lat            =  '' # name of column latitude in the source shapefile
-        self.source_shp_lon            =  '' # name of column longitude in the source shapefile
-        self.source_shp_ID             =  '' # name of column ID in the source shapefile
-        self.remapped_var_id           =  'ID' # name of the ID variable in the new nc file; default 'ID'
-        self.remapped_var_lat          =  'latitude' # name of the latitude variable in the new nc file; default 'latitude'
-        self.remapped_var_lon          =  'longitude' # name of the longitude variable in the new nc file; default 'longitude'
-        self.remapped_dim_id           =  'ID' # name of the ID dimension in the new nc file; default 'ID'
-        self.remapped_chunk_size       =  200 # chunksize of remapped variables in the non-time (i.e. limited) dimension. Default 200. Use 'None' for netCDF4 defaults
-        self.overwrite_remapped_nc     =  True # Flag to automatically overwrite existing remapping files. If 'False', aborts the remapping procedure if a file is detected
-        self.temp_dir                  =  './temp/' # temp_dir
-        self.output_dir                =  './output/' # output directory
-        self.format_list               =  ['f8'] # float for the remapped values
-        self.fill_value_list           =  ['-9999'] # missing values set to -9999
-        self.remap_csv                 =  '' # name of the remapped file if provided
-        self.only_create_remap_csv     =  False # is true it does not remap any nc files
-        self.clip_source_shp           =  True # the source shapefile is clipped to the domain of target shapefile to increase intersection speed
-        self.buffer_clip_source_shp    =  2  # 2 degrees for buffer to clip the source shapefile based on target shapefile
-        self.save_temp_shp             =  True # if set to false does not save the temporary shapefile in the temp folder for large shapefiles
-        self.correction_shp_lon        =  True # correct for -180 to 180 and 0 to 360 longitude
-        self.rescaledweights           =  True # if set true the weights are rescaled
-        self.skip_outside_shape        =  False # if set to True it will not carry the nan values for shapes that are outside the source netCDF geographical domain
-        self.author_name               =  '' # name of the authour
-        self.license                   =  '' # data license
-        self.tolerance                 =  10**-5 # tolerance
-        self.save_csv                  =  False # save csv
-        self.sort_ID                   =  False # to sort the remapped based on the target shapfile ID; self.target_shp_ID should be given
-        self.complevel                 =  4 # netcdf compression level from 1 to 9. Any other value or object will mean no compression.
 
-        print(f'EASYMORE version {__version__} is initiated.')
+class Easymore:
+    """
+    Main class of the Easymore package
+
+    Attributes
+    ----------
+
+
+    Parameters
+    ----------
+    case_name : str, defaults to `'case_temp'`
+        name of the case
+    target_shp : str [default to None]
+        ink/target shapefile
+    target_shp_ID :
+        name of the column ID in the sink/target shapefile
+    target_shp_lat :
+        name of the column latitude in the sink/target shapefile
+    target_shp_lon :
+        name of the column longitude in the sink/target shapefile
+    source_nc : str
+        name of nc file(s) to be remapped
+    var_names : str
+        list of variable names to be remapped from the source NetCDF file
+    var_lon : str, defaults to 'lon'
+        name of variable longitude in the source NetCDF file
+    var_lat : str, defaults to 'lat'
+        name of variable latitude in the source NetCDF file
+    var_time : str, defaults to 'time'
+        name of variable time in the source NetCDF file
+    var_ID : str
+        name of variable ID in the source NetCDF file
+    var_station : str
+        name of variable station in the source NetCDF file
+    var_names_remapped : list of str, optional
+        list of variable names that will be replaced in the remapped file
+    skip_check_all_source_nc : bool, defaults to `False`
+        if set to True only first file will be check for variables and
+        dimensions and not the all the files (recommneded not to change)
+    source_shp : str
+        name of source shapefile (essential for case-3)
+    source_shp_lat : str
+        name of column latitude in the source shapefile
+    source_shp_lon : str
+        name of column longitude in the source shapefile
+    source_shp_ID : str
+        name of column ID in the source shapefile
+    remapped_var_id : str, defaults to `'ID'`
+        name of the ID variable in the new nc file
+    remapped_var_lat : str, defaults to `'latitude'`
+        name of the latitude variable in the new nc file
+    remapped_var_lon : str, defaults to `'longitude'`
+        name of the longitude variable in the new nc file
+    remapped_dim_id : str, defaults to `'ID'`
+        name of the ID dimension in the new nc file
+    remapped_chunk_size : int, defaults to 200
+        chunksize of remapped variables in the non-time (i.e. limited)
+        dimension. Default 200. Use 'None' for netCDF4 defaults
+    overwrite_remapped_nc : bool, defaults to `True`
+        Flag to automatically overwrite existing remapping files. If
+        'False', aborts the remapping procedure if a file is detected
+    temp_dir : str, defaults to `'./temp/'`
+        temp_dir
+    output_dir : str, defaults to `'./output/'`
+        output directory
+    format_list : float,
+        for the remapped values, list elements correspond to elements
+        in `self.var_names_remapped`
+    fill_value_list : List[str], defaults to `[-9999]`
+        missing values set to -9999
+    remap_csv : str
+        name of the remapped file if provided
+    only_create_remap_csv : bool, defaults to `False`
+        if true, it does not remap any nc files
+    clip_source_shp : bool, defaults to `True`
+        The source shapefile is clipped to the domain of target shapefile
+        to increase intersection speed
+    buffer_clip_source_shp : int, defaults to `2`
+        2 degrees for buffer to clip the source shapefile based on target
+        shapefile
+    save_temp_shp : bool, defaults to `True`
+        if set to false does not save the temporary shapefile in the temp
+        folder for large shapefiles
+    correction_shp_lon : bool, defaults to `True`
+        correct for -180 to 180 and 0 to 360 longitude
+    rescaledweights : bool, defaults to `True`
+        if set true the weights are rescaled
+    skip_outside_shape : bool, defaults to `False`
+        if set to True it will not carry the nan values for shapes that
+        are outside the source netCDF geographical domain
+    author_name : str
+        name of the user
+    license : str
+        data license
+    tolerance : float, defaults to `1e-5`
+        tolerance
+    save_csv : bool, defaults to `False`
+        save csv
+    sort_ID : bool, defaults to `False`
+        to sort the remapped based on the target shapfile ID;
+        self.target_shp_ID should be given
+    complevel : int, defaults to `4`
+        netcdf compression level from 1 to 9. Any other value or object
+        will mean no compression
+    """
+
+    def __init__(
+        self,
+        case_name: str = 'case_temp',
+        target_shp: str = None,
+        target_shp_ID: str = None,
+        target_shp_lat: str = None,
+        target_shp_lon: str = None,
+        source_nc: str = None,
+        var_names: List[str] = [],
+        var_lon: str = 'lon',
+        var_lat: str = 'lat',
+        var_time: str = 'time',
+        var_ID: str = None,
+        var_station: str = None,
+        var_names_remapped: List[str] = [],
+        skip_check_all_source_nc: bool = False,
+        source_shp: str = None,
+        source_shp_lat: str = None,
+        source_shp_lon: str = None,
+        source_shp_ID: str = None,
+        remapped_var_id: str = 'ID',
+        remapped_var_lat: str = 'latitude',
+        remapped_var_lon: str = 'longitude',
+        remapped_dim_id: str = 'ID',
+        remapped_chunk_size: int = 200,
+        overwrite_remapped_nc: bool = True,
+        temp_dir: str = './temp/',
+        output_dir: str = './output/',
+        format_list: List[str] = ['f8'],
+        fill_value_list: List[str] = ['-9999'],
+        remap_csv: str = None,
+        only_create_remap_csv: bool = False,
+        clip_source_shp: bool = True,
+        buffer_clip_source_shp: int = 2,
+        save_temp_shp: bool = True,
+        correction_shp_lon: bool = True,
+        rescaledweights: bool = True,
+        skip_outside_shape: bool = False,
+        author_name: str = None,
+        license: str = None,
+        tolerance: float = 1e-5,
+        save_csv: bool = False,
+        sort_ID: bool = False,
+        complevel: int = 4,
+    ) -> None:
+        """
+        Main constructor
+        """
+
+        self.case_name = case_name
+        self.target_shp = target_shp
+        self.target_shp_ID = target_shp_ID
+        self.target_shp_lat = target_shp_lat
+        self.target_shp_lon = target_shp_lon
+        self.source_nc = source_nc
+        self.var_names = var_names
+        self.var_lon = var_lon
+        self.var_lat = var_lat
+        self.var_time = var_time
+        self.var_ID = var_ID
+        self.var_station = var_station
+        self.var_names_remapped = var_names_remapped
+        self.skip_check_all_source_nc = skip_check_all_source_nc
+        self.source_shp = source_shp
+        self.source_shp_lat = source_shp_lat
+        self.source_shp_lon = source_shp_lon
+        self.source_shp_ID = source_shp_ID
+        self.remapped_var_id = remapped_var_id
+        self.remapped_var_lat = remapped_var_lat
+        self.remapped_var_lon = remapped_var_lon
+        self.remapped_dim_id = remapped_dim_id
+        self.remapped_chunk_size = remapped_chunk_size
+        self.overwrite_remapped_nc = overwrite_remapped_nc
+        self.temp_dir = temp_dir
+        self.output_dir = output_dir
+        self.format_list = format_list
+        self.fill_value_list = fill_value_list
+        self.remap_csv = remap_csv
+        self.only_create_remap_csv = only_create_remap_csv
+        self.clip_source_shp = clip_source_shp
+        self.buffer_clip_source_shp = buffer_clip_source_shp
+        self.save_temp_shp = save_temp_shp
+        self.correction_shp_lon = correction_shp_lon
+        self.rescaledweights = rescaledweights
+        self.skip_outside_shape = skip_outside_shape
+        self.author_name = author_name
+        self.license = license
+        self.tolerance = tolerance
+        self.save_csv = save_csv
+        self.sort_ID = sort_ID
+        self.complevel = complevel
+ 
+        self.version = VERSION
+
+        print(f'EASYMORE version {self.version} is initiated.')
 
 
     ##############################################################
