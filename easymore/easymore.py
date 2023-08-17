@@ -26,6 +26,7 @@ import json
 from datetime import datetime
 from typing import (
     List,
+    Dict,
 )
 
 import netCDF4 as nc4
@@ -240,63 +241,19 @@ class Easymore:
 
         print(f'EASYMORE version {self.version} is initiated.')
 
-
-    ##############################################################
-    #### Configuration from json file
-    ##############################################################
-
-    def delet_attr(self):
-        # remove attributes that are not function from the easymore object for initialization
-        for label in vars(self).keys():
-            delattr(self, l)
-            print('deleted ', l)
-
-    def read_config_dict (self,
-                          config_file_name):
-
+    @classmethod
+    def from_dict(
+        cls: 'Easymore',
+        init_dict: Dict = {},
+    ) -> 'Easymore':
         """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function read a json file
-        config_file_name: name of the
+        Constructor to use a dictionary to instantiate
         """
-        # reading the data from the file
-        with open(config_file_name) as f:
-            data = f.read()
-        # reconstructing the data as a json
-        config_dict = json.loads(data)
-        # return
-        return config_dict
+        if len(init_dict) == 0:
+            raise KeyError("`init_dict` cannot be empty")
+        assert isinstance(init_dict, dict), "`init_dict` must be a `dict`"
 
-    def init_from_dict (self,
-                        dict_name):
-
-        """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function take a dict_name and populate the variables needed to be initialized for EASYMORE
-        """
-        if isinstance(dict_name, str): # read the file is string is provided
-            dictionary = self.read_config_dict(dict_name)
-        elif isinstance(dict_name, dict): # pass the dictionary
-            dictionary = dict_name
-        else:
-            sys.exit('configuration dictionary should be a file name [string], or a dictionary')
-        # loop over the dictionary keys
-        for key in list(dictionary.keys()):
-            if key in list(vars(self).keys()):
-                setattr(self, key, dictionary[key])
-            else:
-                sys.exit('provided key in configuration dictionary or file is not recongnized by easymore keys')
-
-
-    ##############################################################
-    #### NetCDF remapping
-    ##############################################################
+        return cls(**init_dict)
 
     def nc_remapper(self):
         """
