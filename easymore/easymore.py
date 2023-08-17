@@ -255,6 +255,71 @@ class Easymore:
 
         return cls(**init_dict)
 
+    @classmethod
+    def from_json(
+        cls: 'Easymore',
+        json_str: str,
+    ) -> 'Easymore':
+        """
+        Constructor to use a loaded JSON string
+        """
+        print(json_str)
+        # building customized Easymore's JSON string decoder object
+        decoder = json.JSONDecoder(object_hook=Easymore._easymore_decoder)
+        json_dict = decoder.decode(json_str)
+
+        return cls.from_dict(json_dict)
+
+    @classmethod
+    def from_json_file(
+        cls: 'Easymore',
+        json_file: 'str',
+    ) -> 'Easymore':
+        """
+        Constructor to use a JSON file path
+        """
+        with open(json_file) as f:
+            json_dict = json.load(f,
+                                  object_hook=Easymore._easymore_decoder)
+
+        return cls.from_dict(json_dict)
+
+    @staticmethod
+    def _env_var_decoder(s):
+        """
+        OS environmental variable decoder
+        """
+        # RE patterns
+        env_pat = r'\$(.*?)/'
+        bef_pat = r'(.*?)\$.*?/?'
+        aft_pat = r'\$.*?(/.*)'
+        # strings after re matches
+        e = re.search(env_pat, s).group(1)
+        b = re.search(bef_pat, s).group(1)
+        a = re.search(aft_pat, s).group(1)
+        # extract environmental variable
+        v = os.getenv(e)
+        # return full: before+env_var+after
+        if v:
+            return b+v+a
+        return s
+
+    @staticmethod
+    def _easymore_decoder(obj):
+        """
+        Decoding typical JSON strings returned into valid Python objects
+        """
+        if obj in ["true", "True", "TRUE"]:
+            return True
+        elif obj in ["false", "False", "FALSE"]:
+            return False
+        elif isinstance(obj, str):
+            if '$' in obj:
+                return Easymore._env_var_decoder(obj)
+        elif isinstance(obj, dict):
+            return {k: Easymore._easymore_decoder(v) for k, v in obj.items()}
+        return obj
+
     def nc_remapper(self):
         """
         @ author:                  Shervan Gharari
