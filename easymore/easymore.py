@@ -39,9 +39,9 @@ from easymore import __version__
 VERSION = __version__
 
 
-class Easymore:
+class easymore:
     """
-    Main class of the Easymore package
+    Main class of the easymore package
 
     Attributes
     ----------
@@ -243,9 +243,9 @@ class Easymore:
 
     @classmethod
     def from_dict(
-        cls: 'Easymore',
+        cls: 'easymore',
         init_dict: Dict = {},
-    ) -> 'Easymore':
+    ) -> 'easymore':
         """
         Constructor to use a dictionary to instantiate
         """
@@ -257,30 +257,30 @@ class Easymore:
 
     @classmethod
     def from_json(
-        cls: 'Easymore',
+        cls: 'easymore',
         json_str: str,
-    ) -> 'Easymore':
+    ) -> 'easymore':
         """
         Constructor to use a loaded JSON string
         """
         print(json_str)
         # building customized Easymore's JSON string decoder object
-        decoder = json.JSONDecoder(object_hook=Easymore._easymore_decoder)
-        json_dict = decoder.decode(json_str)
+        decoder = json.JSONDecoder(object_hook=easymore._easymore_decoder)
+        json_dict = decoder.decode(json_str) #???
 
         return cls.from_dict(json_dict)
 
     @classmethod
     def from_json_file(
-        cls: 'Easymore',
+        cls: 'easymore',
         json_file: 'str',
-    ) -> 'Easymore':
+    ) -> 'easymore':
         """
         Constructor to use a JSON file path
         """
         with open(json_file) as f:
             json_dict = json.load(f,
-                                  object_hook=Easymore._easymore_decoder)
+                                  object_hook=easymore._easymore_decoder)
 
         return cls.from_dict(json_dict)
 
@@ -315,9 +315,9 @@ class Easymore:
             return False
         elif isinstance(obj, str):
             if '$' in obj:
-                return Easymore._env_var_decoder(obj)
+                return easymore._env_var_decoder(obj)
         elif isinstance(obj, dict):
-            return {k: Easymore._easymore_decoder(v) for k, v in obj.items()}
+            return {k: easymore._easymore_decoder(v) for k, v in obj.items()}
         return obj
 
     def nc_remapper(self):
@@ -964,7 +964,7 @@ in dimensions of the variables and latitude and longitude')
             lat = ncid.variables[self.var_lat][:]
             lon = ncid.variables[self.var_lon][:]
             #print(lat, lon)
-            if self.var_ID  is None: 
+            if self.var_ID  is None:
                 print('EASYMORE detects that no variable for ID of the source netCDF file; an arbitatiry ID will be added')
                 ID =  np.arange(len(lat))+1 # pass arbitarary values
             else:
