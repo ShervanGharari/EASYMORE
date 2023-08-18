@@ -263,7 +263,6 @@ class Easymore:
         """
         Constructor to use a loaded JSON string
         """
-        print(json_str)
         # building customized Easymore's JSON string decoder object
         decoder = json.JSONDecoder(object_hook=Easymore._easymore_decoder)
         json_dict = decoder.decode(json_str)
