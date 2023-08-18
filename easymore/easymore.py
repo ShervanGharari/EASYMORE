@@ -1,125 +1,324 @@
-# section 1 load all the necessary modules and packages
+"""
+This package allows you to extract and aggregate the relevant values from
+a cfconventions compliant netcdf files given shapefiles.
+
+EASYMORE is a collection of functions that allows extraction of the data
+from a NetCDF file for a given shapefile such as a basin, catchment,
+points or lines. It can map gridded data or model output to any given
+shapefile and provide area average for a target variable.
+
+EASYMORE is very efficient as it uses pandas groupby functionality.
+Remapping of the entire north American domain from ERA5 with resolution of
+0.25 degree to 500,000 subbasins of MERIT-Hydro watershed for 7 variables
+in 1.2 seconds for one time step (the time varying from device to device
+and depending on the source netCDF files sizes and their temporal
+aggregation).
+"""
 
 import glob
 import time
-import netCDF4      as nc4
-import numpy        as np
-import pandas       as pd
-import xarray       as xr
 import sys
 import os
 import warnings
-from   datetime     import datetime
 import re
 import json
 
+from datetime import datetime
+from typing import (
+    List,
+    Dict,
+)
 
-class easymore:
+import netCDF4 as nc4
+import numpy as np
+import pandas as pd
+import xarray as xr
 
-    def __init__(self):
-        self.delet_attr()                 # remove the existing variables
-        self.case_name                 =  'case_temp' # name of the case
-        self.target_shp                =  '' # sink/target shapefile
-        self.target_shp_ID             =  '' # name of the column ID in the sink/target shapefile
-        self.target_shp_lat            =  '' # name of the column latitude in the sink/target shapefile
-        self.target_shp_lon            =  '' # name of the column longitude in the sink/target shapefile
-        self.source_nc                 =  '' # name of nc file to be remapped
-        self.var_names                 =  [] # list of variable names to be remapped from the source NetCDF file
-        self.var_lon                   =  '' # name of variable longitude in the source NetCDF file
-        self.var_lat                   =  '' # name of variable latitude in the source NetCDF file
-        self.var_time                  =  'time' # name of variable time in the source NetCDF file
-        self.var_ID                    =  '' # name of variable ID in the source NetCDF file
-        self.var_station               =  '' # name of variable station in the source NetCDF file
-        self.var_names_remapped        =  [] # list of variable names that will be replaced in the remapped file
-        self.skip_check_all_source_nc  =  False # if set to True only first file will be check for variables and dimensions and not the all the files (recommneded not to change)
-        self.source_shp                =  '' # name of source shapefile (essential for case-3)
-        self.source_shp_lat            =  '' # name of column latitude in the source shapefile
-        self.source_shp_lon            =  '' # name of column longitude in the source shapefile
-        self.source_shp_ID             =  '' # name of column ID in the source shapefile
-        self.remapped_var_id           =  'ID' # name of the ID variable in the new nc file; default 'ID'
-        self.remapped_var_lat          =  'latitude' # name of the latitude variable in the new nc file; default 'latitude'
-        self.remapped_var_lon          =  'longitude' # name of the longitude variable in the new nc file; default 'longitude'
-        self.remapped_dim_id           =  'ID' # name of the ID dimension in the new nc file; default 'ID'
-        self.remapped_chunk_size       =  200 # chunksize of remapped variables in the non-time (i.e. limited) dimension. Default 200. Use 'None' for netCDF4 defaults
-        self.overwrite_remapped_nc     =  True # Flag to automatically overwrite existing remapping files. If 'False', aborts the remapping procedure if a file is detected
-        self.temp_dir                  =  './temp/' # temp_dir
-        self.output_dir                =  './output/' # output directory
-        self.format_list               =  ['f8'] # float for the remapped values
-        self.fill_value_list           =  ['-9999'] # missing values set to -9999
-        self.remap_csv                 =  '' # name of the remapped file if provided
-        self.only_create_remap_csv     =  False # is true it does not remap any nc files
-        self.clip_source_shp           =  True # the source shapefile is clipped to the domain of target shapefile to increase intersection speed
-        self.buffer_clip_source_shp    =  2  # 2 degrees for buffer to clip the source shapefile based on target shapefile
-        self.save_temp_shp             =  True # if set to false does not save the temporary shapefile in the temp folder for large shapefiles
-        self.correction_shp_lon        =  True # correct for -180 to 180 and 0 to 360 longitude
-        self.rescaledweights           =  True # if set true the weights are rescaled
-        self.skip_outside_shape        =  False # if set to True it will not carry the nan values for shapes that are outside the source netCDF geographical domain
-        self.author_name               =  '' # name of the authour
-        self.license                   =  '' # data license
-        self.tolerance                 =  10**-5 # tolerance
-        self.save_csv                  =  False # save csv
-        self.sort_ID                   =  False # to sort the remapped based on the target shapfile ID; self.target_shp_ID should be given
-        self.complevel                 =  4 # netcdf compression level from 1 to 9. Any other value or object will mean no compression.
-        self.version                   =  '1.1.0' # version of the easymore
-        print('EASYMORE version '+self.version+ ' is initiated.')
+from easymore import __version__
+
+VERSION = __version__
 
 
-    ##############################################################
-    #### Configuration from json file
-    ##############################################################
+class Easymore:
+    """
+    Main class of the Easymore package
 
-    def delet_attr(self):
-        # remove attributes that are not function from the easymore object for initialization
-        for label in vars(self).keys():
-            delattr(self, l)
-            print('deleted ', l)
+    Attributes
+    ----------
 
-    def read_config_dict (self,
-                          config_file_name):
 
+    Parameters
+    ----------
+    case_name : str, defaults to `'case_temp'`
+        name of the case
+    target_shp : str [default to None]
+        ink/target shapefile
+    target_shp_ID :
+        name of the column ID in the sink/target shapefile
+    target_shp_lat :
+        name of the column latitude in the sink/target shapefile
+    target_shp_lon :
+        name of the column longitude in the sink/target shapefile
+    source_nc : str
+        name of nc file(s) to be remapped
+    var_names : str
+        list of variable names to be remapped from the source NetCDF file
+    var_lon : str, defaults to 'lon'
+        name of variable longitude in the source NetCDF file
+    var_lat : str, defaults to 'lat'
+        name of variable latitude in the source NetCDF file
+    var_time : str, defaults to 'time'
+        name of variable time in the source NetCDF file
+    var_ID : str
+        name of variable ID in the source NetCDF file
+    var_station : str
+        name of variable station in the source NetCDF file
+    var_names_remapped : list of str, optional
+        list of variable names that will be replaced in the remapped file
+    skip_check_all_source_nc : bool, defaults to `False`
+        if set to True only first file will be check for variables and
+        dimensions and not the all the files (recommneded not to change)
+    source_shp : str
+        name of source shapefile (essential for case-3)
+    source_shp_lat : str
+        name of column latitude in the source shapefile
+    source_shp_lon : str
+        name of column longitude in the source shapefile
+    source_shp_ID : str
+        name of column ID in the source shapefile
+    remapped_var_id : str, defaults to `'ID'`
+        name of the ID variable in the new nc file
+    remapped_var_lat : str, defaults to `'latitude'`
+        name of the latitude variable in the new nc file
+    remapped_var_lon : str, defaults to `'longitude'`
+        name of the longitude variable in the new nc file
+    remapped_dim_id : str, defaults to `'ID'`
+        name of the ID dimension in the new nc file
+    remapped_chunk_size : int, defaults to 200
+        chunksize of remapped variables in the non-time (i.e. limited)
+        dimension. Default 200. Use 'None' for netCDF4 defaults
+    overwrite_remapped_nc : bool, defaults to `True`
+        Flag to automatically overwrite existing remapping files. If
+        'False', aborts the remapping procedure if a file is detected
+    temp_dir : str, defaults to `'./temp/'`
+        temp_dir
+    output_dir : str, defaults to `'./output/'`
+        output directory
+    format_list : float,
+        for the remapped values, list elements correspond to elements
+        in `self.var_names_remapped`
+    fill_value_list : List[str], defaults to `[-9999]`
+        missing values set to -9999
+    remap_csv : str
+        name of the remapped file if provided
+    only_create_remap_csv : bool, defaults to `False`
+        if true, it does not remap any nc files
+    clip_source_shp : bool, defaults to `True`
+        The source shapefile is clipped to the domain of target shapefile
+        to increase intersection speed
+    buffer_clip_source_shp : int, defaults to `2`
+        2 degrees for buffer to clip the source shapefile based on target
+        shapefile
+    save_temp_shp : bool, defaults to `True`
+        if set to false does not save the temporary shapefile in the temp
+        folder for large shapefiles
+    correction_shp_lon : bool, defaults to `True`
+        correct for -180 to 180 and 0 to 360 longitude
+    rescaledweights : bool, defaults to `True`
+        if set true the weights are rescaled
+    skip_outside_shape : bool, defaults to `False`
+        if set to True it will not carry the nan values for shapes that
+        are outside the source netCDF geographical domain
+    author_name : str
+        name of the user
+    license : str
+        data license
+    tolerance : float, defaults to `1e-5`
+        tolerance
+    save_csv : bool, defaults to `False`
+        save csv
+    sort_ID : bool, defaults to `False`
+        to sort the remapped based on the target shapfile ID;
+        self.target_shp_ID should be given
+    complevel : int, defaults to `4`
+        netcdf compression level from 1 to 9. Any other value or object
+        will mean no compression
+    """
+
+    def __init__(
+        self,
+        case_name: str = 'case_temp',
+        target_shp: str = None,
+        target_shp_ID: str = None,
+        target_shp_lat: str = None,
+        target_shp_lon: str = None,
+        source_nc: str = None,
+        var_names: List[str] = [],
+        var_lon: str = 'lon',
+        var_lat: str = 'lat',
+        var_time: str = 'time',
+        var_ID: str = None,
+        var_station: str = None,
+        var_names_remapped: List[str] = [],
+        skip_check_all_source_nc: bool = False,
+        source_shp: str = None,
+        source_shp_lat: str = None,
+        source_shp_lon: str = None,
+        source_shp_ID: str = None,
+        remapped_var_id: str = 'ID',
+        remapped_var_lat: str = 'latitude',
+        remapped_var_lon: str = 'longitude',
+        remapped_dim_id: str = 'ID',
+        remapped_chunk_size: int = 200,
+        overwrite_remapped_nc: bool = True,
+        temp_dir: str = './temp/',
+        output_dir: str = './output/',
+        format_list: List[str] = ['f8'],
+        fill_value_list: List[str] = ['-9999'],
+        remap_csv: str = None,
+        only_create_remap_csv: bool = False,
+        clip_source_shp: bool = True,
+        buffer_clip_source_shp: int = 2,
+        save_temp_shp: bool = True,
+        correction_shp_lon: bool = True,
+        rescaledweights: bool = True,
+        skip_outside_shape: bool = False,
+        author_name: str = None,
+        license: str = None,
+        tolerance: float = 1e-5,
+        save_csv: bool = False,
+        sort_ID: bool = False,
+        complevel: int = 4,
+    ) -> None:
         """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function read a json file
-        config_file_name: name of the
+        Main constructor
         """
-        # reading the data from the file
-        with open(config_file_name) as f:
-            data = f.read()
-        # reconstructing the data as a json
-        config_dict = json.loads(data)
-        # return
-        return config_dict
 
-    def init_from_dict (self,
-                        dict_name):
+        self.case_name = case_name
+        self.target_shp = target_shp
+        self.target_shp_ID = target_shp_ID
+        self.target_shp_lat = target_shp_lat
+        self.target_shp_lon = target_shp_lon
+        self.source_nc = source_nc
+        self.var_names = var_names
+        self.var_lon = var_lon
+        self.var_lat = var_lat
+        self.var_time = var_time
+        self.var_ID = var_ID
+        self.var_station = var_station
+        self.var_names_remapped = var_names_remapped
+        self.skip_check_all_source_nc = skip_check_all_source_nc
+        self.source_shp = source_shp
+        self.source_shp_lat = source_shp_lat
+        self.source_shp_lon = source_shp_lon
+        self.source_shp_ID = source_shp_ID
+        self.remapped_var_id = remapped_var_id
+        self.remapped_var_lat = remapped_var_lat
+        self.remapped_var_lon = remapped_var_lon
+        self.remapped_dim_id = remapped_dim_id
+        self.remapped_chunk_size = remapped_chunk_size
+        self.overwrite_remapped_nc = overwrite_remapped_nc
+        self.temp_dir = temp_dir
+        self.output_dir = output_dir
+        self.format_list = format_list
+        self.fill_value_list = fill_value_list
+        self.remap_csv = remap_csv
+        self.only_create_remap_csv = only_create_remap_csv
+        self.clip_source_shp = clip_source_shp
+        self.buffer_clip_source_shp = buffer_clip_source_shp
+        self.save_temp_shp = save_temp_shp
+        self.correction_shp_lon = correction_shp_lon
+        self.rescaledweights = rescaledweights
+        self.skip_outside_shape = skip_outside_shape
+        self.author_name = author_name
+        self.license = license
+        self.tolerance = tolerance
+        self.save_csv = save_csv
+        self.sort_ID = sort_ID
+        self.complevel = complevel
 
+        self.version = VERSION
+
+        print(f'EASYMORE version {self.version} is initiated.')
+
+    @classmethod
+    def from_dict(
+        cls: 'Easymore',
+        init_dict: Dict = {},
+    ) -> 'Easymore':
         """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function take a dict_name and populate the variables needed to be initialized for EASYMORE
+        Constructor to use a dictionary to instantiate
         """
-        if isinstance(dict_name, str): # read the file is string is provided
-            dictionary = self.read_config_dict(dict_name)
-        elif isinstance(dict_name, dict): # pass the dictionary
-            dictionary = dict_name
-        else:
-            sys.exit('configuration dictionary should be a file name [string], or a dictionary')
-        # loop over the dictionary keys
-        for key in list(dictionary.keys()):
-            if key in list(vars(self).keys()):
-                setattr(self, key, dictionary[key])
-            else:
-                sys.exit('provided key in configuration dictionary or file is not recongnized by easymore keys')
+        if len(init_dict) == 0:
+            raise KeyError("`init_dict` cannot be empty")
+        assert isinstance(init_dict, dict), "`init_dict` must be a `dict`"
 
+        return cls(**init_dict)
 
-    ##############################################################
-    #### NetCDF remapping
-    ##############################################################
+    @classmethod
+    def from_json(
+        cls: 'Easymore',
+        json_str: str,
+    ) -> 'Easymore':
+        """
+        Constructor to use a loaded JSON string
+        """
+        print(json_str)
+        # building customized Easymore's JSON string decoder object
+        decoder = json.JSONDecoder(object_hook=Easymore._easymore_decoder)
+        json_dict = decoder.decode(json_str)
+
+        return cls.from_dict(json_dict)
+
+    @classmethod
+    def from_json_file(
+        cls: 'Easymore',
+        json_file: 'str',
+    ) -> 'Easymore':
+        """
+        Constructor to use a JSON file path
+        """
+        with open(json_file) as f:
+            json_dict = json.load(f,
+                                  object_hook=Easymore._easymore_decoder)
+
+        return cls.from_dict(json_dict)
+
+    @staticmethod
+    def _env_var_decoder(s):
+        """
+        OS environmental variable decoder
+        """
+        # RE patterns
+        env_pat = r'\$(.*?)/'
+        bef_pat = r'(.*?)\$.*?/?'
+        aft_pat = r'\$.*?(/.*)'
+        # strings after re matches
+        e = re.search(env_pat, s).group(1)
+        b = re.search(bef_pat, s).group(1)
+        a = re.search(aft_pat, s).group(1)
+        # extract environmental variable
+        v = os.getenv(e)
+        # return full: before+env_var+after
+        if v:
+            return b+v+a
+        return s
+
+    @staticmethod
+    def _easymore_decoder(obj):
+        """
+        Decoding typical JSON strings returned into valid Python objects
+        """
+        if obj in ["true", "True", "TRUE"]:
+            return True
+        elif obj in ["false", "False", "FALSE"]:
+            return False
+        elif isinstance(obj, str):
+            if '$' in obj:
+                return Easymore._env_var_decoder(obj)
+        elif isinstance(obj, dict):
+            return {k: Easymore._easymore_decoder(v) for k, v in obj.items()}
+        return obj
 
     def nc_remapper(self):
         """
@@ -135,7 +334,7 @@ class easymore:
         # check the source nc file
         self.check_source_nc()
         # if remap is not provided then create the remapping file
-        if self.remap_csv == '':
+        if self.remap_csv is None:
             import geopandas as gpd
             print('--CREATING-REMAPPING-FILE--')
             time_start = datetime.now()
@@ -263,7 +462,7 @@ class easymore:
             print('---------------------------')
         else:
             # check the remap file if provided
-            int_df  = pd.read_csv(self.remap_csv)
+            int_df = pd.read_csv(self.remap_csv)
             self.check_easymore_remap(int_df)
         # check if the remapping file needs to be generated only
         if self.only_create_remap_csv:
@@ -288,7 +487,7 @@ class easymore:
         self.NetCDF_SHP_lat_lon()
         # create the source shapefile for case 1 and 2 if shapefile is not provided
         if (self.case == 1 or self.case == 2):
-            if (self.source_shp == ''):
+            if (self.source_shp is None):
                 if self.case == 1 and hasattr(self, 'lat_expanded') and hasattr(self, 'lon_expanded'):
                     source_shp_gpd = self.lat_lon_SHP(self.lat_expanded, self.lon_expanded,crs="epsg:4326")
                 else:
@@ -304,7 +503,7 @@ class easymore:
                 source_shp_gpd = gpd.read_file(self.source_shp)
                 source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
                                                              self.source_shp_lon, self.source_shp_ID)
-            if (self.source_shp == ''): # source shapefile is not provided goes for voronoi
+            if (self.source_shp is None): # source shapefile is not provided goes for voronoi
                 # Create the source shapefile using Voronio diagram
                 print('EASYMORE detect that source shapefile is not provided for irregulat lat lon source NetCDF')
                 print('EASYMORE will create the voronoi source shapefile based on the lat lon')
@@ -349,16 +548,16 @@ class easymore:
                 sys.exit('the provided temporary folder for EASYMORE should end with (/)')
             if not os.path.isdir(self.temp_dir):
                 os.makedirs(self.temp_dir)
-        if self.output_dir == '':
+        if self.output_dir is None:
             sys.exit('the provided folder for EASYMORE remapped netCDF output is missing; please provide that')
         if self.output_dir != '':
             if self.output_dir[-1] != '/':
                 sys.exit('the provided output folder for EASYMORE should end with (/)')
             if not os.path.isdir(self.output_dir):
                 os.makedirs(self.output_dir)
-        if self.temp_dir == '':
+        if not self.temp_dir:
             print("No temporary folder is provided for EASYMORE; this will result in EASYMORE saving the files in the same directory as python script")
-        if self.author_name == '':
+        if self.author_name is None:
             print("no author name is provided. The author name is changed to (author name)!")
             self.author_name = "author name"
         if (len(self.var_names) != 1) and (len(self.format_list) == 1) and (len(self.fill_value_list) ==1):
@@ -407,7 +606,7 @@ class easymore:
         else: # check if the projection is WGS84 (or epsg:4326)
             print('EASYMORE detects that target shapefile is in WGS84 (epsg:4326)')
         # check if the ID, latitude, longitude are provided
-        if self.target_shp_ID == '':
+        if self.target_shp_ID is None:
             print('EASYMORE detects that no field for ID is provided in sink/target shapefile')
             print('arbitarary values of ID are added in the field ID_t')
             shp['ID_t']  = np.arange(len(shp))+1
@@ -418,7 +617,7 @@ class easymore:
             if len(ID_values) != len(np.unique(ID_values)):
                 sys.exit('The provided IDs in shapefile are not unique; provide unique IDs or do not identify target_shp_ID')
             shp['ID_t'] = shp[self.target_shp_ID]
-        if self.target_shp_lat == '' or self.target_shp_lon == '':
+        if None in [self.target_shp_lat, self.target_shp_lon]:
             print('EASYMORE detects that either of the fields for latitude or longitude is not provided in sink/target shapefile')
             # in WGS84
             print('calculating centroid of shapes in WGS84 projection;')
@@ -428,14 +627,14 @@ class easymore:
             df_point ['lat'] = shp.centroid.y
             df_point ['lon'] = shp.centroid.x
             warnings.simplefilter('default') # back to normal
-        if self.target_shp_lat == '':
+        if self.target_shp_lat is None:
             print('EASYMORE detects that no field for latitude is provided in sink/target shapefile')
             print('latitude values are added in the field lat_t')
             shp['lat_t']  = df_point ['lat'] # centroid lat from target
         else:
             print('EASYMORE detects that the field latitude is provided in sink/target shapefile')
             shp['lat_t'] = shp[self.target_shp_lat]
-        if self.target_shp_lon == '':
+        if self.target_shp_lon is None:
             print('EASYMORE detects that no field for longitude is provided in sink/target shapefile')
             print('longitude values are added in the field lon_t')
             shp['lon_t']  = df_point ['lon'] # centroid lon from target
@@ -765,7 +964,7 @@ in dimensions of the variables and latitude and longitude')
             lat = ncid.variables[self.var_lat][:]
             lon = ncid.variables[self.var_lon][:]
             #print(lat, lon)
-            if self.var_ID  == '':
+            if self.var_ID  is None: 
                 print('EASYMORE detects that no variable for ID of the source netCDF file; an arbitatiry ID will be added')
                 ID =  np.arange(len(lat))+1 # pass arbitarary values
             else:
@@ -1145,7 +1344,7 @@ in dimensions of the variables and latitude and longitude')
             nc_att_list = ncids.ncattrs()
             nc_att_list = [each_att for each_att in nc_att_list]
             nc_att_list_lower = [each_att.lower() for each_att in nc_att_list]
-            if self.license == '' and ('license' not in nc_att_list_lower):
+            if self.license is None and ('license' not in nc_att_list_lower):
                 self.license == 'the original license of the source NetCDF file is not provided'
             if ('license' in nc_att_list_lower):
                 if 'license' in nc_att_list:
@@ -1217,8 +1416,10 @@ in dimensions of the variables and latitude and longitude')
                 hruId_varid[:] = hruID_var
                 # general attributes for NetCDF file
                 ncid.Conventions = 'CF-1.6'
-                ncid.Author = 'The data were written by ' + self.author_name
-                ncid.License = self.license
+                if self.author_name:
+                    ncid.Author = 'The data were written by ' + self.author_name
+                if self.license:
+                    ncid.License = self.license
                 ncid.History = 'Created ' + time.ctime(time.time())
                 ncid.Source = 'Case: ' +self.case_name + '; remapped by script from library of Shervan Gharari (https://github.com/ShervanGharari/EASYMORE).'
                 # write variables
