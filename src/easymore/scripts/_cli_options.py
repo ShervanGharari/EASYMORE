@@ -18,7 +18,7 @@ cli_options = {
     },
     ('--shapefile', '-s'): {
         'type': click.Path(exists=True, file_okay=True, dir_okay=False),
-        'required': False,
+        'required': True,
         'is_flag': False,
         'allow_from_autoenv': True,
         'help': 'Path to the ESRI Shapefile',
@@ -205,9 +205,8 @@ cli_options = {
         'show_choices': False,
     },
     ('--output-dir', '-o'): {
-        'type': click.STRING,
+        'type': click.Path(exists=False, dir_okay=True),
         'required': True,
-        'default': '',
         'is_flag': False,
         'allow_from_autoenv': True,
         'help': 'Output directory',
