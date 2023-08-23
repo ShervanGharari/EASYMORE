@@ -4,6 +4,8 @@ easymore's main CLI script
 
 import pkgutil
 import subprocess
+import tempfile
+import json
 
 import click
 
@@ -19,16 +21,6 @@ from easymore import Easymore
 DEFAULT_SCRIPT = "assets/default.slurm"
 
 
-def add_options(options):
-    """Adding options to @click.command decorated functions
-    """
-    def _add_options(func):
-        for option in reversed(options):
-            func = option(func)
-        return func
-    return _add_options
-
-
 # `main` options and arguments
 # `cli` options and arguments
 cli_o = [click.option(*k, **v) for k, v in cli_options.items()]
@@ -42,8 +34,18 @@ submit_a = [click.argument(*k, **v) for k, v in submit_args.items()]
 
 # Epilog help message
 epilog = "For bug reports, questions, and discussions open an issue at" + \
-    "https://github.com/ShervanGharari/EASYMORE.git"
+    " https://github.com/ShervanGharari/EASYMORE.git"
 width = 74
+
+
+def add_decorator(options):
+    """repeats decorators
+    """
+    def _add_decorator(func):
+        for option in reversed(options):
+            func = option(func)
+        return func
+    return _add_decorator
 
 
 @click.group(context_settings={'max_content_width': width},
@@ -58,22 +60,33 @@ def main():
     """
 
 
-@main.command('cli')
-@add_options(cli_o)
+@main.command('cli', no_args_is_help=True)
+@add_decorator(cli_o)
 def from_cli(**kwargs):
     """
     Run Easymore using CLI
     """
+    # two job submission related options
     job_var = 'submit_job'
     job_conf = 'submit_job_conf'
+    # checking if submitting a job to HPC schedulers
     if kwargs[job_var]:
+        # creating parameter dictionary for Easymore
         esmr_kwargs = {k: v for k, v in kwargs.items() if k not in
                        (job_var, job_conf)}
-        try:
+        # checking if a job submission configuration file is given
+        if kwargs[job_conf] != 'default':
             submission_conf = kwargs[job_conf]
-        except KeyError:
+        else:
             submission_conf = DEFAULT_SCRIPT
-        submit_hpc_job(esmr_kwargs, submission_conf)
+
+        # [FIXME]: make `submit_hpc_job` more flexible
+        # since `submit_hpc_job` only accepts a JSON file, create a
+        # temporary one out of the dictionary and pass it to the function
+        with tempfile.NamedTemporaryFile(mode='w+b', delete=False) as f:
+            json.dump(esmr_kwargs, f, indent=4)
+
+        submit_hpc_job(f.name, submission_conf)
     # if no job submission
     else:
         cli_exp = Easymore.from_dict(kwargs)
@@ -81,8 +94,8 @@ def from_cli(**kwargs):
 
 
 @main.command('conf', no_args_is_help=True)
-@add_options(conf_o)
-@add_options(conf_a)
+@add_decorator(conf_o)
+@add_decorator(conf_a)
 def from_conf(json, **kwargs):
     """
     Run Easymore using a JSON configuration file
@@ -110,16 +123,19 @@ def submit_hpc_job(
     Submit easymore experiment to SLURM scheduler
     """
     # Read the file content using resources
-    job_script = pkgutil.get_data(__name__, job_conf).decode()
+    job_str = pkgutil.get_data(__name__, job_conf).decode()
 
     esmr_text = f'easymore conf {json}'
-    job_script = job_script + '\n' + esmr_text
+    job_str = job_str + '\n' + esmr_text
+
+    # encode `job_script` string into byte-like object
+    job_byte = job_str.encode()
 
     # export new script file
-    with open('temp_script.slurm', 'w') as f:
-        f.write(job_script)
+    with tempfile.NamedTemporaryFile(mode='w+b', delete=False) as f:
+        f.write(job_byte)
 
-    subprocess.run(["sbatch", "temp_script.slurm"])
+    subprocess.run(["sbatch", f.name])
 
 
 def _kwargs_to_text(**kwargs):
