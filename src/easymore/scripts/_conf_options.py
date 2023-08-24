@@ -12,7 +12,7 @@ conf_options = {
         'allow_from_autoenv': True,
         'help': 'Submit job to HPC scheduler',
     },
-    ('--submit-job-conf', '-jc'): {
+    ('--job-conf', '-jc'): {
         'type': click.STRING,
         'required': False,
         'default': 'default',
@@ -20,6 +20,17 @@ conf_options = {
         'is_flag': False,
         'allow_from_autoenv': True,
         'help': 'Job submission script file',
+        'show_choices': False,
+    },
+    ('--dependency', '-p'): {
+        'type': click.STRING,
+        'required': False,
+        'default': None,
+        'multiple': True,
+        'is_flag': False,
+        'allow_from_autoenv': True,
+        'help': 'Make SLURM job submission dependant on successfully'
+        ' finishing another on given their submission ID',
         'show_choices': False,
     }
 }

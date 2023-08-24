@@ -96,19 +96,22 @@ def from_cli(**kwargs):
 @main.command('conf', no_args_is_help=True)
 @add_decorator(conf_o)
 @add_decorator(conf_a)
-def from_conf(json, **kwargs):
+def from_conf(json, submit_job, job_conf, dependency):
     """
     Run Easymore using a JSON configuration file
     """
     # if job submission
-    job_var = 'submit_job'
-    job_conf = 'submit_job_conf'
-    if kwargs[job_var]:
-        if kwargs[job_conf] != 'default':
-            submission_conf = kwargs[job_conf]
+    if submit_job:
+
+        # check the job submission file, if provided
+        if job_conf != 'default':
+            submission_conf = job_conf
         else:
             submission_conf = DEFAULT_SCRIPT
-        submit_hpc_job(json, submission_conf)
+
+        # submit job to HPC SLURM scheduler
+        submit_hpc_job(json, submission_conf, dependency)
+
     # if no job submission
     else:
         json_exp = Easymore.from_json_file(json)
@@ -117,30 +120,44 @@ def from_conf(json, **kwargs):
 
 def submit_hpc_job(
     json: str,
-    job_conf: str,
+    job_conf_file: str,
+    dep_ids: str,
 ):
     """
-    Submit easymore experiment to SLURM scheduler
+    [UNSTABLE] Submit easymore experiment to SLURM scheduler
     """
-    # Read the file content using resources
-    job_str = pkgutil.get_data(__name__, job_conf).decode()
+    # making a colon delimited string out of all input IDs
+    id_list = _iterable_to_delim_str(dep_ids)
 
+    # Read the SLURM job submission file content using `pkgutil`
+    job_str = pkgutil.get_data(__name__, job_conf_file).decode()
+
+    # job string to be run
     esmr_text = f'easymore conf {json}'
     job_str = job_str + '\n' + esmr_text
 
-    # encode `job_script` string into byte-like object
+    # encode `job_str` string into byte-like object
     job_byte = job_str.encode()
 
     # export new script file
     with tempfile.NamedTemporaryFile(mode='w+b', delete=False) as f:
         f.write(job_byte)
 
-    subprocess.run(["sbatch", f.name])
+    subprocess.run(["sbatch", f"--dependency=afterok:{id_list}", f.name])
 
 
-def _kwargs_to_text(**kwargs):
+def _iterable_to_delim_str(inp_list):
+    """convert list of string to delimited string
+    """
     text = ""
-    for key, value in kwargs.items():
-        key = '--' + key.replace('_', '-')
-        text += f"{key}={value}\n"
+    for idx in range(len(inp_list)):
+        # make a string out of the element
+        id_str = str(inp_list[idx])
+        # if element has a comma itself, replace with a colon
+        id_str = id_str.replace(',', ':')
+        # add to the `text`
+        text += id_str
+        # if the last element, do not add a colon at the end
+        if (idx != len(inp_list) - 1):
+            text += str(':')
     return text
