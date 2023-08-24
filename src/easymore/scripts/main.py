@@ -143,7 +143,11 @@ def submit_hpc_job(
     with tempfile.NamedTemporaryFile(mode='w+b', delete=False) as f:
         f.write(job_byte)
 
-    subprocess.run(["sbatch", f"--dependency=afterok:{id_list}", f.name])
+    # if dependency activated
+    if dep_ids:
+        subprocess.run(["sbatch", f"--dependency=afterok:{id_list}", f.name])
+    else:
+        subprocess.run(["sbatch", f.name])
 
 
 def _iterable_to_delim_str(inp_list):
