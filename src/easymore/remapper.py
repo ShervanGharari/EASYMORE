@@ -15,6 +15,7 @@ and depending on the source netCDF files sizes and their temporal
 aggregation).
 """
 
+import multiprocessing
 import glob
 import time
 import sys
@@ -113,6 +114,8 @@ class Easymore:
         name of the remapped file if provided
     only_create_remap_csv : bool, defaults to `False`
         if true, it does not remap any nc files
+    parallel : bool, defaults to `False`
+        if true, it will remap nc files in parallel
     clip_source_shp : bool, defaults to `True`
         The source shapefile is clipped to the domain of target shapefile
         to increase intersection speed
@@ -177,6 +180,7 @@ class Easymore:
         fill_value_list: List[str] = ['-9999'],
         remap_csv: str = None,
         only_create_remap_csv: bool = False,
+        parallel:bool = False,
         clip_source_shp: bool = True,
         buffer_clip_source_shp: int = 2,
         save_temp_shp: bool = True,
@@ -224,6 +228,7 @@ class Easymore:
         self.fill_value_list = fill_value_list
         self.remap_csv = remap_csv
         self.only_create_remap_csv = only_create_remap_csv
+        self.parallel = parallel
         self.clip_source_shp = clip_source_shp
         self.buffer_clip_source_shp = buffer_clip_source_shp
         self.save_temp_shp = save_temp_shp
@@ -469,8 +474,20 @@ class Easymore:
             print('The remapping file is either created or given to EASYMORE')
             print('The remapping Located here: ', self.remap_csv)
         else:
-            self.__target_nc_creation()
-
+            # get the nc file names
+            nc_names = sorted(glob.glob(self.source_nc))
+            num_processes = multiprocessing.cpu_count()  # Use the number of available CPU cores
+            num_processes = min(len(nc_names), num_processes)  # Limit the worker if number of files is smaller
+            if self.parallel and (num_processes>1):
+                print('parallel remapping for nc files on ', num_processes, ' workers')
+                pool = multiprocessing.Pool(processes=num_processes)  # Assign the number of workers
+                # Use pool.map() to parallelize the for loop
+                pool.map(self.target_nc_creation, nc_names)
+                # Close the pool to free up resources
+                pool.close()
+                pool.join()
+            else:
+                self.target_nc_creation(nc_names)
 
     def create_source_shp(self):
         """
@@ -963,7 +980,7 @@ in dimensions of the variables and latitude and longitude')
             lat = ncid.variables[self.var_lat][:]
             lon = ncid.variables[self.var_lon][:]
             #print(lat, lon)
-            if self.var_ID  is None: 
+            if self.var_ID  is None:
                 print('EASYMORE detects that no variable for ID of the source netCDF file; an arbitatiry ID will be added')
                 ID =  np.arange(len(lat))+1 # pass arbitarary values
             else:
@@ -1295,7 +1312,8 @@ in dimensions of the variables and latitude and longitude')
             sys.exit('provided remapping file does not have one of the needed fields: \n'+\
                 'ID_t, lat_t, lon_t, order_t, ID_s, lat_s, lon_s, weight')
 
-    def __target_nc_creation(self):
+    def target_nc_creation(self,
+                           nc_names):
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
@@ -1303,6 +1321,9 @@ in dimensions of the variables and latitude and longitude')
         @ license:                 GNU-GPLv3
         This funciton read different grids and sum them up based on the
         weight provided to aggregate them over a larger area
+        Parameters:
+        ----------
+        nc_names: list of nc file names to be remapped, or string of single names
         """
         print('------REMAPPING------')
         remap = pd.read_csv(self.remap_csv)
@@ -1324,9 +1345,6 @@ in dimensions of the variables and latitude and longitude')
         self.rows = np.array(remap['rows']).astype(int)
         self.cols = np.array(remap['cols']).astype(int)
         self.number_of_target_elements = len(hruID_var)
-        #
-        nc_names = glob.glob(self.source_nc)
-        nc_names = sorted(nc_names)
         # check compression choice
         if isinstance(self.complevel, int) and (self.complevel >=1) and (self.complevel<=9):
             compflag = True
@@ -1336,6 +1354,8 @@ in dimensions of the variables and latitude and longitude')
             compflag = False
             complevel = 0
             print('netcdf output file will not be compressed.')
+        if isinstance(nc_names, str):
+            nc_names = [nc_names]  # Convert the string to a list
         for nc_name in nc_names:
             # get the time unit and time var from source
             ncids = nc4.Dataset(nc_name)
@@ -1348,11 +1368,13 @@ in dimensions of the variables and latitude and longitude')
             if ('license' in nc_att_list_lower):
                 if 'license' in nc_att_list:
                     self.license == getattr(ncids, 'license')
-                if 'License' in nc_att_list:
+                elif 'License' in nc_att_list:
                     self.license == getattr(ncids, 'License')
-                if 'LICENSE' in nc_att_list:
+                elif 'LICENSE' in nc_att_list:
                     self.license == getattr(ncids, 'LICENSE')
-                self.license == 'Original data license '+self.license
+                else:
+                    self.license = ''
+                self.license == 'Original data license '+str(self.license)
             if 'units' in ncids.variables[self.var_time].ncattrs():
                 time_unit = ncids.variables[self.var_time].units
             else:
