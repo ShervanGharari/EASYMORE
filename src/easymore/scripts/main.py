@@ -69,11 +69,18 @@ def from_cli(**kwargs):
     # two job submission related options
     job_var = 'submit_job'
     job_conf = 'submit_job_conf'
+    job_deps = 'dependency'
+    var = 'var_names'  # list of variables
+
+    if ',' in kwargs[var][0]: 
+        kwargs[var] = kwargs[var][0].split(',')
+
+    # creating parameter dictionary for Easymore
+    esmr_kwargs = {k: v for k, v in kwargs.items() if k not in
+                   (job_var, job_conf, job_deps)}
+
     # checking if submitting a job to HPC schedulers
     if kwargs[job_var]:
-        # creating parameter dictionary for Easymore
-        esmr_kwargs = {k: v for k, v in kwargs.items() if k not in
-                       (job_var, job_conf)}
         # checking if a job submission configuration file is given
         if kwargs[job_conf] != 'default':
             submission_conf = kwargs[job_conf]
@@ -83,13 +90,17 @@ def from_cli(**kwargs):
         # [FIXME]: make `submit_hpc_job` more flexible
         # since `submit_hpc_job` only accepts a JSON file, create a
         # temporary one out of the dictionary and pass it to the function
-        with tempfile.NamedTemporaryFile(mode='w+b', delete=False) as f:
-            json.dump(esmr_kwargs, f, indent=4)
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+            json.dump(esmr_kwargs, f)
 
-        submit_hpc_job(f.name, submission_conf)
+        # check if any SLURM dependency is defined
+        if kwargs[job_deps]:
+            submit_hpc_job(f.name, submission_conf, kwargs[job_deps])
+        else:
+            submit_hpc_job(f.name, submission_conf)
     # if no job submission
     else:
-        cli_exp = Easymore.from_dict(kwargs)
+        cli_exp = Easymore.from_dict(esmr_kwargs)
         cli_exp.nc_remapper()
 
 
@@ -121,13 +132,14 @@ def from_conf(json, submit_job, job_conf, dependency):
 def submit_hpc_job(
     json: str,
     job_conf_file: str,
-    dep_ids: str,
+    dep_ids: str = None,
 ):
     """
     [UNSTABLE] Submit easymore experiment to SLURM scheduler
     """
-    # making a colon delimited string out of all input IDs
-    id_list = _iterable_to_delim_str(dep_ids)
+    if dep_ids is not None:
+        # making a colon delimited string out of all input IDs
+        id_list = _iterable_to_delim_str(dep_ids)
 
     # Read the SLURM job submission file content using `pkgutil`
     job_str = pkgutil.get_data(__name__, job_conf_file).decode()
