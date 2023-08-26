@@ -6,7 +6,7 @@ import click
 
 
 cli_options = {
-    ('--case-name', '-n'): {
+    ('case_name', '--case-name', '-n'): {
         'type': click.STRING,
         'required': False,
         'default': 'easymore_test',
@@ -16,7 +16,15 @@ cli_options = {
         'help': 'Easymore experiment name',
         'show_choices': False,
     },
-    ('--shapefile', '-s'): {
+    ('source_nc', '--source-nc', '-i'): {
+        'type': click.STRING,
+        'required': True,
+        'is_flag': False,
+        'allow_from_autoenv': True,
+        'help': 'Path to source netCDF files',
+        'show_choices': False,
+    },
+    ('target_shp', '--shapefile', '-s'): {
         'type': click.Path(exists=True, file_okay=True, dir_okay=False),
         'required': True,
         'is_flag': False,
@@ -24,9 +32,9 @@ cli_options = {
         'help': 'Path to the ESRI Shapefile',
         'show_choices': False,
     },
-    ('--shapefile-id', '-si'): {
+    ('target_shp_ID', '--shapefile-id', '-si'): {
         'type': click.STRING,
-        'required': True,
+        'required': False,
         'default': 'ID',
         'show_default': True,
         'is_flag': False,
@@ -35,7 +43,7 @@ cli_options = {
         ' Shapefile features',
         'show_choices': False,
     },
-    ('--shapefile-lat', '-sl'): {
+    ('target_shp_lat', '--shapefile-lat', '-sl'): {
         'type': click.STRING,
         'required': False,
         'default': 'lat',
@@ -46,7 +54,7 @@ cli_options = {
         ' ESRI Shapefile features',
         'show_choices': False,
     },
-    ('--shapefile-lon', '-sn'): {
+    ('target_shp_lon', '--shapefile-lon', '-sn'): {
         'type': click.STRING,
         'required': False,
         'default': 'lon',
@@ -57,7 +65,7 @@ cli_options = {
         ' ESRI Shapefile features',
         'show_choices': False,
     },
-    ('--variable', '-v'): {
+    ('var_names', '--variable', '-v'): {
         'type': click.STRING,
         'required': True,
         'is_flag': False,
@@ -66,9 +74,9 @@ cli_options = {
         'show_choices': False,
         'multiple': True,
     },
-    ('--variable-lat', '-vl'): {
+    ('var_lat', '--variable-lat', '-vl'): {
         'type': click.STRING,
-        'required': True,
+        'required': False,
         'default': 'lat',
         'show_default': True,
         'is_flag': False,
@@ -77,9 +85,9 @@ cli_options = {
         ' netCDF files',
         'show_choices': False,
     },
-    ('--variable-lon', '-vn'): {
+    ('var_lon', '--variable-lon', '-vn'): {
         'type': click.STRING,
-        'required': True,
+        'required': False,
         'default': 'lon',
         'show_default': True,
         'is_flag': False,
@@ -88,7 +96,7 @@ cli_options = {
         ' netCDF files',
         'show_choices': False,
     },
-    ('--variable-time', '-vt'): {
+    ('var_time', '--variable-time', '-vt'): {
         'type': click.STRING,
         'required': False,
         'default': 'time',
@@ -99,7 +107,7 @@ cli_options = {
         ' netCDF file',
         'show_choices': False,
     },
-    ('--variable-station', '-vs'): {
+    ('var_station', '--variable-station', '-vs'): {
         'type': click.STRING,
         'required': False,
         'default': '',
@@ -109,7 +117,7 @@ cli_options = {
         ' netCDF files',
         'show_choices': False,
     },
-    ('--source-shapefile', '-ss'): {
+    ('source_shp', '--source-shapefile', '-ss'): {
         'type': click.Path(exists=True, file_okay=True),
         'required': False,
         'is_flag': False,
@@ -118,7 +126,7 @@ cli_options = {
         ' cases)',
         'show_choices': False,
     },
-    ('--source-shapefile-lat', '-ssl'): {
+    ('source_shp_lat', '--source-shapefile-lat', '-ssl'): {
         'type': click.STRING,
         'required': False,
         'default': 'lat',
@@ -129,7 +137,7 @@ cli_options = {
         ' in the source netCDF file(s) and source ESRI Shapefile',
         'show_choices': False,
     },
-    ('--source-shapefile-lon', '-ssn'): {
+    ('source_shp_lon', '--source-shapefile-lon', '-ssn'): {
         'type': click.STRING,
         'required': False,
         'default': 'lon',
@@ -140,7 +148,7 @@ cli_options = {
         ' both in the source netCDF file(s) and source ESRI Shapefile',
         'show_choices': False,
     },
-    ('--remapped-variable', '-rv'): {
+    ('var_names_remapped', '--remapped-variable', '-rv'): {
         'type': click.STRING,
         'required': False,
         'is_flag': False,
@@ -150,7 +158,7 @@ cli_options = {
         'show_choices': False,
         'multiple': True,
     },
-    ('--remapped-var-id', '-ri'): {
+    ('remapped_var_id', '--remapped-var-id', '-ri'): {
         'type': click.STRING,
         'required': False,
         'default': 'ID',
@@ -161,7 +169,7 @@ cli_options = {
         ' netCDF files',
         'show_choices': False,
     },
-    ('--remapped-lat', '-rl'): {
+    ('remapped_var_lat', '--remapped-lat', '-rl'): {
         'type': click.STRING,
         'required': False,
         'default': 'latitude',
@@ -172,7 +180,7 @@ cli_options = {
         ' netCDF files',
         'show_choices': False,
     },
-    ('--remapped-lon', '-rn'): {
+    ('remapped_var_lon', '--remapped-lon', '-rn'): {
         'type': click.STRING,
         'required': False,
         'default': 'longitude',
@@ -183,7 +191,7 @@ cli_options = {
         ' netCDF files',
         'show_choices': False,
     },
-    ('--remapped-dim-id', '-rd'): {
+    ('remapped_dim_id', '--remapped-dim-id', '-rd'): {
         'type': click.STRING,
         'required': False,
         'default': 'ID',
@@ -194,7 +202,7 @@ cli_options = {
         ' netCDF files',
         'show_choices': False,
     },
-    ('--chunk', '-u'): {
+    ('remapped_chunk_size', '--chunk', '-u'): {
         'type': click.INT,
         'required': False,
         'default': 200,
@@ -204,7 +212,7 @@ cli_options = {
         'help': 'Chunk size of the generated netCDF file(s)',
         'show_choices': False,
     },
-    ('--output-dir', '-o'): {
+    ('output_dir', '--output-dir', '-o'): {
         'type': click.Path(exists=False, dir_okay=True),
         'required': True,
         'is_flag': False,
@@ -212,7 +220,7 @@ cli_options = {
         'help': 'Output directory',
         'show_choices': False,
     },
-    ('--format', '-f'): {
+    ('format_list', '--format', '-f'): {
         'type': click.STRING,
         'required': False,
         'default': 'f8',
@@ -223,7 +231,7 @@ cli_options = {
         ' Interface Protocol',
         'show_default': True,
     },
-    ('--missing-value', '-m'): {
+    ('fill_value_list', '--missing-value', '-m'): {
         'type': click.INT,
         'required': False,
         'default': -9999,
@@ -233,16 +241,15 @@ cli_options = {
         'help': 'Sequence of integer(s) filling missing values',
         'show_default': True,
     },
-    ('--remap-csv', '-e'): {
+    ('remap_csv', '--remap-csv', '-e'): {
         'type': click.Path(exists=True, file_okay=True),
         'required': False,
-        'default': '',
         'is_flag': True,
         'allow_from_autoenv': True,
         'help': 'Previosuly generated remapping .csv file',
         'show_default': False,
     },
-    ('--remap-file-only', '-R'): {
+    ('only_create_remap_csv', '--remap-file-only', '-R'): {
         'type': click.BOOL,
         'required': False,
         'default': False,
@@ -251,7 +258,7 @@ cli_options = {
         'allow_from_autoenv': False,
         'help': 'Only produce remapping .csv file',
     },
-    ('--skip-checks', '-K'): {
+    ('skip_check_all_source_nc', '--skip-checks', '-K'): {
         'type': click.BOOL,
         'required': False,
         'default': False,
@@ -262,7 +269,7 @@ cli_options = {
         'show_choices': True,
         'show_default': True,
     },
-    ('--clip-shapefile', '-L'): {
+    ('clip_source_shp', '--clip-shapefile', '-L'): {
         'type': click.BOOL,
         'required': False,
         'default': True,
@@ -273,7 +280,7 @@ cli_options = {
         'show_choices': True,
         'show_default': True,
     },
-    ('--case-name-author', '-na'): {
+    ('author_name', '--case-name-author', '-na'): {
         'type': click.STRING,
         'required': False,
         'default': 'Agent',
@@ -283,7 +290,7 @@ cli_options = {
         'help': 'Easymore experiment agent',
         'show_choices': False,
     },
-    ('--overwrite', '-O'): {
+    ('overwrite_remapped_nc', '--overwrite', '-O'): {
         'type': click.BOOL,
         'required': False,
         'default': True,
@@ -294,13 +301,41 @@ cli_options = {
         'show_choices': True,
         'show_default': True,
     },
-    ('--cache', '-c'): {
+    ('temp_dir', '--cache', '-c'): {
         'type': click.Path(exists=False, file_okay=False),
         'required': False,
         'default': '',
         'is_flag': False,
         'allow_from_autoenv': True,
         'help': 'Temporary directory',
+        'show_choices': False,
+    },
+    ('submit_job', '--submit-job', '-j'): {
+        'type': click.BOOL,
+        'required': False,
+        'is_flag': True,
+        'allow_from_autoenv': True,
+        'help': 'Submit job to HPC scheduler',
+    },
+    ('submit_job_conf', '--job-conf', '-jc'): {
+        'type': click.STRING,
+        'required': False,
+        'default': 'default',
+        'show_default': True,
+        'is_flag': False,
+        'allow_from_autoenv': True,
+        'help': 'Job submission script file',
+        'show_choices': False,
+    },
+    ('dependency', '--dependency', '-p'): {
+        'type': click.STRING,
+        'required': False,
+        'default': None,
+        'multiple': True,
+        'is_flag': False,
+        'allow_from_autoenv': True,
+        'help': 'Make SLURM job submission dependant on successfully'
+        ' finishing another on given their submission ID',
         'show_choices': False,
     },
 }
