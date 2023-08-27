@@ -401,28 +401,25 @@ class Easymore:
 
         Examples
         --------
-        # Example of regular grid to irregular grid
-        # loading Easymore
-        from easymore import Easymore
-        # initializing Easymore object and define variables
-        esmr = Easymore()
-        esmr.case_name                = 'ERA5_Medicine_Hat'
-        esmr.source_nc                = './data/Source_nc_ERA5/ERA5_NA_*.nc'
-        esmr.var_names                = ['airtemp','pptrate']
-        esmr.var_names_remapped       = ['temperature','precipitation']
-        esmr.var_lon                  = 'longitude'
-        esmr.var_lat                  = 'latitude'
-        esmr.var_time                 = 'time'
-        esmr.target_shp               = './data/target_shapefiles/South_Saskatchewan_MedicineHat.shp'
-        esmr.target_shp_ID            = 'COMID' # if not provided easymore give ID according to shape order in shapefile
-        esmr.temp_dir                 = './temporary/'
-        esmr.output_dir               = './output/'
-        esmr.format_list              = ['f4']
-        esmr.fill_value_list          = ['-9999.00']
-        esmr.save_csv                 = True
-        esmr.complevel                = 9
-        # execute EASYMORE
-        esmr.nc_remapper()
+        # example of regular or rorated grid to irregular shapes such as subbasins
+        >>> from easymore import Easymore
+        >>> esmr = Easymore()
+        >>> esmr.case_name                = 'ERA5_Medicine_Hat'
+        >>> esmr.source_nc                = './data/Source_nc_ERA5/ERA5_NA_*.nc'
+        >>> esmr.var_names                = ['airtemp','pptrate']
+        >>> esmr.var_names_remapped       = ['temperature','precipitation']
+        >>> esmr.var_lon                  = 'longitude'
+        >>> esmr.var_lat                  = 'latitude'
+        >>> esmr.var_time                 = 'time'
+        >>> esmr.target_shp               = './data/target_shapefiles/South_Saskatchewan_MedicineHat.shp'
+        >>> esmr.target_shp_ID            = 'COMID'
+        >>> esmr.temp_dir                 = './temporary/'
+        >>> esmr.output_dir               = './output/'
+        >>> esmr.format_list              = ['f4']
+        >>> esmr.fill_value_list          = ['-9999.00']
+        >>> esmr.save_csv                 = True
+        >>> esmr.complevel                = 9
+        >>> esmr.nc_remapper()
         """
         # check EASYMORE input
         self.check_easymore_input()
