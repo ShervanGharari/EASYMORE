@@ -2,9 +2,9 @@ Modules
 =======
 
 remapper Module
-----------------
+---------------
 
-.. automodule:: remapper
+.. automodule:: easymore.remapper
    :members:
    :undoc-members:
    :show-inheritance:
