@@ -1351,11 +1351,14 @@ in dimensions of the variables and latitude and longitude')
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         this fucntion gets the row and colomns of the source netcdf file and returns it
+
+        Parameters
         ----------
         lat_source: numpy array of lat source
         lon_source: numpy array of lon source
         lat_target_int: numpy array of lat source
         lon_target_int: numpy array of lon source
+
         Returns
         -------
         rows: numpy array, rows from the source file based on the target lat/lon
@@ -1387,16 +1390,8 @@ in dimensions of the variables and latitude and longitude')
         this function check the remapping dataframe
         Parameters:
         ----------
-        remap_df: dataframe, including remapping information including the following colomns:
-                    ID_target
-                    lon_target
-                    lat_target
-                    ID_source
-                    lat_source
-                    lon_source
-                    rows
-                    cols
-                    order
+        remap_df: dataframe, including remapping information including the following colomns of ID_target,
+        lon_target, lat_target, ID_source, lat_source, lon_source, rows, cols, order
         """
         # check if there is EASYMORE_case in the columns
         if 'easymore_case' in remap_df.columns:
@@ -1864,12 +1859,14 @@ to correct for lon above 180')
         @ author's email id:       sh.gharari@gmail.com
         @ license:                 GNU-GPLv3
         This function calcultes the centroid in equal area projection for shapefile bound between -180 to 180.
+
+        Parameters
         ---------
         shp: geopandas shapefile
+
         Returns
         -------
         shp: geopandas shapefile with centroid in equal arae
-        shp_points: geopandas shapefile (points) with location in WGS84 corresponsing to the centroid in equal area
         """
         # in equal projection
         print('calculating centroid of shapes in equal area projection')
