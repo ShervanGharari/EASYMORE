@@ -159,6 +159,11 @@ def submit_hpc_job(
     # Read the SLURM job submission file content using `pkgutil`
     job_str = pkgutil.get_data(__name__, job_conf_file).decode()
 
+    # Add error and output paths to the SLURM submission file
+    job_err_str = f"#SBATCH --error={temp_dir}/easymore.err"
+    job_log_str = f"#SBATCH --output={temp_dir}/easymore.log"
+    job_str = job_str + job_err_str + '\n' + job_log_str
+
     # job string to be run
     esmr_text = f'easymore conf {json}'
     job_str = job_str + '\n' + esmr_text
