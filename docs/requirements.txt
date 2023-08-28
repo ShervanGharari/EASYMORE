@@ -1,2 +1,15 @@
-sphinx==7.1.2
-sphinx-rtd-theme==1.3.0rc1
+sphinx
+sphinx_rtd_theme
+numpy
+xarray
+pandas
+netCDF4
+datetime
+cftime
+geopandas
+shapely
+geovoronoi
+json5
+matplotlib
+rtree
+click
