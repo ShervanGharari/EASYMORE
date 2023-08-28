@@ -4,7 +4,7 @@ Modules
 name
 ----
 
-.. automodule:: Easymore
+.. automodule:: remapper
    :members:
    :undoc-members:
    :show-inheritance:
