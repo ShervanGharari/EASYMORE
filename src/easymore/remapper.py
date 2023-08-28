@@ -581,7 +581,7 @@ class Easymore:
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function creates a source shapefile for regular or rotated grid and Voronoi diagram from
         source netCDF file
@@ -618,7 +618,7 @@ class Easymore:
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function creates the dataframe with assosiated latitude and longitude or source file and
         its location of data by column and row for EASYMORE to extract/remap data
@@ -643,7 +643,7 @@ class Easymore:
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         the functions checkes if the necessary EASYMORE object are provided from the user
         """
@@ -692,7 +692,7 @@ class Easymore:
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         this function check if target shapefile and add ID and centroid lat and lon is not provided
         Arguments
@@ -787,7 +787,7 @@ class Easymore:
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function checks the consistency of the dimentions and variables for source netcdf file(s)
         """
@@ -903,7 +903,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function checks the source netcdf file shapefile
         needs more development
@@ -958,7 +958,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function checks the shapefile crs to provided substrings
         Arguments
@@ -987,7 +987,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function checks dimension of the source shapefile and checks the case of regular, rotated, and irregular
         also created the 2D array of lat and lon for creating the shapefile
@@ -1104,7 +1104,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari, Wouter Knoben
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function creates a shapefile for the source netcdf file
         Arguments
@@ -1199,7 +1199,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function add lat, lon and ID from the source shapefile if provided
         Arguments
@@ -1228,7 +1228,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function add lat, lon and ID from the source shapefile if provided
         Arguments
@@ -1315,7 +1315,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         this function add the corresponsing row and columns from the source NetCDF file
         Parameters
@@ -1348,7 +1348,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         this fucntion gets the row and colomns of the source netcdf file and returns it
 
@@ -1385,7 +1385,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         this function check the remapping dataframe
         Parameters:
@@ -1416,7 +1416,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This funciton read different grids and sum them up based on the
         weight provided to aggregate them over a larger area
@@ -1626,7 +1626,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function reads the data for a given time and calculates the weighted average
         Arguments
@@ -1700,7 +1700,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function reads a shapefile and for longitude of model than 180 it correct it to a frame of -180 to 180
         ---------
@@ -1856,7 +1856,7 @@ to correct for lon above 180')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function calcultes the centroid in equal area projection for shapefile bound between -180 to 180.
 
@@ -1907,7 +1907,7 @@ to correct for lon above 180')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function get a pandas dataframe of some values (all float + datetime string) and save them in a netcdf file
         ---------
@@ -2044,7 +2044,7 @@ to correct for lon above 180')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function get a pandas dataframe and determin if a column is all numeric (int or float) or others
         ---------
@@ -2077,7 +2077,7 @@ to correct for lon above 180')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function get a pandas dataframe row and check of the entire row is float or int
         ---------
@@ -2107,7 +2107,7 @@ to correct for lon above 180')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @license:                  GNU-GPLv3
         This function intersects two shapefiles. It keeps the attributes from the first and second shapefiles (identified by prefix S_1_ and
         S_2_). It also creates other fields including AS1 (area of the shape element from shapefile 1), IDS1 (an arbitrary index
@@ -2307,7 +2307,7 @@ to correct for lon above 180')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function creates a geopandas dataframe of lat, lon, and IDs provided from a csv file or a pandas dataframe
         Arguments
@@ -2346,7 +2346,7 @@ to correct for lon above 180')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function creates a Voronoi diagram from latitude and longitude provided in an irregular shapefile
         Arguments
@@ -2424,7 +2424,7 @@ to correct for lon above 180')
         modified by:
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function reads a shapefile of points and returns the Thiessen or Voronoi polygons for that point shapefile
         ---------
