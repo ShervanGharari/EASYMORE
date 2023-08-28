@@ -4,8 +4,8 @@ easymore's main CLI script
 
 import pkgutil
 import subprocess
-import tempfile
 import json
+import os
 
 import click
 
@@ -67,12 +67,14 @@ def from_cli(**kwargs):
     Run Easymore using CLI
     """
     # two job submission related options
-    job_var = 'submit_job'
-    job_conf = 'submit_job_conf'
-    job_deps = 'dependency'
+    job_var = 'submit_job'  # if submitting a job to SLURM
+    job_conf = 'submit_job_conf'  # SLURM job submission file
+    job_deps = 'dependency'  # for SLURM dependencies given
     var = 'var_names'  # list of variables
+    cache = 'temp_dir'  # temporary directory
 
-    if ',' in kwargs[var][0]: 
+    # if list of variables is given as a comma-separated values
+    if ',' in kwargs[var][0]:
         kwargs[var] = kwargs[var][0].split(',')
 
     # creating parameter dictionary for Easymore
@@ -82,26 +84,38 @@ def from_cli(**kwargs):
     # checking if submitting a job to HPC schedulers
     if kwargs[job_var]:
         # checking if a job submission configuration file is given
-        if kwargs[job_conf] != 'default':
-            submission_conf = kwargs[job_conf]
-        else:
+        if kwargs[job_conf] == 'default':
             submission_conf = DEFAULT_SCRIPT
+        else:
+            submission_conf = kwargs[job_conf]
 
         # [FIXME]: make `submit_hpc_job` more flexible
         # since `submit_hpc_job` only accepts a JSON file, create a
         # temporary one out of the dictionary and pass it to the function
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
-            json.dump(esmr_kwargs, f)
+        # first make the given temporary directory
+        try:
+            os.mkdir(kwargs[cache])
+        except FileExistsError:
+            pass
 
-        # check if any SLURM dependency is defined
-        if kwargs[job_deps]:
-            submit_hpc_job(f.name, submission_conf, kwargs[job_deps])
-        else:
-            submit_hpc_job(f.name, submission_conf)
+        # create the temporary file
+        temp_file = os.path.join(kwargs[cache], 'easymore_conf.json')
+
+        with open(temp_file, 'w') as f:
+            json.dump(esmr_kwargs, f, indent=4)
+
+        # submit job to HPC's SLURM scheduler
+        submit_hpc_job(kwargs[cache],
+                       temp_file,
+                       submission_conf,
+                       kwargs[job_deps])
+
     # if no job submission
     else:
         cli_exp = Easymore.from_dict(esmr_kwargs)
         cli_exp.nc_remapper()
+
+    return
 
 
 @main.command('conf', no_args_is_help=True)
@@ -115,10 +129,10 @@ def from_conf(json, submit_job, job_conf, dependency):
     if submit_job:
 
         # check the job submission file, if provided
-        if job_conf != 'default':
-            submission_conf = job_conf
-        else:
+        if job_conf == 'default':
             submission_conf = DEFAULT_SCRIPT
+        else:
+            submission_conf = job_conf
 
         # submit job to HPC SLURM scheduler
         submit_hpc_job(json, submission_conf, dependency)
@@ -130,6 +144,7 @@ def from_conf(json, submit_job, job_conf, dependency):
 
 
 def submit_hpc_job(
+    temp_dir: str,
     json: str,
     job_conf_file: str,
     dep_ids: str = None,
@@ -149,11 +164,18 @@ def submit_hpc_job(
     job_str = job_str + '\n' + esmr_text
 
     # encode `job_str` string into byte-like object
-    job_byte = job_str.encode()
+    # job_byte = job_str.encode()
 
     # export new script file
-    with tempfile.NamedTemporaryFile(mode='w+b', delete=False) as f:
-        f.write(job_byte)
+    # first make the given temporary directory
+    try:
+        os.mkdir(temp_dir)
+    except FileExistsError:
+        pass
+    # create the temporary file
+    temp_file = os.path.join(temp_dir, 'easymore_job.slurm')
+    with open(temp_file, 'w') as f:
+        f.write(job_str)
 
     # if dependency activated
     if dep_ids:
