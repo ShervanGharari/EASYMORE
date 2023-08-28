@@ -23,8 +23,7 @@ extensions = [
 # paths from conf.py to top directory
 import sys
 import os
-sys.path.insert(0, os.path.abspath('../../'))
-sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('../src/easymore/'))
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
