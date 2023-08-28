@@ -302,12 +302,11 @@ cli_options = {
         'show_default': True,
     },
     ('temp_dir', '--cache', '-c'): {
-        'type': click.Path(exists=False, file_okay=False),
-        'required': False,
-        'default': '',
+        'type': click.STRING, 
+        'required': True,
         'is_flag': False,
         'allow_from_autoenv': True,
-        'help': 'Temporary directory',
+        'help': 'Temporary directory path',
         'show_choices': False,
     },
     ('submit_job', '--submit-job', '-j'): {
