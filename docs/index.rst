@@ -10,6 +10,10 @@ Welcome to EASYMORE's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+.. automodule:: name
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 
 Indices and tables

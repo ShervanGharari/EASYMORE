@@ -20,7 +20,7 @@ author = 'Shervan Gharari'
 
 # Extensions from conf.py
 extensions = [
-    'sphinx.ext.autodoc',	     # To generate autodocs
+    'sphinx.ext.autodoc',	        # To generate autodocs
     'sphinx.ext.mathjax',           # autodoc with maths
     'sphinx.ext.napoleon'           # For auto-doc configuration
 ]
