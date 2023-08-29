@@ -184,7 +184,7 @@ class Easymore:
         rescaledweights: bool = True,
         skip_outside_shape: bool = False,
         author_name: str = None,
-        license: str = None,
+        license: str = 'GPLv3+',
         tolerance: float = 1e-5,
         save_csv: bool = False,
         sort_ID: bool = False,
@@ -497,7 +497,7 @@ class Easymore:
                                                              self.source_shp_lon, self.source_shp_ID)
         # if case 3
         if (self.case == 3):
-            if (self.source_shp != ''): # source shapefile is provided
+            if (self.source_shp is not None): # source shapefile is provided
                 self.check_source_nc_shp() # check the lat lon in soure shapefile and nc file
                 source_shp_gpd = gpd.read_file(self.source_shp)
                 source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
@@ -542,14 +542,14 @@ class Easymore:
         @ license:                 GNU-GPLv3
         the functions checkes if the necessary EASYMORE object are provided from the user
         """
-        if self.temp_dir != '':
+        if self.temp_dir is not None:
             if self.temp_dir[-1] != '/':
                 sys.exit('the provided temporary folder for EASYMORE should end with (/)')
             if not os.path.isdir(self.temp_dir):
                 os.makedirs(self.temp_dir)
         if self.output_dir is None:
             sys.exit('the provided folder for EASYMORE remapped netCDF output is missing; please provide that')
-        if self.output_dir != '':
+        if self.output_dir is not None:
             if self.output_dir[-1] != '/':
                 sys.exit('the provided output folder for EASYMORE should end with (/)')
             if not os.path.isdir(self.output_dir):
@@ -569,7 +569,7 @@ class Easymore:
                 self.fill_value_list = self.fill_value_list * len(self.var_names)
             else:
                 sys.exit('number of variables and fill values and formats do not match')
-        if self.remap_csv != '':
+        if self.remap_csv is not None:
             print('remap file is provided; EASYMORE will use this file and skip creation of remapping file')
         if len(self.var_names) != len(set(self.var_names)):
             sys.exit('names of variables provided from the source NetCDF file to be remapped are not unique')
@@ -1094,7 +1094,7 @@ in dimensions of the variables and latitude and longitude')
         import shapely
         shp['lat_s'] = shp [source_shp_lat].astype(float)
         shp['lon_s'] = shp [source_shp_lon].astype(float)
-        if self.source_shp_ID != '':
+        if self.source_shp_ID is not None:
             shp ['ID_s']  = shp [source_shp_ID]
         else:
             shp ['ID_s']  = np.arange(len(shp))+1
@@ -2247,12 +2247,12 @@ to correct for lon above 180')
         points['lon'] = ncid.variables[self.var_lon][:]
         points['lat'] = ncid.variables[self.var_lat][:]
         points['ID_s'] = 1 + np.arange(len(points))
-        if self.var_ID != '':
+        if self.var_ID is not None:
             points['ID_s'] = ncid.variables[self.var_ID][:]
         else:
             points['ID_s'] = 1 + np.arange(len(points))
         points['ID_test'] = points['ID_s']
-        if self.var_station != '':
+        if self.var_station is not None:
             points['station_name'] = ncid.variables[self.var_station][:]
         # check if two points fall on each other
         points = points.sort_values(by=['lat','lon'])

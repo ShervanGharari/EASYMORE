@@ -46,7 +46,6 @@ cli_options = {
     ('target_shp_lat', '--shapefile-lat', '-sl'): {
         'type': click.STRING,
         'required': False,
-        'default': 'lat',
         'show_default': True,
         'is_flag': False,
         'allow_from_autoenv': True,
@@ -57,7 +56,6 @@ cli_options = {
     ('target_shp_lon', '--shapefile-lon', '-sn'): {
         'type': click.STRING,
         'required': False,
-        'default': 'lon',
         'show_default': True,
         'is_flag': False,
         'allow_from_autoenv': True,
@@ -205,7 +203,6 @@ cli_options = {
     ('remapped_chunk_size', '--chunk', '-u'): {
         'type': click.INT,
         'required': False,
-        'default': 200,
         'show_default': True,
         'is_flag': False,
         'allow_from_autoenv': True,
@@ -219,35 +216,6 @@ cli_options = {
         'allow_from_autoenv': True,
         'help': 'Output directory',
         'show_choices': False,
-    },
-    ('format_list', '--format', '-f'): {
-        'type': click.STRING,
-        'required': False,
-        'default': 'f8',
-        'show_default': True,
-        'is_flag': False,
-        'allow_from_autoenv': True,
-        'help': 'Sequence of variable datatype(s) based on NumPy Array'
-        ' Interface Protocol',
-        'show_default': True,
-    },
-    ('fill_value_list', '--missing-value', '-m'): {
-        'type': click.INT,
-        'required': False,
-        'default': -9999,
-        'show_default': True,
-        'is_flag': False,
-        'allow_from_autoenv': False,
-        'help': 'Sequence of integer(s) filling missing values',
-        'show_default': True,
-    },
-    ('remap_csv', '--remap-csv', '-e'): {
-        'type': click.Path(exists=True, file_okay=True),
-        'required': False,
-        'is_flag': True,
-        'allow_from_autoenv': True,
-        'help': 'Previosuly generated remapping .csv file',
-        'show_default': False,
     },
     ('only_create_remap_csv', '--remap-file-only', '-R'): {
         'type': click.BOOL,
@@ -302,7 +270,7 @@ cli_options = {
         'show_default': True,
     },
     ('temp_dir', '--cache', '-c'): {
-        'type': click.STRING, 
+        'type': click.STRING,
         'required': True,
         'is_flag': False,
         'allow_from_autoenv': True,

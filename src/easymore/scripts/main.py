@@ -94,9 +94,14 @@ def from_cli(**kwargs):
         # temporary one out of the dictionary and pass it to the function
         # first make the given temporary directory
         try:
-            os.mkdir(kwargs[cache])
+            os.makedirs(kwargs[cache])
         except FileExistsError:
             pass
+        except OSError as err:
+            if err.errno == os.errno.EEXIST:
+                pass
+            else:
+                raise
 
         # create the temporary file
         temp_file = os.path.join(kwargs[cache], 'easymore_conf.json')
@@ -174,7 +179,7 @@ def submit_hpc_job(
     # export new script file
     # first make the given temporary directory
     try:
-        os.mkdir(temp_dir)
+        os.makedirs(temp_dir)
     except FileExistsError:
         pass
     # create the temporary file
