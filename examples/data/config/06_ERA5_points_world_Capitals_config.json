@@ -1,0 +1,13 @@
+'''
+{
+    "case_name" : "ERA5_capitals_north_america",
+    "temp_dir" : "./temporary/",
+    "target_shp" : "./data/target_shapefiles/Capitals_point.shp",
+    "source_nc" : "./data/Source_nc_ERA5/ERA5_NA_*.nc",
+    "var_names" : ["airtemp"],
+    "var_lon" : "longitude",
+    "var_lat" : "latitude",
+    "var_time" : "time",
+    "output_dir" : "./output/"
+}
+'''

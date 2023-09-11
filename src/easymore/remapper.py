@@ -136,10 +136,6 @@ class Easymore:
     remapped_chunk_size : int, defaults to 200
         chunksize of remapped variables in the non-time (i.e. limited)
         dimension. Default 200. Use 'None' for netCDF4 defaults
-    overwrite_remapped_nc : bool, defaults to `True`
-        Flag to automatically overwrite existing remapping files. If
-        'False', aborts the remapping procedure if a similar existing
-        file is present.
     temp_dir : str, defaults to `'./temp/'`
         temporary directory that various temporary files, including the
         remapping file is saved.
@@ -238,7 +234,6 @@ class Easymore:
         remapped_var_lon: str = 'longitude',
         remapped_dim_id: str = 'ID',
         remapped_chunk_size: int = 200,
-        overwrite_remapped_nc: bool = True,
         temp_dir: str = './temp/',
         output_dir: str = './output/',
         format_list: List[str] = ['f8'],
@@ -286,7 +281,6 @@ class Easymore:
         self.remapped_var_lon = remapped_var_lon
         self.remapped_dim_id = remapped_dim_id
         self.remapped_chunk_size = remapped_chunk_size
-        self.overwrite_remapped_nc = overwrite_remapped_nc
         self.temp_dir = temp_dir
         self.output_dir = output_dir
         self.format_list = format_list
@@ -563,7 +557,7 @@ class Easymore:
             print('The remapping Located here: ', self.remap_csv)
         else:
             # get the nc file names
-            nc_names = sorted(glob.glob(self.source_nc, recursive=True))
+            nc_names = self.get_source_nc_file_names(self.source_nc) #sorted(glob.glob(self.source_nc, recursive=True))
             num_processes = multiprocessing.cpu_count()  # Use the number of available CPU cores
             num_processes = min(len(nc_names), num_processes)  # Limit the worker if number of files is smaller
             if self.parallel and (num_processes>1):
@@ -576,6 +570,30 @@ class Easymore:
                 pool.join()
             else:
                 self.target_nc_creation(nc_names)
+
+    def get_source_nc_file_names(self,
+                                 input_files):
+
+        if isinstance(input_files, str):
+            # If input_data is a string, use glob to find matching files
+            nc_names = sorted(glob.glob(input_files, recursive=True))
+            if not nc_names:
+                sys.exit("Input source netcdf files do not exists, check the path and file patterns by source_nc")
+        elif isinstance(input_files, list):
+            existing_files = []
+            non_existing_files = []
+            for file in input_files:
+                if os.path.exists(file):
+                    existing_files.append(file)
+                else:
+                    non_existing_files.append(file)
+            if non_existing_files:
+                sys.exit("The following files do not exist "+str(non_existing_files))
+            nc_names = input_files
+        else:
+            sys.exit("The input source_nc type should be either list or string, check source_nc")
+        # return
+        return nc_names
 
     def create_source_shp(self):
         """
@@ -602,16 +620,16 @@ class Easymore:
                                                              self.source_shp_lon, self.source_shp_ID)
         # if case 3
         if (self.case == 3):
-            if (self.source_shp != ''): # source shapefile is provided
-                self.check_source_nc_shp() # check the lat lon in soure shapefile and nc file
-                source_shp_gpd = gpd.read_file(self.source_shp)
-                source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
-                                                             self.source_shp_lon, self.source_shp_ID)
             if (self.source_shp is None): # source shapefile is not provided goes for voronoi
                 # Create the source shapefile using Voronio diagram
                 print('EASYMORE detect that source shapefile is not provided for irregulat lat lon source NetCDF')
                 print('EASYMORE will create the voronoi source shapefile based on the lat lon')
                 source_shp_gpd, source_shp_point_gpd = self.shp_from_irregular_nc (station_shp_file_name = self.temp_dir+self.case_name+'_source_shapefile_points.shp')
+            else: # source shapefile is provided
+                self.check_source_nc_shp() # check the lat lon in soure shapefile and nc file
+                source_shp_gpd = gpd.read_file(self.source_shp)
+                source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
+                                                             self.source_shp_lon, self.source_shp_ID)
         return source_shp_gpd
 
     def get_col_row(self):
@@ -647,20 +665,26 @@ class Easymore:
         @ license:                 GNU-GPLv3
         the functions checkes if the necessary EASYMORE object are provided from the user
         """
-        if self.temp_dir != '':
+        if self.temp_dir is None:
+            print("No temporary folder is provided for EASYMORE;"+
+                  " this will result in EASYMORE saving the files"+
+                  " in the same directory as python script under folder ./temporary/")
+            self.temp_dir = './temporary/'
+        else:
             if self.temp_dir[-1] != '/':
                 sys.exit('the provided temporary folder for EASYMORE should end with (/)')
-            if not os.path.isdir(self.temp_dir):
-                os.makedirs(self.temp_dir)
+        if not os.path.isdir(self.temp_dir):
+            os.makedirs(self.temp_dir)
         if self.output_dir is None:
-            sys.exit('the provided folder for EASYMORE remapped netCDF output is missing; please provide that')
-        if self.output_dir != '':
+            print("No output folder is provided for EASYMORE;"+
+                  " this will result in EASYMORE saving the output files"+
+                  " in the same directory as python script under folder ./output/")
+            self.output_dir = './output/'
+        else:
             if self.output_dir[-1] != '/':
                 sys.exit('the provided output folder for EASYMORE should end with (/)')
-            if not os.path.isdir(self.output_dir):
-                os.makedirs(self.output_dir)
-        if not self.temp_dir:
-            print("No temporary folder is provided for EASYMORE; this will result in EASYMORE saving the files in the same directory as python script")
+        if not os.path.isdir(self.output_dir):
+            os.makedirs(self.output_dir)
         if self.author_name is None:
             print("no author name is provided. The author name is changed to (author name)!")
             self.author_name = "author name"
@@ -668,13 +692,13 @@ class Easymore:
             if (len(self.var_names) != len(self.fill_value_list)) and \
             (len(self.var_names) != len(self.format_list)) and \
             (len(self.format_list) == 1) and (len(self.fill_value_list) ==1):
-                print('EASYMORE is given multiple variables for remapping but only on format and fill value. '+\
+                print('EASYMORE is given multiple variables for remapping but only one format and fill value. '+\
                       'EASYMORE repeats the format and fill value for all the variables in output files')
                 self.format_list     = self.format_list     * len(self.var_names)
                 self.fill_value_list = self.fill_value_list * len(self.var_names)
             else:
                 sys.exit('number of variables and fill values and formats do not match')
-        if self.remap_csv != '':
+        if not (self.remap_csv is None):
             print('remap file is provided; EASYMORE will use this file and skip creation of remapping file')
         if len(self.var_names) != len(set(self.var_names)):
             sys.exit('names of variables provided from the source NetCDF file to be remapped are not unique')
@@ -686,7 +710,8 @@ class Easymore:
         else:
             self.var_names_remapped = self.var_names
         for i in np.arange(len(self.var_names)):
-            print('EASYMORE will remap variable ',self.var_names[i],' from source file to variable ',self.var_names_remapped[i],' in remapped netCDF file')
+            print('EASYMORE will remap variable ',self.var_names[i],\
+                  ' from source file to variable ',self.var_names_remapped[i],' in remapped netCDF file')
 
     def check_target_shp (self,shp):
         """
@@ -792,7 +817,7 @@ class Easymore:
         This function checks the consistency of the dimentions and variables for source netcdf file(s)
         """
         flag_do_not_match = False
-        nc_names = sorted(glob.glob(self.source_nc, recursive=True))
+        nc_names = self.get_source_nc_file_names(self.source_nc) #  sorted(glob.glob(self.source_nc, recursive=True))
         if not nc_names:
             sys.exit('EASYMORE detects no netCDF file; check the path to the soure netCDF files')
         else:
@@ -915,7 +940,7 @@ in dimensions of the variables and latitude and longitude')
         import shapely
         #
         multi_source = False
-        nc_names = glob.glob(self.source_nc, recursive=True)
+        nc_names = self.get_source_nc_file_names(self.source_nc) # glob.glob(self.source_nc, recursive=True)
         ncid = nc4.Dataset(nc_names[0])
         # sink/target shapefile is what we want the variables to be remapped to
         shp = gpd.read_file(self.source_shp)
@@ -997,7 +1022,7 @@ in dimensions of the variables and latitude and longitude')
         #import shapefile # pyshed library
         import shapely
         #
-        nc_names = glob.glob(self.source_nc, recursive=True)
+        nc_names = self.get_source_nc_file_names(self.source_nc) # glob.glob(self.source_nc, recursive=True)
         var_name = self.var_names[0]
         # open the nc file to read
         ncid = nc4.Dataset(nc_names[0])
@@ -1215,10 +1240,11 @@ in dimensions of the variables and latitude and longitude')
         import shapely
         shp['lat_s'] = shp [source_shp_lat].astype(float)
         shp['lon_s'] = shp [source_shp_lon].astype(float)
-        if self.source_shp_ID != '':
-            shp ['ID_s']  = shp [source_shp_ID]
-        else:
+        if self.source_shp_ID is None:
             shp ['ID_s']  = np.arange(len(shp))+1
+        else:
+            shp ['ID_s']  = shp [source_shp_ID]
+
         return shp
 
     def expand_source_SHP(  self,
@@ -1483,16 +1509,15 @@ in dimensions of the variables and latitude and longitude')
             else:
                 sys.exit('calendar is not provided for the time variable for source NetCDF of'+ nc_name)
             time_var = ncids[self.var_time][:]
-            self.length_of_time = len(time_var)
-            target_date_times = nc4.num2date(time_var,units = time_unit,calendar = time_cal)
-            target_name = self.output_dir + self.case_name + '_remapped_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.nc'
+
+            #self.length_of_time = len(time_var)
+            #target_date_times = nc4.num2date(time_var,units = time_unit,calendar = time_cal)
+            #target_name = self.output_dir + self.case_name + '_remapped_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.nc'
+
+            target_name = self.output_dir + self.case_name + '_remapped_' + os.path.basename(nc_name)
+
             if os.path.exists(target_name):
-                if self.overwrite_remapped_nc:
-                    print('Removing existing remapped .nc file.')
-                    os.remove(target_name)
-                else:
-                    print('Remapped .nc file already exists. Going to next file.')
-                    continue # skip to next file
+                os.remove(target_name)
             for var in ncids.variables.values():
                 if var.name == self.var_time:
                     time_dtype =  str(var.dtype)
@@ -1552,7 +1577,7 @@ in dimensions of the variables and latitude and longitude')
                 #loop over variables
                 for i in np.arange(len(self.var_names)):
                     var_value  = self.__weighted_average( nc_name,
-                                                          target_date_times,
+                                                          len(time_var),
                                                           self.var_names[i],
                                                           self.fill_value_list[i],
                                                           remap)
@@ -1590,10 +1615,10 @@ in dimensions of the variables and latitude and longitude')
                     # print(unit_name)
                     target_name_csv = self.output_dir + self.case_name + '_remapped_'+ self.var_names_remapped[i] +\
                      '_' + unit_name +\
-                     '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+ '.csv'
+                     '_' + os.path.basename(nc_name)+ '.csv'
                     target_name_map = self.output_dir + 'Mapping_' + self.case_name + '_remapped_'+ self.var_names_remapped[i] +\
                      '_' + unit_name +\
-                     '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+ '.csv'
+                     '_' + os.path.basename(nc_name)+ '.csv'
                     if os.path.exists(target_name_csv): # remove file if exists
                         os.remove(target_name_csv)
                     if os.path.exists(target_name_map): # remove file if exists
@@ -1619,7 +1644,7 @@ in dimensions of the variables and latitude and longitude')
 
     def __weighted_average(self,
                            nc_name,
-                           target_time,
+                           length_time,
                            variable_name,
                            fill_value,
                            mapping_df):
@@ -1632,7 +1657,7 @@ in dimensions of the variables and latitude and longitude')
         Arguments
         ---------
         nc_name: string, name of the netCDF file
-        target_time: string,
+        length_time: int,
         variable_name: string, name of variable from source netcsf file to be remapped
         mapping_df: pandas dataframe, including the row and column of the source data and weight
         Returns
@@ -1645,9 +1670,9 @@ in dimensions of the variables and latitude and longitude')
         if self.var_time != 'time':
             ds = ds.rename({self.var_time:'time'})
         # prepared the numpy array for ouptut
-        weighted_value = np.zeros([self.length_of_time,self.number_of_target_elements])
-        m = 0 # counter
-        for date in target_time: # loop over time
+        weighted_value = np.zeros([length_time,self.number_of_target_elements])
+        #m = 0 # counter
+        for m in np.arange(length_time): # loop over time
             # ds_temp = ds.sel(time=date.strftime("%Y-%m-%d %H:%M:%S"),method="nearest")
             ds_temp = ds.isel(time=m)
             data = np.array(ds_temp[variable_name])
@@ -1691,7 +1716,7 @@ in dimensions of the variables and latitude and longitude')
                     df_temp.loc[df_temp_slice.index,'values_w'] = np.nan
                 df_temp['values_w'].fillna(fill_value, inplace=True)
             weighted_value [m,:] = np.array(df_temp['values_w'])
-            m += 1
+            #m += 1
         return weighted_value
 
 
@@ -2363,19 +2388,19 @@ to correct for lon above 180')
         """
 
         # read the file (or the first file)
-        nc_names = glob.glob(self.source_nc, recursive=True)
+        nc_names = self.get_source_nc_file_names(self.source_nc) # glob.glob(self.source_nc, recursive=True)
         ncid     = nc4.Dataset(nc_names[0])
         # create the data frame
         points = pd.DataFrame()
         points['lon'] = ncid.variables[self.var_lon][:]
         points['lat'] = ncid.variables[self.var_lat][:]
         points['ID_s'] = 1 + np.arange(len(points))
-        if self.var_ID != '':
-            points['ID_s'] = ncid.variables[self.var_ID][:]
-        else:
+        if self.var_ID is None:
             points['ID_s'] = 1 + np.arange(len(points))
+        else:
+            points['ID_s'] = ncid.variables[self.var_ID][:]
         points['ID_test'] = points['ID_s']
-        if self.var_station != '':
+        if self.var_station is not None:
             points['station_name'] = ncid.variables[self.var_station][:]
         # check if two points fall on each other
         points = points.sort_values(by=['lat','lon'])

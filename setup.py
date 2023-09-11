@@ -7,7 +7,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name='easymore',
-    version='1.1.2',
+    version='2.0.0',
     license='GPLv3',
     author=('Shervan Gharari'),
     author_email='sh.gharari@gmail.com',

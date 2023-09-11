@@ -1,18 +1,19 @@
 Modules
 =======
 
-remapper Module
----------------
-
-.. automodule:: easymore.remapper
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Easymore Class
 --------------
 
 .. autoclass:: easymore.Easymore
-   :members:
+   :members: 
    :undoc-members:
    :show-inheritance:
+
+remapper Module
+---------------
+
+.. automodule:: easymore.remapper
+   :members: nc_remapper
+   :undoc-members:
+   :show-inheritance:
+
