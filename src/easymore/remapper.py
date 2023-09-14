@@ -1026,42 +1026,143 @@ in dimensions of the variables and latitude and longitude')
         #import shapefile # pyshed library
         import shapely
 
-        def expand_matrix(matrix,
+        def expand_matrix(lat,
+                          lon,
                           resolution = None):
-            if len(matrix.shape) == 0:
-                matrix.reshape((1, 1))
+
+            if len(lat.shape) == 0:
+                lat = lat.reshape((1, 1))
+                lon = lon.reshape((1, 1))
                 m, n = 1, 1
-            elif len(matrix.shape) == 1:
-                matrix = matrix.reshape(1, -1)
-                m, n = matrix.shape
-            elif len(matrix.shape) == 2:
-                m, n = matrix.shape
+            elif len(lat.shape) == 1:
+                lat = lat.reshape((1, -1))
+                lon = lon.reshape((1, -1))
+                m, n = lat.shape
+            elif len(lat.shape) == 2:
+                m, n = lat.shape
             else:
                 sys.exit("dimension of input matrix is more than 2 for lat and lon inputs")
+            print(m, n)
             # Create a new (m+1) x (n+1) matrix filled with zeros
-            expanded_matrix = np.zeros((m+2, n+2), dtype=matrix.dtype)
+            expanded_lat = np.zeros((m+2, n+2), dtype=lat.dtype)
+            expanded_lon = np.zeros((m+2, n+2), dtype=lon.dtype)
             # Embed the original matrix in the center of the new matrix
-            expanded_matrix[1:m+1, 1:n+1] = matrix
+            expanded_lat[1:m+1, 1:n+1] = lat
+            expanded_lon[1:m+1, 1:n+1] = lon
+
+            print(expanded_lat)
+            print(expanded_lon)
+            print(resolution)
+
             if (m == 1 or n == 1) and (resolution is None):
                 sys.exit("user should provide approximate resolution of grids")
-            if m == 1: # 1 row
-                # Populate the first column
-                expanded_matrix[0,:] = expanded_matrix[1,:] - resolution
-                expanded_matrix[2,:] = expanded_matrix[1,:] + resolution
-            if n == 1: # 1 column
-                # Populate the first column
-                expanded_matrix[:,0] = expanded_matrix[:,1] - resolution
-                expanded_matrix[:,2] = expanded_matrix[:,1] + resolution
+
+            if m == 1 and n == 1: # only one grid
+                # lat
+                expanded_lat [:,:] = expanded_lat [1,1]
+                print(expanded_lat)
+                diff = np.array([[resolution, resolution, resolution],[0, 0, 0],[-resolution, -resolution, -resolution]])
+                expanded_lat = expanded_lat + diff
+                # lon
+                expanded_lon [:,:] = expanded_lon [1,1]
+                diff = np.array([[-resolution, 0, resolution],[-resolution, 0, resolution],[-resolution, 0, resolution]])
+                expanded_lon = expanded_lon + diff
+                print(expanded_lon)
+
+            if 2 <= n and m == 1: # 1 row of grids
+                #
+                is_ascending = False
+                is_ascending = np.all(np.diff(lon.flatten()) > 0)
+                is_descending = False
+                is_descending = np.all(np.diff(lon.flatten()) < 0)
+
+                if (is_ascending and is_descending) or (not is_ascending and not is_descending):
+                    sys.exit("EASYMORE cannot decide if the lon values of source nc are ascending or descending")
+
+                is_uniform = False
+                is_uniform = (np.all(np.abs(np.diff(lon.flatten()) + resolution) < 0.00001) or
+                              np.all(np.abs(np.diff(lon.flatten()) - resolution) < 0.00001))
+                if not is_uniform:
+                    print("EASYMORE detects that lon values of source nc are not uniformly spaces as specified by resolution and tolerance")
+                    print("EASYMORE continue creation of the shapefile from source nc file with approximation")
+
+                # lat
+                expanded_lat[1,0] = expanded_lat[1,1]
+                expanded_lat[1,-1] = expanded_lat[1,-2]
+                expanded_lat[0,:] = expanded_lat [1,:]
+                expanded_lat[2,:] = expanded_lat [1,:]
+                diff = np.tile(np.array([[-resolution], [0], [resolution]]), (1, n+2))
+                expanded_lat = expanded_lat + diff
+                # lon
+                expanded_lon[0,:] = expanded_lon [1,:]
+                expanded_lon[2,:] = expanded_lon [1,:]
+                expanded_lon[:,0] = expanded_lon[:,1]
+                expanded_lon[:,-1] = expanded_lon[:,-2]
+                diff = expanded_lon * 0.00
+                if is_ascending:
+                    diff [:,0] = -resolution
+                    diff [:,-1] = resolution
+                else:
+                    diff [:,0] = resolution
+                    diff [:,-1] = -resolution
+                expanded_lon = expanded_lon + diff
+
+            if 2 <= m and n == 1: # 1 column of grids
+
+                #
+                is_ascending = False
+                is_ascending = np.all(np.diff(lat.flatten()) > 0)
+                is_descending = False
+                is_descending = np.all(np.diff(lat.flatten()) < 0)
+
+                if (is_ascending and is_descending) or (not is_ascending and not is_descending):
+                    sys.exit("EASYMORE cannot decide if the lat values of source nc are ascending or descending")
+
+                is_uniform = False
+                is_uniform = (np.all(np.abs(np.diff(lat.flatten()) + resolution) < 0.00001) or
+                              np.all(np.abs(np.diff(lat.flatten()) - resolution) < 0.00001))
+                if not is_uniform:
+                    print("EASYMORE detects that lat values of source nc are not uniformly spaces as specified by resolution and tolerance")
+                    print("EASYMORE continue creation of the shapefile from source nc file with approximation")
+
+                # lat
+                expanded_lat[0,1] = expanded_lat[1,1]
+                expanded_lat[-1,1] = expanded_lat[-2,1]
+                expanded_lat[:,0] = expanded_lat [:,1]
+                expanded_lat[:,2] = expanded_lat [:,1]
+                diff = expanded_lat * 0.00
+                if is_ascending:
+                    diff [0,:] = -resolution
+                    diff [-1,:] = resolution
+                else:
+                    diff [0,:] = resolution
+                    diff [-1,:] = -resolution
+                expanded_lat = expanded_lat + diff
+
+                # lon
+                expanded_lon[0,1] = expanded_lon[1,1]
+                expanded_lon[-1,1] = expanded_lon[-2,1]
+                expanded_lon[:,0] = expanded_lon [:,1]
+                expanded_lon[:,2] = expanded_lon [:,1]
+                diff = expanded_lon * 0.00
+                diff [:,0] = -resolution
+                diff [:,-1] = resolution
+                expanded_lon = expanded_lon + diff
+
             if (2 <= m) and (2<= n):
-                # Populate the first row
-                expanded_matrix[0,1:n+1]  = expanded_matrix[1,1:n+1] + (expanded_matrix[1,1:n+1] - expanded_matrix[2,1:n+1])
-                # Populate the last row
-                expanded_matrix[-1,1:n+1] = expanded_matrix[-2,1:n+1] + (expanded_matrix[-2,1:n+1] - expanded_matrix[-3,1:n+1])
-                # Populate the first column
-                expanded_matrix[:,0] = expanded_matrix[:,1] + (expanded_matrix[:,1]- expanded_matrix[:,2] )
-                # Populate the last column
-                expanded_matrix[:,-1] = expanded_matrix[:,-2] + (expanded_matrix[:,-2]- expanded_matrix[:,-3] )
-            return expanded_matrix
+
+                # create expanded lat
+                expanded_lat [:, 0]  = expanded_lat [:, 1] + (expanded_lat [:, 1] - expanded_lat [:, 2]) # populate left column
+                expanded_lat [:,-1]  = expanded_lat [:,-2] + (expanded_lat [:,-2] - expanded_lat [:,-3]) # populate right column
+                expanded_lat [0, :]  = expanded_lat [1, :] + (expanded_lat [1, :] - expanded_lat [2, :]) # populate top row
+                expanded_lat [-1,:]  = expanded_lat [-2,:] + (expanded_lat [-2,:] - expanded_lat [-3,:]) # populate bottom row
+                # create expanded lat
+                expanded_lon [:, 0]  = expanded_lon [:, 1] + (expanded_lon [:, 1] - expanded_lon [:, 2]) # populate left column
+                expanded_lon [:,-1]  = expanded_lon [:,-2] + (expanded_lon [:,-2] - expanded_lon [:,-3]) # populate right column
+                expanded_lon [0, :]  = expanded_lon [1, :] + (expanded_lon [1, :] - expanded_lon [2, :]) # populate top row
+                expanded_lon [-1,:]  = expanded_lon [-2,:] + (expanded_lon [-2,:] - expanded_lon [-3,:]) # populate bottom row
+
+            return expanded_lat, expanded_lon
 
         #
         nc_names = self.get_source_nc_file_names(self.source_nc) # glob.glob(self.source_nc, recursive=True)
@@ -1140,8 +1241,7 @@ in dimensions of the variables and latitude and longitude')
                 sys.exit("it seems the source netcdf file has 1 grid only or a row or column of grids;"+
                     "user must specify source_nc_resolution in order to create the source shapefile")
         if self.approximate_edge_grids and (self.case ==1 or self.case ==2):
-            lat_expanded = expand_matrix(lat, resolution = self.source_nc_resolution)
-            lon_expanded = expand_matrix(lon, resolution = self.source_nc_resolution)
+            lat_expanded, lon_expanded = expand_matrix(lat, lon, resolution = self.source_nc_resolution)
             self.lat_expanded = lat_expanded
             self.lon_expanded = lon_expanded
 
@@ -1699,8 +1799,13 @@ in dimensions of the variables and latitude and longitude')
         for m in np.arange(length_time): # loop over time
             # ds_temp = ds.sel(time=date.strftime("%Y-%m-%d %H:%M:%S"),method="nearest")
             ds_temp = ds.isel(time=m)
+            print(ds_temp)
             data = np.array(ds_temp[variable_name])
-            data = np.squeeze(data)
+            print(data)
+            print(data.shape)
+            #data = np.squeeze(data)
+            print(data)
+            print(data.shape)
             # get values from the rows and cols and pass to np data array
             if self.case ==1 or self.case ==2:
                 values = data [self.rows,self.cols]
