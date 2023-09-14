@@ -1042,7 +1042,6 @@ in dimensions of the variables and latitude and longitude')
                 m, n = lat.shape
             else:
                 sys.exit("dimension of input matrix is more than 2 for lat and lon inputs")
-            print(m, n)
             # Create a new (m+1) x (n+1) matrix filled with zeros
             expanded_lat = np.zeros((m+2, n+2), dtype=lat.dtype)
             expanded_lon = np.zeros((m+2, n+2), dtype=lon.dtype)
@@ -1050,24 +1049,18 @@ in dimensions of the variables and latitude and longitude')
             expanded_lat[1:m+1, 1:n+1] = lat
             expanded_lon[1:m+1, 1:n+1] = lon
 
-            print(expanded_lat)
-            print(expanded_lon)
-            print(resolution)
-
             if (m == 1 or n == 1) and (resolution is None):
                 sys.exit("user should provide approximate resolution of grids")
 
             if m == 1 and n == 1: # only one grid
                 # lat
                 expanded_lat [:,:] = expanded_lat [1,1]
-                print(expanded_lat)
                 diff = np.array([[resolution, resolution, resolution],[0, 0, 0],[-resolution, -resolution, -resolution]])
                 expanded_lat = expanded_lat + diff
                 # lon
                 expanded_lon [:,:] = expanded_lon [1,1]
                 diff = np.array([[-resolution, 0, resolution],[-resolution, 0, resolution],[-resolution, 0, resolution]])
                 expanded_lon = expanded_lon + diff
-                print(expanded_lon)
 
             if 2 <= n and m == 1: # 1 row of grids
                 #
@@ -1242,6 +1235,8 @@ in dimensions of the variables and latitude and longitude')
                     "user must specify source_nc_resolution in order to create the source shapefile")
         if self.approximate_edge_grids and (self.case ==1 or self.case ==2):
             lat_expanded, lon_expanded = expand_matrix(lat, lon, resolution = self.source_nc_resolution)
+            print(lat_expanded)
+            print(lon_expanded)
             self.lat_expanded = lat_expanded
             self.lon_expanded = lon_expanded
 
@@ -1799,13 +1794,8 @@ in dimensions of the variables and latitude and longitude')
         for m in np.arange(length_time): # loop over time
             # ds_temp = ds.sel(time=date.strftime("%Y-%m-%d %H:%M:%S"),method="nearest")
             ds_temp = ds.isel(time=m)
-            print(ds_temp)
             data = np.array(ds_temp[variable_name])
-            print(data)
-            print(data.shape)
             #data = np.squeeze(data)
-            print(data)
-            print(data.shape)
             # get values from the rows and cols and pass to np data array
             if self.case ==1 or self.case ==2:
                 values = data [self.rows,self.cols]
