@@ -217,6 +217,8 @@ class Easymore:
         target_shp_lat: str = None,
         target_shp_lon: str = None,
         source_nc: str = None,
+        source_nc_resolution: float = None,
+        approximate_edge_grids: bool = True,
         var_names: List[str] = [],
         var_lon: str = 'lon',
         var_lat: str = 'lat',
@@ -264,6 +266,8 @@ class Easymore:
         self.target_shp_lat = target_shp_lat
         self.target_shp_lon = target_shp_lon
         self.source_nc = source_nc
+        self.source_nc_resolution = source_nc_resolution
+        self.approximate_edge_grids = approximate_edge_grids
         self.var_names = var_names
         self.var_lon = var_lon
         self.var_lat = var_lat
@@ -610,7 +614,7 @@ class Easymore:
         # create the source shapefile for case 1 and 2 if shapefile is not provided
         if (self.case == 1 or self.case == 2):
             if (self.source_shp is None):
-                if self.case == 1 and hasattr(self, 'lat_expanded') and hasattr(self, 'lon_expanded'):
+                if hasattr(self, 'lat_expanded') and hasattr(self, 'lon_expanded'):
                     source_shp_gpd = self.lat_lon_SHP(self.lat_expanded, self.lon_expanded,crs="epsg:4326")
                 else:
                     source_shp_gpd = self.lat_lon_SHP(self.lat, self.lon,crs="epsg:4326")
@@ -1021,6 +1025,44 @@ in dimensions of the variables and latitude and longitude')
         from   shapely.geometry import Polygon
         #import shapefile # pyshed library
         import shapely
+
+        def expand_matrix(matrix,
+                          resolution = None):
+            if len(matrix.shape) == 0:
+                matrix.reshape((1, 1))
+                m, n = 1, 1
+            elif len(matrix.shape) == 1:
+                matrix = matrix.reshape(1, -1)
+                m, n = matrix.shape
+            elif len(matrix.shape) == 2:
+                m, n = matrix.shape
+            else:
+                sys.exit("dimension of input matrix is more than 2 for lat and lon inputs")
+            # Create a new (m+1) x (n+1) matrix filled with zeros
+            expanded_matrix = np.zeros((m+2, n+2), dtype=matrix.dtype)
+            # Embed the original matrix in the center of the new matrix
+            expanded_matrix[1:m+1, 1:n+1] = matrix
+            if (m == 1 or n == 1) and (resolution is None):
+                sys.exit("user should provide approximate resolution of grids")
+            if m == 1: # 1 row
+                # Populate the first column
+                expanded_matrix[0,:] = expanded_matrix[1,:] - resolution
+                expanded_matrix[2,:] = expanded_matrix[1,:] + resolution
+            if n == 1: # 1 column
+                # Populate the first column
+                expanded_matrix[:,0] = expanded_matrix[:,1] - resolution
+                expanded_matrix[:,2] = expanded_matrix[:,1] + resolution
+            if (2 <= m) and (2<= n):
+                # Populate the first row
+                expanded_matrix[0,1:n+1]  = expanded_matrix[1,1:n+1] + (expanded_matrix[1,1:n+1] - expanded_matrix[2,1:n+1])
+                # Populate the last row
+                expanded_matrix[-1,1:n+1] = expanded_matrix[-2,1:n+1] + (expanded_matrix[-2,1:n+1] - expanded_matrix[-3,1:n+1])
+                # Populate the first column
+                expanded_matrix[:,0] = expanded_matrix[:,1] + (expanded_matrix[:,1]- expanded_matrix[:,2] )
+                # Populate the last column
+                expanded_matrix[:,-1] = expanded_matrix[:,-2] + (expanded_matrix[:,-2]- expanded_matrix[:,-3] )
+            return expanded_matrix
+
         #
         nc_names = self.get_source_nc_file_names(self.source_nc) # glob.glob(self.source_nc, recursive=True)
         var_name = self.var_names[0]
@@ -1028,7 +1070,7 @@ in dimensions of the variables and latitude and longitude')
         ncid = nc4.Dataset(nc_names[0])
         # deciding which case
         # case #1 regular latitude/longitude
-        if (len(ncid.variables[self.var_lon].dimensions)==1) and\
+        if (len(ncid.variables[self.var_lat].dimensions)==1) and\
         (len(ncid.variables[self.var_lon].dimensions)==1) and\
         (len(ncid.variables[self.var_names[0]].dimensions)==3):
             print('EASYMORE detects case 1 - regular lat/lon')
@@ -1055,43 +1097,13 @@ in dimensions of the variables and latitude and longitude')
                     lat [i,:] = ncid.variables[self.var_lat][:]
                 for i in np.arange(len(ncid.variables[self.var_lat][:])):
                     lon [:,i] = ncid.variables[self.var_lon][:]
-            # check if lat and lon are spaced equally
-            lat_temp = np.array(ncid.variables[self.var_lat][:])
-            lat_temp_diff = np.diff(lat_temp)
-            lat_temp_diff_2 = np.diff(lat_temp_diff)
-            max_lat_temp_diff_2 = max(abs(lat_temp_diff_2))
-            print('max difference of lat values in source nc files are : ', max_lat_temp_diff_2)
-            lon_temp = np.array(ncid.variables[self.var_lon][:])
-            lon_temp_diff = np.diff(lon_temp)
-            lon_temp_diff_2 = np.diff(lon_temp_diff)
-            max_lon_temp_diff_2 = max(abs(lon_temp_diff_2))
-            print('max difference of lon values in source nc files are : ', max_lon_temp_diff_2)
             # save lat, lon into the object
             lat      = np.array(lat).astype(float)
             lon      = np.array(lon).astype(float)
             self.lat = lat
             self.lon = lon
-            # expanding just for the the creation of shapefile with first last rows and columns
-            if (max_lat_temp_diff_2<self.tolerance) and (max_lon_temp_diff_2<self.tolerance): # then lat lon are spaced equal
-                # create expanded lat
-                lat_expanded = np.zeros(np.array(lat.shape)+2)
-                lat_expanded [1:-1,1:-1] = lat
-                lat_expanded [:, 0]  = lat_expanded [:, 1] + (lat_expanded [:, 1] - lat_expanded [:, 2]) # populate left column
-                lat_expanded [:,-1]  = lat_expanded [:,-2] + (lat_expanded [:,-2] - lat_expanded [:,-3]) # populate right column
-                lat_expanded [0, :]  = lat_expanded [1, :] + (lat_expanded [1, :] - lat_expanded [2, :]) # populate top row
-                lat_expanded [-1,:]  = lat_expanded [-2,:] + (lat_expanded [-2,:] - lat_expanded [-3,:]) # populate bottom row
-                # create expanded lat
-                lon_expanded = np.zeros(np.array(lon.shape)+2)
-                lon_expanded [1:-1,1:-1] = lon
-                lon_expanded [:, 0]  = lon_expanded [:, 1] + (lon_expanded [:, 1] - lon_expanded [:, 2]) # populate left column
-                lon_expanded [:,-1]  = lon_expanded [:,-2] + (lon_expanded [:,-2] - lon_expanded [:,-3]) # populate right column
-                lon_expanded [0, :]  = lon_expanded [1, :] + (lon_expanded [1, :] - lon_expanded [2, :]) # populate top row
-                lon_expanded [-1,:]  = lon_expanded [-2,:] + (lon_expanded [-2,:] - lon_expanded [-3,:]) # populate bottom row
-                # pass to the lat, lon extended
-                self.lat_expanded = lat_expanded
-                self.lon_expanded = lon_expanded
         # case #2 rotated lat/lon
-        if (len(ncid.variables[self.var_lat].dimensions)==2) and (len(ncid.variables[self.var_lon].dimensions)==2):
+        elif (len(ncid.variables[self.var_lat].dimensions)==2) and (len(ncid.variables[self.var_lon].dimensions)==2):
             print('EASYMORE detects case 2 - rotated lat/lon')
             self.case = 2
             lat = ncid.variables[self.var_lat][:,:]
@@ -1102,7 +1114,7 @@ in dimensions of the variables and latitude and longitude')
             self.lat = lat
             self.lon = lon
         # case #3 1-D lat/lon and 2 data for irregulat shapes
-        if (len(ncid.variables[self.var_lat].dimensions)==1) and (len(ncid.variables[self.var_lon].dimensions)==1) and\
+        elif (len(ncid.variables[self.var_lat].dimensions)==1) and (len(ncid.variables[self.var_lon].dimensions)==1) and\
            (len(ncid.variables[self.var_names[0]].dimensions)==2):
             print('EASYMORE detects case 3 - irregular lat/lon; shapefile should be provided')
             self.case = 3
@@ -1120,6 +1132,18 @@ in dimensions of the variables and latitude and longitude')
             self.lat = lat
             self.lon = lon
             self.ID  = ID
+        else:
+            sys.exit("the dimensions of latitude or logitude are not understood by easymore")
+        # expand the lat, lon approximation if possible
+        if len(lat.shape) == 0 or len(lon.shape) == 0 or len(lat.shape) == 1 or len(lon.shape) == 1:
+            if (not self.approximate_edge_grids) and (self.case ==1 or self.case ==2):
+                sys.exit("it seems the source netcdf file has 1 grid only or a row or column of grids;"+
+                    "user must specify source_nc_resolution in order to create the source shapefile")
+        if self.approximate_edge_grids and (self.case ==1 or self.case ==2):
+            lat_expanded = expand_matrix(lat, resolution = self.source_nc_resolution)
+            lon_expanded = expand_matrix(lon, resolution = self.source_nc_resolution)
+            self.lat_expanded = lat_expanded
+            self.lon_expanded = lon_expanded
 
     def lat_lon_SHP(self,
                     lat,
