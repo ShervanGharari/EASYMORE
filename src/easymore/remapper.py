@@ -15,6 +15,7 @@ and depending on the source netCDF files sizes and their temporal
 aggregation).
 """
 
+import multiprocessing
 import glob
 import time
 import sys
@@ -50,82 +51,142 @@ class Easymore:
     Parameters
     ----------
     case_name : str, defaults to `'case_temp'`
-        name of the case
+        name of the case that easymore to use for outputing
+        various files, such as corrected shapfiles, remapped
+        netcdf files, remapping file, etc
     target_shp : str [default to None]
-        ink/target shapefile
-    target_shp_ID :
-        name of the column ID in the sink/target shapefile
+        sink or target shapefile that the varibales from netcdf
+        files will be remapped to its shapes.
+    target_shp_ID : str [default to None]
+        name of sink/target shapefile attribute that includes IDs
+        of each shape. The IDs should be integer and unique for
+        each shape in the sink/target shapefile. If not provided
+        nc_remapper assignes the values from 1 to numer of shapes
+        in the `target_shp`.
     target_shp_lat :
-        name of the column latitude in the sink/target shapefile
+        name of sink/target shapefile attribute that identifies
+        the representative latitude of each shape in the sink/target
+        shapefile. If not provided, this will be estimated as centoird
+        of each shape in shapefile.
     target_shp_lon :
-        name of the column longitude in the sink/target shapefile
+        name of sink/target shapefile attribute that identifies
+        the representative logitude of each shape in the sink/target
+        shapefile. If not provided, this will be estimated as centoird
+        of each shape in shapefile.
     source_nc : str
-        name of nc file(s) to be remapped
+        name of netcdf file(s) to be remapped. The name of the netcdf
+        files can be given as patterns such as `/path/files/*.nc`. It
+        can also be patters of files from various folders and locations
+        as long as each file name is unique such as `/path/**/*.nc`
     var_names : str
-        list of variable names to be remapped from the source NetCDF file
+        list of variable names to be remapped from the source NetCDF
+        files
     var_lon : str, defaults to 'lon'
-        name of variable longitude in the source NetCDF file
+        name of variable that holds longitude in the source NetCDF file(s)
     var_lat : str, defaults to 'lat'
-        name of variable latitude in the source NetCDF file
+        name of variable that holds latitude in the source NetCDF file(s)
     var_time : str, defaults to 'time'
-        name of variable time in the source NetCDF file
+        name of variable that hold time in the source NetCDF files(s)
     var_ID : str
-        name of variable ID in the source NetCDF file
+        name of variable that holds ID in the source NetCDF file(s). This
+        is important and needed when the remapping is from a non-regular
+        shapes to non-regular shapes. In these cases the nc_remapper assume
+        the link between the shape ID in source shapefile and values
+        from netcdf from the source netcdf files. if not provided nc_remapper
+        assumes the source netcdf files are station and create Thiessen
+        polygones as source shapefile.
     var_station : str
         name of variable station in the source NetCDF file
-    var_names_remapped : list of str, optional
-        list of variable names that will be replaced in the remapped file
+    var_names_remapped : list of str
+        list of variable names that will be replaced in the remapped Netcdf
+        file(s). If not provided the naming is based on original variable
+        name that is given by `var_names`.
     skip_check_all_source_nc : bool, defaults to `False`
         if set to True only first file will be check for variables and
-        dimensions and not the all the files (recommneded not to change)
+        dimensions and not the all the files. Recommneded not use. Only
+        be used when there user is fully certain all the source netcdf
+        files are identical in their varibales, latitude, longitude,
+        naming of time variables, etc.
     source_shp : str
-        name of source shapefile (essential for case-3)
+        name of source shapefile (essential for irregular to irregular)
+        cases. Example of which can be remapping from smallers subbasins
+        to larger subbasins. The source shaepfile is created
+        automatically and hence is not needed to be provided if the
+        source netcdf file(s) are regular grid, pole rotated grids, or
+        stations that are meant to be used with voronoi diagram or
+        Thiessen polygones.
     source_shp_lat : str
-        name of column latitude in the source shapefile
+        name of source shapefile attribute that includes latitude
+        of each shape.
     source_shp_lon : str
-        name of column longitude in the source shapefile
+        name of source shapefile attribute that includes longitude
+        of each shape.
     source_shp_ID : str
-        name of column ID in the source shapefile
+        name of source shapefile attribute that includes ID
+        of each shape and corresponde to the ID variable in source
+        netcd file(s).
     remapped_var_id : str, defaults to `'ID'`
-        name of the ID variable in the new nc file
+        name of the ID variable in remapped netcdf file(s)
     remapped_var_lat : str, defaults to `'latitude'`
-        name of the latitude variable in the new nc file
+        name of the latitude variable in remapped netcdf file(s)
     remapped_var_lon : str, defaults to `'longitude'`
-        name of the longitude variable in the new nc file
+        name of the longitude variable in remapped netcdf file(s)
     remapped_dim_id : str, defaults to `'ID'`
-        name of the ID dimension in the new nc file
+        name of the dimension ID in remapped netcdf file(s)
     remapped_chunk_size : int, defaults to 200
         chunksize of remapped variables in the non-time (i.e. limited)
         dimension. Default 200. Use 'None' for netCDF4 defaults
-    overwrite_remapped_nc : bool, defaults to `True`
-        Flag to automatically overwrite existing remapping files. If
-        'False', aborts the remapping procedure if a file is detected
     temp_dir : str, defaults to `'./temp/'`
-        temp_dir
+        temporary directory that various temporary files, including the
+        remapping file is saved.
     output_dir : str, defaults to `'./output/'`
-        output directory
+        output directory where the remapped netcdf or csv files are
+        saved
     format_list : float,
         for the remapped values, list elements correspond to elements
-        in `self.var_names_remapped`
+        in `self.var_names_remapped`. If only one value is provided
+        in the list such as `[f8]` for double float format while there
+        are more varibales to be remapped, the format will be passed to
+        all remapped variables. This can be done per variable as well
+        such as `['f8', 'f4', 'f8']` correspongin to the `var_names`.
     fill_value_list : List[str], defaults to `[-9999]`
-        missing values set to -9999
+        missing values for each varibales that are remppaed. If one value
+        is provided, it is assume that it is assigned to all the variables.
+        It can be also assigned differently to each varibale for remapping
+        such as `[-9999,-1,-9999]`
     remap_csv : str
-        name of the remapped file if provided
+        Name of the remapped file. `nc_remapper` created this file before
+        remapping the source to remapped netcdf file(s), however if provided
+        from earlier remapping excersizes and provided, then the
+        `nc_remapper` will skip creating the remapping file which can save
+        time. When using this option, the user much make sure the remapping
+        file given as remap_csv is created for the source_nc file that is
+        passed. Failing to do so will result in failure of the code or
+        wrong remapped values.
     only_create_remap_csv : bool, defaults to `False`
-        if true, it does not remap any nc files
+        If true, the nc_remapper creates the remapping file which can be
+        used later for remapping of various varibales from the same source
+        netcdf file over and over again (to be reused).
+    parallel : bool, defaults to `False`
+        if true, it will remap the source netcdf files in parallel fashion.
     clip_source_shp : bool, defaults to `True`
         The source shapefile is clipped to the domain of target shapefile
         to increase intersection speed
     buffer_clip_source_shp : int, defaults to `2`
         2 degrees for buffer to clip the source shapefile based on target
-        shapefile
+        shapefile. This buffer is used for Voronoi or Thiessen polygones
+        as well.
     save_temp_shp : bool, defaults to `True`
         if set to false does not save the temporary shapefile in the temp
-        folder for large shapefiles
+        folder for large shapefiles in temporary folder.
     correction_shp_lon : bool, defaults to `True`
         correct for -180 to 180 and 0 to 360 longitude
     rescaledweights : bool, defaults to `True`
-        if set true the weights are rescaled
+        if set true the weights are rescaled. This features allows for a
+        conserve remapping of variable in case a for a period of time or
+        entire length of time the values are missing or outside the
+        boarder of netcdf file. The weight is then corrected to make sure
+        the wieghts are adding up to 1 so the remapped values are comparable
     skip_outside_shape : bool, defaults to `False`
         if set to True it will not carry the nan values for shapes that
         are outside the source netCDF geographical domain
@@ -136,13 +197,16 @@ class Easymore:
     tolerance : float, defaults to `1e-5`
         tolerance
     save_csv : bool, defaults to `False`
-        save csv
+        if set to True, nc_remapper will save a copy of remapped values in
+        csv format for each varibales.
     sort_ID : bool, defaults to `False`
-        to sort the remapped based on the target shapfile ID;
-        self.target_shp_ID should be given
+        The remapped values are sorted based on the order of the
+        `target_shp_ID`. If this flag is set to `True`, the order of
+        remapped values in remapped files will be in ascending order
+        of IDs.
     complevel : int, defaults to `4`
-        netcdf compression level from 1 to 9. Any other value or object
-        will mean no compression
+        The compression level for remapped netcdf file(s).
+        Should be between 1 and 9. 1 is least comress and 9 most compressed
     """
 
     def __init__(
@@ -153,6 +217,8 @@ class Easymore:
         target_shp_lat: str = None,
         target_shp_lon: str = None,
         source_nc: str = None,
+        source_nc_resolution: float = None,
+        approximate_edge_grids: bool = True,
         var_names: List[str] = [],
         var_lon: str = 'lon',
         var_lat: str = 'lat',
@@ -170,13 +236,13 @@ class Easymore:
         remapped_var_lon: str = 'longitude',
         remapped_dim_id: str = 'ID',
         remapped_chunk_size: int = 200,
-        overwrite_remapped_nc: bool = True,
         temp_dir: str = './temp/',
         output_dir: str = './output/',
         format_list: List[str] = ['f8'],
         fill_value_list: List[str] = ['-9999'],
         remap_csv: str = None,
         only_create_remap_csv: bool = False,
+        parallel:bool = False,
         clip_source_shp: bool = True,
         buffer_clip_source_shp: int = 2,
         save_temp_shp: bool = True,
@@ -200,6 +266,8 @@ class Easymore:
         self.target_shp_lat = target_shp_lat
         self.target_shp_lon = target_shp_lon
         self.source_nc = source_nc
+        self.source_nc_resolution = source_nc_resolution
+        self.approximate_edge_grids = approximate_edge_grids
         self.var_names = var_names
         self.var_lon = var_lon
         self.var_lat = var_lat
@@ -217,13 +285,13 @@ class Easymore:
         self.remapped_var_lon = remapped_var_lon
         self.remapped_dim_id = remapped_dim_id
         self.remapped_chunk_size = remapped_chunk_size
-        self.overwrite_remapped_nc = overwrite_remapped_nc
         self.temp_dir = temp_dir
         self.output_dir = output_dir
         self.format_list = format_list
         self.fill_value_list = fill_value_list
         self.remap_csv = remap_csv
         self.only_create_remap_csv = only_create_remap_csv
+        self.parallel = parallel
         self.clip_source_shp = clip_source_shp
         self.buffer_clip_source_shp = buffer_clip_source_shp
         self.save_temp_shp = save_temp_shp
@@ -321,12 +389,35 @@ class Easymore:
 
     def nc_remapper(self):
         """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
-        @ license:                 GNU-GPLv3
-        This function runs a set of EASYMORE function which can remap variable(s) from a srouce shapefile
-        with regular, roated, irregular to a target shapefile
+        Creates remapping file, remapped varibales from given netcdf files to remapped netcdf or csv files.
+
+        Return None
+
+        See Also
+        --------
+        Parameters of class Easymore for detaied exlanation.
+
+        Examples
+        --------
+        # example of regular or rorated grid to irregular shapes such as subbasins
+        >>> from easymore import Easymore
+        >>> esmr = Easymore()
+        >>> esmr.case_name                = 'ERA5_Medicine_Hat'
+        >>> esmr.source_nc                = './data/Source_nc_ERA5/ERA5_NA_*.nc'
+        >>> esmr.var_names                = ['airtemp','pptrate']
+        >>> esmr.var_names_remapped       = ['temperature','precipitation']
+        >>> esmr.var_lon                  = 'longitude'
+        >>> esmr.var_lat                  = 'latitude'
+        >>> esmr.var_time                 = 'time'
+        >>> esmr.target_shp               = './data/target_shapefiles/South_Saskatchewan_MedicineHat.shp'
+        >>> esmr.target_shp_ID            = 'COMID'
+        >>> esmr.temp_dir                 = './temporary/'
+        >>> esmr.output_dir               = './output/'
+        >>> esmr.format_list              = ['f4']
+        >>> esmr.fill_value_list          = ['-9999.00']
+        >>> esmr.save_csv                 = True
+        >>> esmr.complevel                = 9
+        >>> esmr.nc_remapper()
         """
         # check EASYMORE input
         self.check_easymore_input()
@@ -469,14 +560,50 @@ class Easymore:
             print('The remapping file is either created or given to EASYMORE')
             print('The remapping Located here: ', self.remap_csv)
         else:
-            self.__target_nc_creation()
+            # get the nc file names
+            nc_names = self.get_source_nc_file_names(self.source_nc) #sorted(glob.glob(self.source_nc, recursive=True))
+            num_processes = multiprocessing.cpu_count()  # Use the number of available CPU cores
+            num_processes = min(len(nc_names), num_processes)  # Limit the worker if number of files is smaller
+            if self.parallel and (num_processes>1):
+                print('parallel remapping for nc files on ', num_processes, ' workers')
+                pool = multiprocessing.Pool(processes=num_processes)  # Assign the number of workers
+                # Use pool.map() to parallelize the for loop
+                pool.map(self.target_nc_creation, nc_names)
+                # Close the pool to free up resources
+                pool.close()
+                pool.join()
+            else:
+                self.target_nc_creation(nc_names)
 
+    def get_source_nc_file_names(self,
+                                 input_files):
+
+        if isinstance(input_files, str):
+            # If input_data is a string, use glob to find matching files
+            nc_names = sorted(glob.glob(input_files, recursive=True))
+            if not nc_names:
+                sys.exit("Input source netcdf files do not exists, check the path and file patterns by source_nc")
+        elif isinstance(input_files, list):
+            existing_files = []
+            non_existing_files = []
+            for file in input_files:
+                if os.path.exists(file):
+                    existing_files.append(file)
+                else:
+                    non_existing_files.append(file)
+            if non_existing_files:
+                sys.exit("The following files do not exist "+str(non_existing_files))
+            nc_names = input_files
+        else:
+            sys.exit("The input source_nc type should be either list or string, check source_nc")
+        # return
+        return nc_names
 
     def create_source_shp(self):
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function creates a source shapefile for regular or rotated grid and Voronoi diagram from
         source netCDF file
@@ -487,7 +614,7 @@ class Easymore:
         # create the source shapefile for case 1 and 2 if shapefile is not provided
         if (self.case == 1 or self.case == 2):
             if (self.source_shp is None):
-                if self.case == 1 and hasattr(self, 'lat_expanded') and hasattr(self, 'lon_expanded'):
+                if hasattr(self, 'lat_expanded') and hasattr(self, 'lon_expanded'):
                     source_shp_gpd = self.lat_lon_SHP(self.lat_expanded, self.lon_expanded,crs="epsg:4326")
                 else:
                     source_shp_gpd = self.lat_lon_SHP(self.lat, self.lon,crs="epsg:4326")
@@ -497,23 +624,23 @@ class Easymore:
                                                              self.source_shp_lon, self.source_shp_ID)
         # if case 3
         if (self.case == 3):
-            if (self.source_shp is not None): # source shapefile is provided
-                self.check_source_nc_shp() # check the lat lon in soure shapefile and nc file
-                source_shp_gpd = gpd.read_file(self.source_shp)
-                source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
-                                                             self.source_shp_lon, self.source_shp_ID)
             if (self.source_shp is None): # source shapefile is not provided goes for voronoi
                 # Create the source shapefile using Voronio diagram
                 print('EASYMORE detect that source shapefile is not provided for irregulat lat lon source NetCDF')
                 print('EASYMORE will create the voronoi source shapefile based on the lat lon')
                 source_shp_gpd, source_shp_point_gpd = self.shp_from_irregular_nc (station_shp_file_name = self.temp_dir+self.case_name+'_source_shapefile_points.shp')
+            else: # source shapefile is provided
+                self.check_source_nc_shp() # check the lat lon in soure shapefile and nc file
+                source_shp_gpd = gpd.read_file(self.source_shp)
+                source_shp_gpd = self.add_lat_lon_source_SHP(source_shp_gpd, self.source_shp_lat,\
+                                                             self.source_shp_lon, self.source_shp_ID)
         return source_shp_gpd
 
     def get_col_row(self):
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function creates the dataframe with assosiated latitude and longitude or source file and
         its location of data by column and row for EASYMORE to extract/remap data
@@ -538,24 +665,30 @@ class Easymore:
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         the functions checkes if the necessary EASYMORE object are provided from the user
         """
-        if self.temp_dir is not None:
+        if self.temp_dir is None:
+            print("No temporary folder is provided for EASYMORE;"+
+                  " this will result in EASYMORE saving the files"+
+                  " in the same directory as python script under folder ./temporary/")
+            self.temp_dir = './temporary/'
+        else:
             if self.temp_dir[-1] != '/':
                 sys.exit('the provided temporary folder for EASYMORE should end with (/)')
-            if not os.path.isdir(self.temp_dir):
-                os.makedirs(self.temp_dir)
+        if not os.path.isdir(self.temp_dir):
+            os.makedirs(self.temp_dir)
         if self.output_dir is None:
-            sys.exit('the provided folder for EASYMORE remapped netCDF output is missing; please provide that')
-        if self.output_dir is not None:
+            print("No output folder is provided for EASYMORE;"+
+                  " this will result in EASYMORE saving the output files"+
+                  " in the same directory as python script under folder ./output/")
+            self.output_dir = './output/'
+        else:
             if self.output_dir[-1] != '/':
                 sys.exit('the provided output folder for EASYMORE should end with (/)')
-            if not os.path.isdir(self.output_dir):
-                os.makedirs(self.output_dir)
-        if not self.temp_dir:
-            print("No temporary folder is provided for EASYMORE; this will result in EASYMORE saving the files in the same directory as python script")
+        if not os.path.isdir(self.output_dir):
+            os.makedirs(self.output_dir)
         if self.author_name is None:
             print("no author name is provided. The author name is changed to (author name)!")
             self.author_name = "author name"
@@ -563,13 +696,13 @@ class Easymore:
             if (len(self.var_names) != len(self.fill_value_list)) and \
             (len(self.var_names) != len(self.format_list)) and \
             (len(self.format_list) == 1) and (len(self.fill_value_list) ==1):
-                print('EASYMORE is given multiple variables for remapping but only on format and fill value. '+\
+                print('EASYMORE is given multiple variables for remapping but only one format and fill value. '+\
                       'EASYMORE repeats the format and fill value for all the variables in output files')
                 self.format_list     = self.format_list     * len(self.var_names)
                 self.fill_value_list = self.fill_value_list * len(self.var_names)
             else:
                 sys.exit('number of variables and fill values and formats do not match')
-        if self.remap_csv is not None:
+        if not (self.remap_csv is None):
             print('remap file is provided; EASYMORE will use this file and skip creation of remapping file')
         if len(self.var_names) != len(set(self.var_names)):
             sys.exit('names of variables provided from the source NetCDF file to be remapped are not unique')
@@ -581,13 +714,14 @@ class Easymore:
         else:
             self.var_names_remapped = self.var_names
         for i in np.arange(len(self.var_names)):
-            print('EASYMORE will remap variable ',self.var_names[i],' from source file to variable ',self.var_names_remapped[i],' in remapped netCDF file')
+            print('EASYMORE will remap variable ',self.var_names[i],\
+                  ' from source file to variable ',self.var_names_remapped[i],' in remapped netCDF file')
 
     def check_target_shp (self,shp):
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         this function check if target shapefile and add ID and centroid lat and lon is not provided
         Arguments
@@ -682,15 +816,31 @@ class Easymore:
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function checks the consistency of the dimentions and variables for source netcdf file(s)
         """
         flag_do_not_match = False
-        nc_names = sorted(glob.glob (self.source_nc))
+        nc_names = self.get_source_nc_file_names(self.source_nc) #  sorted(glob.glob(self.source_nc, recursive=True))
         if not nc_names:
             sys.exit('EASYMORE detects no netCDF file; check the path to the soure netCDF files')
         else:
+            # check if the nc_name are unique
+            filenames = [os.path.basename(nc_name) for nc_name in nc_names]
+            unique_items = set()
+            duplicate_indices = {}
+            for idx, item in enumerate(filenames):
+                if item in unique_items:
+                    if item in duplicate_indices:
+                        duplicate_indices[item].append(idx)
+                    else:
+                        duplicate_indices[item] = [idx]
+                else:
+                    unique_items.add(item)
+            # Check if filenames are unique
+            if not (len(filenames) == len(set(filenames))):
+                sys.exit('EASYMORE detects the nc file names to be remapped are not unique even if their path are different '+\
+                         'check the source_nc path or pattern: '+ str(duplicate_indices))
             # when skip_check_all_source_nc is True easymore only
             # check the first file and not all the consistancy of all the files to the first file
             if self.skip_check_all_source_nc and len(nc_names)>1:
@@ -782,7 +932,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function checks the source netcdf file shapefile
         needs more development
@@ -794,7 +944,7 @@ in dimensions of the variables and latitude and longitude')
         import shapely
         #
         multi_source = False
-        nc_names = glob.glob (self.source_nc)
+        nc_names = self.get_source_nc_file_names(self.source_nc) # glob.glob(self.source_nc, recursive=True)
         ncid = nc4.Dataset(nc_names[0])
         # sink/target shapefile is what we want the variables to be remapped to
         shp = gpd.read_file(self.source_shp)
@@ -837,7 +987,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function checks the shapefile crs to provided substrings
         Arguments
@@ -866,7 +1016,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function checks dimension of the source shapefile and checks the case of regular, rotated, and irregular
         also created the 2D array of lat and lon for creating the shapefile
@@ -875,14 +1025,146 @@ in dimensions of the variables and latitude and longitude')
         from   shapely.geometry import Polygon
         #import shapefile # pyshed library
         import shapely
+
+        def expand_matrix(lat,
+                          lon,
+                          resolution = None):
+
+            if len(lat.shape) == 0:
+                lat = lat.reshape((1, 1))
+                lon = lon.reshape((1, 1))
+                m, n = 1, 1
+            elif len(lat.shape) == 1:
+                lat = lat.reshape((1, -1))
+                lon = lon.reshape((1, -1))
+                m, n = lat.shape
+            elif len(lat.shape) == 2:
+                m, n = lat.shape
+            else:
+                sys.exit("dimension of input matrix is more than 2 for lat and lon inputs")
+            # Create a new (m+1) x (n+1) matrix filled with zeros
+            expanded_lat = np.zeros((m+2, n+2), dtype=lat.dtype)
+            expanded_lon = np.zeros((m+2, n+2), dtype=lon.dtype)
+            # Embed the original matrix in the center of the new matrix
+            expanded_lat[1:m+1, 1:n+1] = lat
+            expanded_lon[1:m+1, 1:n+1] = lon
+
+            if (m == 1 or n == 1) and (resolution is None):
+                sys.exit("user should provide approximate resolution of grids")
+
+            if m == 1 and n == 1: # only one grid
+                # lat
+                expanded_lat [:,:] = expanded_lat [1,1]
+                diff = np.array([[resolution, resolution, resolution],[0, 0, 0],[-resolution, -resolution, -resolution]])
+                expanded_lat = expanded_lat + diff
+                # lon
+                expanded_lon [:,:] = expanded_lon [1,1]
+                diff = np.array([[-resolution, 0, resolution],[-resolution, 0, resolution],[-resolution, 0, resolution]])
+                expanded_lon = expanded_lon + diff
+
+            if 2 <= n and m == 1: # 1 row of grids
+                #
+                is_ascending = False
+                is_ascending = np.all(np.diff(lon.flatten()) > 0)
+                is_descending = False
+                is_descending = np.all(np.diff(lon.flatten()) < 0)
+
+                if (is_ascending and is_descending) or (not is_ascending and not is_descending):
+                    sys.exit("EASYMORE cannot decide if the lon values of source nc are ascending or descending")
+
+                is_uniform = False
+                is_uniform = (np.all(np.abs(np.diff(lon.flatten()) + resolution) < 0.00001) or
+                              np.all(np.abs(np.diff(lon.flatten()) - resolution) < 0.00001))
+                if not is_uniform:
+                    print("EASYMORE detects that lon values of source nc are not uniformly spaces as specified by resolution and tolerance")
+                    print("EASYMORE continue creation of the shapefile from source nc file with approximation")
+
+                # lat
+                expanded_lat[1,0] = expanded_lat[1,1]
+                expanded_lat[1,-1] = expanded_lat[1,-2]
+                expanded_lat[0,:] = expanded_lat [1,:]
+                expanded_lat[2,:] = expanded_lat [1,:]
+                diff = np.tile(np.array([[-resolution], [0], [resolution]]), (1, n+2))
+                expanded_lat = expanded_lat + diff
+                # lon
+                expanded_lon[0,:] = expanded_lon [1,:]
+                expanded_lon[2,:] = expanded_lon [1,:]
+                expanded_lon[:,0] = expanded_lon[:,1]
+                expanded_lon[:,-1] = expanded_lon[:,-2]
+                diff = expanded_lon * 0.00
+                if is_ascending:
+                    diff [:,0] = -resolution
+                    diff [:,-1] = resolution
+                else:
+                    diff [:,0] = resolution
+                    diff [:,-1] = -resolution
+                expanded_lon = expanded_lon + diff
+
+            if 2 <= m and n == 1: # 1 column of grids
+
+                #
+                is_ascending = False
+                is_ascending = np.all(np.diff(lat.flatten()) > 0)
+                is_descending = False
+                is_descending = np.all(np.diff(lat.flatten()) < 0)
+
+                if (is_ascending and is_descending) or (not is_ascending and not is_descending):
+                    sys.exit("EASYMORE cannot decide if the lat values of source nc are ascending or descending")
+
+                is_uniform = False
+                is_uniform = (np.all(np.abs(np.diff(lat.flatten()) + resolution) < 0.00001) or
+                              np.all(np.abs(np.diff(lat.flatten()) - resolution) < 0.00001))
+                if not is_uniform:
+                    print("EASYMORE detects that lat values of source nc are not uniformly spaces as specified by resolution and tolerance")
+                    print("EASYMORE continue creation of the shapefile from source nc file with approximation")
+
+                # lat
+                expanded_lat[0,1] = expanded_lat[1,1]
+                expanded_lat[-1,1] = expanded_lat[-2,1]
+                expanded_lat[:,0] = expanded_lat [:,1]
+                expanded_lat[:,2] = expanded_lat [:,1]
+                diff = expanded_lat * 0.00
+                if is_ascending:
+                    diff [0,:] = -resolution
+                    diff [-1,:] = resolution
+                else:
+                    diff [0,:] = resolution
+                    diff [-1,:] = -resolution
+                expanded_lat = expanded_lat + diff
+
+                # lon
+                expanded_lon[0,1] = expanded_lon[1,1]
+                expanded_lon[-1,1] = expanded_lon[-2,1]
+                expanded_lon[:,0] = expanded_lon [:,1]
+                expanded_lon[:,2] = expanded_lon [:,1]
+                diff = expanded_lon * 0.00
+                diff [:,0] = -resolution
+                diff [:,-1] = resolution
+                expanded_lon = expanded_lon + diff
+
+            if (2 <= m) and (2<= n):
+
+                # create expanded lat
+                expanded_lat [:, 0]  = expanded_lat [:, 1] + (expanded_lat [:, 1] - expanded_lat [:, 2]) # populate left column
+                expanded_lat [:,-1]  = expanded_lat [:,-2] + (expanded_lat [:,-2] - expanded_lat [:,-3]) # populate right column
+                expanded_lat [0, :]  = expanded_lat [1, :] + (expanded_lat [1, :] - expanded_lat [2, :]) # populate top row
+                expanded_lat [-1,:]  = expanded_lat [-2,:] + (expanded_lat [-2,:] - expanded_lat [-3,:]) # populate bottom row
+                # create expanded lat
+                expanded_lon [:, 0]  = expanded_lon [:, 1] + (expanded_lon [:, 1] - expanded_lon [:, 2]) # populate left column
+                expanded_lon [:,-1]  = expanded_lon [:,-2] + (expanded_lon [:,-2] - expanded_lon [:,-3]) # populate right column
+                expanded_lon [0, :]  = expanded_lon [1, :] + (expanded_lon [1, :] - expanded_lon [2, :]) # populate top row
+                expanded_lon [-1,:]  = expanded_lon [-2,:] + (expanded_lon [-2,:] - expanded_lon [-3,:]) # populate bottom row
+
+            return expanded_lat, expanded_lon
+
         #
-        nc_names = glob.glob (self.source_nc)
+        nc_names = self.get_source_nc_file_names(self.source_nc) # glob.glob(self.source_nc, recursive=True)
         var_name = self.var_names[0]
         # open the nc file to read
         ncid = nc4.Dataset(nc_names[0])
         # deciding which case
         # case #1 regular latitude/longitude
-        if (len(ncid.variables[self.var_lon].dimensions)==1) and\
+        if (len(ncid.variables[self.var_lat].dimensions)==1) and\
         (len(ncid.variables[self.var_lon].dimensions)==1) and\
         (len(ncid.variables[self.var_names[0]].dimensions)==3):
             print('EASYMORE detects case 1 - regular lat/lon')
@@ -909,43 +1191,13 @@ in dimensions of the variables and latitude and longitude')
                     lat [i,:] = ncid.variables[self.var_lat][:]
                 for i in np.arange(len(ncid.variables[self.var_lat][:])):
                     lon [:,i] = ncid.variables[self.var_lon][:]
-            # check if lat and lon are spaced equally
-            lat_temp = np.array(ncid.variables[self.var_lat][:])
-            lat_temp_diff = np.diff(lat_temp)
-            lat_temp_diff_2 = np.diff(lat_temp_diff)
-            max_lat_temp_diff_2 = max(abs(lat_temp_diff_2))
-            print('max difference of lat values in source nc files are : ', max_lat_temp_diff_2)
-            lon_temp = np.array(ncid.variables[self.var_lon][:])
-            lon_temp_diff = np.diff(lon_temp)
-            lon_temp_diff_2 = np.diff(lon_temp_diff)
-            max_lon_temp_diff_2 = max(abs(lon_temp_diff_2))
-            print('max difference of lon values in source nc files are : ', max_lon_temp_diff_2)
             # save lat, lon into the object
             lat      = np.array(lat).astype(float)
             lon      = np.array(lon).astype(float)
             self.lat = lat
             self.lon = lon
-            # expanding just for the the creation of shapefile with first last rows and columns
-            if (max_lat_temp_diff_2<self.tolerance) and (max_lon_temp_diff_2<self.tolerance): # then lat lon are spaced equal
-                # create expanded lat
-                lat_expanded = np.zeros(np.array(lat.shape)+2)
-                lat_expanded [1:-1,1:-1] = lat
-                lat_expanded [:, 0]  = lat_expanded [:, 1] + (lat_expanded [:, 1] - lat_expanded [:, 2]) # populate left column
-                lat_expanded [:,-1]  = lat_expanded [:,-2] + (lat_expanded [:,-2] - lat_expanded [:,-3]) # populate right column
-                lat_expanded [0, :]  = lat_expanded [1, :] + (lat_expanded [1, :] - lat_expanded [2, :]) # populate top row
-                lat_expanded [-1,:]  = lat_expanded [-2,:] + (lat_expanded [-2,:] - lat_expanded [-3,:]) # populate bottom row
-                # create expanded lat
-                lon_expanded = np.zeros(np.array(lon.shape)+2)
-                lon_expanded [1:-1,1:-1] = lon
-                lon_expanded [:, 0]  = lon_expanded [:, 1] + (lon_expanded [:, 1] - lon_expanded [:, 2]) # populate left column
-                lon_expanded [:,-1]  = lon_expanded [:,-2] + (lon_expanded [:,-2] - lon_expanded [:,-3]) # populate right column
-                lon_expanded [0, :]  = lon_expanded [1, :] + (lon_expanded [1, :] - lon_expanded [2, :]) # populate top row
-                lon_expanded [-1,:]  = lon_expanded [-2,:] + (lon_expanded [-2,:] - lon_expanded [-3,:]) # populate bottom row
-                # pass to the lat, lon extended
-                self.lat_expanded = lat_expanded
-                self.lon_expanded = lon_expanded
         # case #2 rotated lat/lon
-        if (len(ncid.variables[self.var_lat].dimensions)==2) and (len(ncid.variables[self.var_lon].dimensions)==2):
+        elif (len(ncid.variables[self.var_lat].dimensions)==2) and (len(ncid.variables[self.var_lon].dimensions)==2):
             print('EASYMORE detects case 2 - rotated lat/lon')
             self.case = 2
             lat = ncid.variables[self.var_lat][:,:]
@@ -956,14 +1208,14 @@ in dimensions of the variables and latitude and longitude')
             self.lat = lat
             self.lon = lon
         # case #3 1-D lat/lon and 2 data for irregulat shapes
-        if (len(ncid.variables[self.var_lat].dimensions)==1) and (len(ncid.variables[self.var_lon].dimensions)==1) and\
+        elif (len(ncid.variables[self.var_lat].dimensions)==1) and (len(ncid.variables[self.var_lon].dimensions)==1) and\
            (len(ncid.variables[self.var_names[0]].dimensions)==2):
             print('EASYMORE detects case 3 - irregular lat/lon; shapefile should be provided')
             self.case = 3
             lat = ncid.variables[self.var_lat][:]
             lon = ncid.variables[self.var_lon][:]
             #print(lat, lon)
-            if self.var_ID  is None: 
+            if self.var_ID  is None:
                 print('EASYMORE detects that no variable for ID of the source netCDF file; an arbitatiry ID will be added')
                 ID =  np.arange(len(lat))+1 # pass arbitarary values
             else:
@@ -974,6 +1226,19 @@ in dimensions of the variables and latitude and longitude')
             self.lat = lat
             self.lon = lon
             self.ID  = ID
+        else:
+            sys.exit("the dimensions of latitude or logitude are not understood by easymore")
+        # expand the lat, lon approximation if possible
+        if len(lat.shape) == 0 or len(lon.shape) == 0 or len(lat.shape) == 1 or len(lon.shape) == 1:
+            if (not self.approximate_edge_grids) and (self.case ==1 or self.case ==2):
+                sys.exit("it seems the source netcdf file has 1 grid only or a row or column of grids;"+
+                    "user must specify source_nc_resolution in order to create the source shapefile")
+        if self.approximate_edge_grids and (self.case ==1 or self.case ==2):
+            lat_expanded, lon_expanded = expand_matrix(lat, lon, resolution = self.source_nc_resolution)
+            print(lat_expanded)
+            print(lon_expanded)
+            self.lat_expanded = lat_expanded
+            self.lon_expanded = lon_expanded
 
     def lat_lon_SHP(self,
                     lat,
@@ -983,7 +1248,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari, Wouter Knoben
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function creates a shapefile for the source netcdf file
         Arguments
@@ -1078,7 +1343,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function add lat, lon and ID from the source shapefile if provided
         Arguments
@@ -1094,10 +1359,11 @@ in dimensions of the variables and latitude and longitude')
         import shapely
         shp['lat_s'] = shp [source_shp_lat].astype(float)
         shp['lon_s'] = shp [source_shp_lon].astype(float)
-        if self.source_shp_ID is not None:
-            shp ['ID_s']  = shp [source_shp_ID]
-        else:
+        if self.source_shp_ID is None:
             shp ['ID_s']  = np.arange(len(shp))+1
+        else:
+            shp ['ID_s']  = shp [source_shp_ID]
+
         return shp
 
     def expand_source_SHP(  self,
@@ -1107,7 +1373,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function add lat, lon and ID from the source shapefile if provided
         Arguments
@@ -1194,7 +1460,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         this function add the corresponsing row and columns from the source NetCDF file
         Parameters
@@ -1227,14 +1493,17 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         this fucntion gets the row and colomns of the source netcdf file and returns it
+
+        Parameters
         ----------
         lat_source: numpy array of lat source
         lon_source: numpy array of lon source
         lat_target_int: numpy array of lat source
         lon_target_int: numpy array of lon source
+
         Returns
         -------
         rows: numpy array, rows from the source file based on the target lat/lon
@@ -1261,21 +1530,13 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         this function check the remapping dataframe
         Parameters:
         ----------
-        remap_df: dataframe, including remapping information including the following colomns:
-                    ID_target
-                    lon_target
-                    lat_target
-                    ID_source
-                    lat_source
-                    lon_source
-                    rows
-                    cols
-                    order
+        remap_df: dataframe, including remapping information including the following colomns of ID_target,
+        lon_target, lat_target, ID_source, lat_source, lon_source, rows, cols, order
         """
         # check if there is EASYMORE_case in the columns
         if 'easymore_case' in remap_df.columns:
@@ -1295,14 +1556,18 @@ in dimensions of the variables and latitude and longitude')
             sys.exit('provided remapping file does not have one of the needed fields: \n'+\
                 'ID_t, lat_t, lon_t, order_t, ID_s, lat_s, lon_s, weight')
 
-    def __target_nc_creation(self):
+    def target_nc_creation(self,
+                           nc_names):
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This funciton read different grids and sum them up based on the
         weight provided to aggregate them over a larger area
+        Parameters:
+        ----------
+        nc_names: list of nc file names to be remapped, or string of single names
         """
         print('------REMAPPING------')
         remap = pd.read_csv(self.remap_csv)
@@ -1324,9 +1589,6 @@ in dimensions of the variables and latitude and longitude')
         self.rows = np.array(remap['rows']).astype(int)
         self.cols = np.array(remap['cols']).astype(int)
         self.number_of_target_elements = len(hruID_var)
-        #
-        nc_names = glob.glob(self.source_nc)
-        nc_names = sorted(nc_names)
         # check compression choice
         if isinstance(self.complevel, int) and (self.complevel >=1) and (self.complevel<=9):
             compflag = True
@@ -1336,6 +1598,8 @@ in dimensions of the variables and latitude and longitude')
             compflag = False
             complevel = 0
             print('netcdf output file will not be compressed.')
+        if isinstance(nc_names, str):
+            nc_names = [nc_names]  # Convert the string to a list
         for nc_name in nc_names:
             # get the time unit and time var from source
             ncids = nc4.Dataset(nc_name)
@@ -1348,11 +1612,13 @@ in dimensions of the variables and latitude and longitude')
             if ('license' in nc_att_list_lower):
                 if 'license' in nc_att_list:
                     self.license == getattr(ncids, 'license')
-                if 'License' in nc_att_list:
+                elif 'License' in nc_att_list:
                     self.license == getattr(ncids, 'License')
-                if 'LICENSE' in nc_att_list:
+                elif 'LICENSE' in nc_att_list:
                     self.license == getattr(ncids, 'LICENSE')
-                self.license == 'Original data license '+self.license
+                else:
+                    self.license = ''
+                self.license == 'Original data license '+str(self.license)
             if 'units' in ncids.variables[self.var_time].ncattrs():
                 time_unit = ncids.variables[self.var_time].units
             else:
@@ -1362,16 +1628,15 @@ in dimensions of the variables and latitude and longitude')
             else:
                 sys.exit('calendar is not provided for the time variable for source NetCDF of'+ nc_name)
             time_var = ncids[self.var_time][:]
-            self.length_of_time = len(time_var)
-            target_date_times = nc4.num2date(time_var,units = time_unit,calendar = time_cal)
-            target_name = self.output_dir + self.case_name + '_remapped_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.nc'
+
+            #self.length_of_time = len(time_var)
+            #target_date_times = nc4.num2date(time_var,units = time_unit,calendar = time_cal)
+            #target_name = self.output_dir + self.case_name + '_remapped_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+'.nc'
+
+            target_name = self.output_dir + self.case_name + '_remapped_' + os.path.basename(nc_name)
+
             if os.path.exists(target_name):
-                if self.overwrite_remapped_nc:
-                    print('Removing existing remapped .nc file.')
-                    os.remove(target_name)
-                else:
-                    print('Remapped .nc file already exists. Going to next file.')
-                    continue # skip to next file
+                os.remove(target_name)
             for var in ncids.variables.values():
                 if var.name == self.var_time:
                     time_dtype =  str(var.dtype)
@@ -1431,7 +1696,7 @@ in dimensions of the variables and latitude and longitude')
                 #loop over variables
                 for i in np.arange(len(self.var_names)):
                     var_value  = self.__weighted_average( nc_name,
-                                                          target_date_times,
+                                                          len(time_var),
                                                           self.var_names[i],
                                                           self.fill_value_list[i],
                                                           remap)
@@ -1469,10 +1734,10 @@ in dimensions of the variables and latitude and longitude')
                     # print(unit_name)
                     target_name_csv = self.output_dir + self.case_name + '_remapped_'+ self.var_names_remapped[i] +\
                      '_' + unit_name +\
-                     '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+ '.csv'
+                     '_' + os.path.basename(nc_name)+ '.csv'
                     target_name_map = self.output_dir + 'Mapping_' + self.case_name + '_remapped_'+ self.var_names_remapped[i] +\
                      '_' + unit_name +\
-                     '_' + target_date_times[0].strftime("%Y-%m-%d-%H-%M-%S")+ '.csv'
+                     '_' + os.path.basename(nc_name)+ '.csv'
                     if os.path.exists(target_name_csv): # remove file if exists
                         os.remove(target_name_csv)
                     if os.path.exists(target_name_map): # remove file if exists
@@ -1498,20 +1763,20 @@ in dimensions of the variables and latitude and longitude')
 
     def __weighted_average(self,
                            nc_name,
-                           target_time,
+                           length_time,
                            variable_name,
                            fill_value,
                            mapping_df):
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function reads the data for a given time and calculates the weighted average
         Arguments
         ---------
         nc_name: string, name of the netCDF file
-        target_time: string,
+        length_time: int,
         variable_name: string, name of variable from source netcsf file to be remapped
         mapping_df: pandas dataframe, including the row and column of the source data and weight
         Returns
@@ -1524,13 +1789,13 @@ in dimensions of the variables and latitude and longitude')
         if self.var_time != 'time':
             ds = ds.rename({self.var_time:'time'})
         # prepared the numpy array for ouptut
-        weighted_value = np.zeros([self.length_of_time,self.number_of_target_elements])
-        m = 0 # counter
-        for date in target_time: # loop over time
+        weighted_value = np.zeros([length_time,self.number_of_target_elements])
+        #m = 0 # counter
+        for m in np.arange(length_time): # loop over time
             # ds_temp = ds.sel(time=date.strftime("%Y-%m-%d %H:%M:%S"),method="nearest")
             ds_temp = ds.isel(time=m)
             data = np.array(ds_temp[variable_name])
-            data = np.squeeze(data)
+            #data = np.squeeze(data)
             # get values from the rows and cols and pass to np data array
             if self.case ==1 or self.case ==2:
                 values = data [self.rows,self.cols]
@@ -1570,7 +1835,7 @@ in dimensions of the variables and latitude and longitude')
                     df_temp.loc[df_temp_slice.index,'values_w'] = np.nan
                 df_temp['values_w'].fillna(fill_value, inplace=True)
             weighted_value [m,:] = np.array(df_temp['values_w'])
-            m += 1
+            #m += 1
         return weighted_value
 
 
@@ -1579,7 +1844,7 @@ in dimensions of the variables and latitude and longitude')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function reads a shapefile and for longitude of model than 180 it correct it to a frame of -180 to 180
         ---------
@@ -1735,15 +2000,17 @@ to correct for lon above 180')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function calcultes the centroid in equal area projection for shapefile bound between -180 to 180.
+
+        Parameters
         ---------
         shp: geopandas shapefile
+
         Returns
         -------
         shp: geopandas shapefile with centroid in equal arae
-        shp_points: geopandas shapefile (points) with location in WGS84 corresponsing to the centroid in equal area
         """
         # in equal projection
         print('calculating centroid of shapes in equal area projection')
@@ -1784,7 +2051,7 @@ to correct for lon above 180')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function get a pandas dataframe of some values (all float + datetime string) and save them in a netcdf file
         ---------
@@ -1921,7 +2188,7 @@ to correct for lon above 180')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function get a pandas dataframe and determin if a column is all numeric (int or float) or others
         ---------
@@ -1954,7 +2221,7 @@ to correct for lon above 180')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function get a pandas dataframe row and check of the entire row is float or int
         ---------
@@ -1984,7 +2251,7 @@ to correct for lon above 180')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @license:                  GNU-GPLv3
         This function intersects two shapefiles. It keeps the attributes from the first and second shapefiles (identified by prefix S_1_ and
         S_2_). It also creates other fields including AS1 (area of the shape element from shapefile 1), IDS1 (an arbitrary index
@@ -2184,7 +2451,7 @@ to correct for lon above 180')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function creates a geopandas dataframe of lat, lon, and IDs provided from a csv file or a pandas dataframe
         Arguments
@@ -2223,7 +2490,7 @@ to correct for lon above 180')
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function creates a Voronoi diagram from latitude and longitude provided in an irregular shapefile
         Arguments
@@ -2240,17 +2507,17 @@ to correct for lon above 180')
         """
 
         # read the file (or the first file)
-        nc_names = glob.glob(self.source_nc)
+        nc_names = self.get_source_nc_file_names(self.source_nc) # glob.glob(self.source_nc, recursive=True)
         ncid     = nc4.Dataset(nc_names[0])
         # create the data frame
         points = pd.DataFrame()
         points['lon'] = ncid.variables[self.var_lon][:]
         points['lat'] = ncid.variables[self.var_lat][:]
         points['ID_s'] = 1 + np.arange(len(points))
-        if self.var_ID is not None:
-            points['ID_s'] = ncid.variables[self.var_ID][:]
-        else:
+        if self.var_ID is None:
             points['ID_s'] = 1 + np.arange(len(points))
+        else:
+            points['ID_s'] = ncid.variables[self.var_ID][:]
         points['ID_test'] = points['ID_s']
         if self.var_station is not None:
             points['station_name'] = ncid.variables[self.var_station][:]
@@ -2301,7 +2568,7 @@ to correct for lon above 180')
         modified by:
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:       sh.gharari@gmail.com
+        @ author's email id:
         @ license:                 GNU-GPLv3
         This function reads a shapefile of points and returns the Thiessen or Voronoi polygons for that point shapefile
         ---------
