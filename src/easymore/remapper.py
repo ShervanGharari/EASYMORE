@@ -225,6 +225,7 @@ class Easymore:
         var_time: str = 'time',
         var_ID: str = None,
         var_station: str = None,
+        var_time_bound: str = None,
         var_names_remapped: List[str] = [],
         skip_check_all_source_nc: bool = False,
         source_shp: str = None,
@@ -249,6 +250,8 @@ class Easymore:
         correction_shp_lon: bool = True,
         rescaledweights: bool = True,
         skip_outside_shape: bool = False,
+        pass_target_shp_attr_remapped: bool = True,
+        target_shp_attr_file_name: str = None,
         author_name: str = None,
         license: str = None,
         tolerance: float = 1e-5,
@@ -274,6 +277,7 @@ class Easymore:
         self.var_time = var_time
         self.var_ID = var_ID
         self.var_station = var_station
+        self.var_time_bound = var_time_bound
         self.var_names_remapped = var_names_remapped
         self.skip_check_all_source_nc = skip_check_all_source_nc
         self.source_shp = source_shp
@@ -298,6 +302,8 @@ class Easymore:
         self.correction_shp_lon = correction_shp_lon
         self.rescaledweights = rescaledweights
         self.skip_outside_shape = skip_outside_shape
+        self.pass_target_shp_attr_remapped = pass_target_shp_attr_remapped
+        self.target_shp_attr_file_name = target_shp_attr_file_name
         self.author_name = author_name
         self.license = license
         self.tolerance = tolerance
@@ -511,9 +517,10 @@ class Easymore:
             order_values_shp_int = np.unique(np.array(shp_int['S_1_order']))
             diff = np.setdiff1d(order_values_shp_1, order_values_shp_int)
             if (diff.size > 0):
-                np.savetxt(self.temp_dir+self.case_name+'ID_not_intersected.txt', diff, fmt='%d')
+                np.savetxt(self.temp_dir+self.case_name+'_order_not_intersected.txt', diff, fmt='%d')
+                np.savetxt(self.temp_dir+self.case_name+'_order_intersected.txt', order_values_shp_int, fmt='%d')
                 print('Warning: There are shapes that are outside the boundaries of the provided netCDF file. The IDs of those'+\
-                      'shapes are saved in: \n'+self.temp_dir+self.case_name+'ID_not_intersected.txt')
+                      'shapes are saved in: \n'+self.temp_dir+self.case_name+'_ID_not_intersected.txt')
                 if not (self.skip_outside_shape): # not all the elements of target shapefile are in intersection
                     shp_1_not_int = shp_1[shp_1['S_1_order'].isin(diff)]
                     shp_1_not_int = shp_1_not_int.drop(columns=['geometry']) # remove the geometry
@@ -526,6 +533,29 @@ class Easymore:
                           'netCDF file or set the easymore flag of skip_outside_shape to True.'+\
                           'this flag ensures the shapes that are outside of the netCDF domain are not transfered as nan to remapped '+\
                           'netCDF files')
+            # craete the nc file from the target shapefile, shp1, attributes
+            existing_order = np.unique(np.array(shp_int['S_1_order']))
+            attr = shp_1.copy()
+            print(attr)
+            attr = attr.drop(columns=['geometry'])
+            attr = pd.DataFrame(attr)
+            filtered_columns = [col for col in attr.columns if col.startswith('S_1_')]
+            attr = attr[filtered_columns]
+            attr.columns = attr.columns.str.replace('S_1_', '', regex=False)
+            attr = attr[attr['order'].isin(existing_order)]
+            if not self.remapped_var_id == 'ID_t':
+                attr.drop(columns=[self.remapped_var_id], errors='ignore', inplace=True)
+                attr.rename(columns={'ID_t': self.remapped_var_id}, inplace=True)
+            attr = attr.sort_values(by='order')
+            attr = attr.to_xarray()
+            if not self.target_shp_attr_file_name is None:
+                print("the target shapefile attribute file name is provided but EASYMORE will create a new one and use it")
+                print("name of target shapefile attribute file is only used when remapping file is provided")
+            self.target_shp_attr_file_name = self.temp_dir+self.case_name+'_target_shapefile_attribute.nc'
+            if os.path.isfile(self.target_shp_attr_file_name):
+                os.remove(self.target_shp_attr_file_name)
+            attr.to_netcdf(self.target_shp_attr_file_name)
+            print(attr)
             # rename dictionary
             dict_rename = {'S_1_ID_t' : 'ID_t',
                            'S_1_lat_t': 'lat_t',
@@ -554,6 +584,28 @@ class Easymore:
             # check the remap file if provided
             int_df = pd.read_csv(self.remap_csv)
             self.check_easymore_remap(int_df)
+            # check the attribute of target shapefile is provided
+            if not self.target_shp_attr_file_name is None:
+                ds = xr.open_dataset(self.target_shp_attr_file_name)
+                df_attr = ds.to_dataframe()
+                if not (self.remapped_var_id in df_attr.columns):
+                    sys.exit('There is no varibale ', self.target_shp_attr_file_name, ' in attribute nc file. '+
+                             'User should recreate this file with remapped_var_id or make sure the ID is identical to'+
+                             'remap file in order and number')
+                int_df_slice = int_df[['ID_t', 'order_t']]
+                int_df_slice = int_df_slice.drop_duplicates()
+                int_df_slice = int_df_slice.sort_values(by='order_t')
+                int_df_slice = int_df_slice.reset_index(drop=True)
+                df_attr = df_attr.sort_values(by='order')
+                df_attr = df_attr.reset_index(drop=True)
+                if len(int_df) != len(df):
+                    sys.exit('The length of provided remapping and attribute files do not match, suggest to recreate '+
+                             'the remapping and attributes files again')
+                else:
+                    if not ((int_df_slice['ID_t'] == df_attr[self.remapped_var_id]).all() and \
+                            (int_df_slice['order_t'] == df_attr['order']).all()):
+                        sys.exit("ID and order are not the same in attribute file and remapping file, suggest. "+
+                                 "suggest to recreate them again")
         # check if the remapping file needs to be generated only
         if self.only_create_remap_csv:
             print('The flag to create only remap file is True')
@@ -1215,7 +1267,7 @@ in dimensions of the variables and latitude and longitude')
             lat = ncid.variables[self.var_lat][:]
             lon = ncid.variables[self.var_lon][:]
             #print(lat, lon)
-            if self.var_ID  is None:
+            if self.var_ID is None:
                 print('EASYMORE detects that no variable for ID of the source netCDF file; an arbitatiry ID will be added')
                 ID =  np.arange(len(lat))+1 # pass arbitarary values
             else:
@@ -1712,6 +1764,22 @@ in dimensions of the variables and latitude and longitude')
                         varid.long_name = ncids.variables[self.var_names[i]].long_name
                     if 'units' in ncids.variables[self.var_names[i]].ncattrs():
                         varid.units = ncids.variables[self.var_names[i]].units
+            # merge attribute files or pass it to the model
+            if self.pass_target_shp_attr_remapped:
+                ds = xr.open_dataset(target_name)
+                ds_attr = xr.open_dataset(self.target_shp_attr_file_name)
+                ds_attr = ds_attr.swap_dims({'index': self.remapped_dim_id})
+                for var_name in ds_attr.data_vars:
+                    # Check if the variable is not already in the target dataset
+                    if var_name not in ds and var_name not in ['lat','lon','lat_t','lon_t','order','index']:
+                        # Add the variable to the target dataset
+                        ds[var_name] = ds_attr[var_name]
+                if os.path.isfile(target_name):
+                    os.remove(target_name)
+                ds.to_netcdf(target_name)
+                ds.close()
+                ds_attr.close()
+            # save the remapped values in csv file
             if self.save_csv:
                 ds = xr.open_dataset(target_name)
                 for i in np.arange(len(self.var_names_remapped)):
@@ -1753,6 +1821,7 @@ in dimensions of the variables and latitude and longitude')
                     statement_print = statement_print + 'Converting variable '+ self.var_names_remapped[i] +\
                     ' from remapped file of '+target_name+' to '+target_name_csv + ' \n'
                     statement_print = statement_print + 'Saving the ID, lat, lon map at '+target_name_csv+ ' \n'
+                ds.close()
             time_end = datetime.now()
             time_diff = time_end-time_start
             statement_print = statement_print + 'Ended at date and time ' + str(time_end) + ' \n'
