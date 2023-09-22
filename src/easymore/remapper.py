@@ -34,6 +34,8 @@ import netCDF4 as nc4
 import numpy as np
 import pandas as pd
 import xarray as xr
+import hashlib
+import secrets
 
 from easymore import __version__
 
@@ -241,7 +243,7 @@ class Easymore:
         output_dir: str = './output/',
         format_list: List[str] = ['f8'],
         fill_value_list: List[str] = ['-9999'],
-        remap_csv: str = None,
+        remap_nc: str = None,
         only_create_remap_csv: bool = False,
         parallel:bool = False,
         clip_source_shp: bool = True,
@@ -250,8 +252,6 @@ class Easymore:
         correction_shp_lon: bool = True,
         rescaledweights: bool = True,
         skip_outside_shape: bool = False,
-        pass_target_shp_attr_remapped: bool = True,
-        target_shp_attr_file_name: str = None,
         author_name: str = None,
         license: str = None,
         tolerance: float = 1e-5,
@@ -293,7 +293,7 @@ class Easymore:
         self.output_dir = output_dir
         self.format_list = format_list
         self.fill_value_list = fill_value_list
-        self.remap_csv = remap_csv
+        self.remap_nc = remap_nc
         self.only_create_remap_csv = only_create_remap_csv
         self.parallel = parallel
         self.clip_source_shp = clip_source_shp
@@ -302,8 +302,6 @@ class Easymore:
         self.correction_shp_lon = correction_shp_lon
         self.rescaledweights = rescaledweights
         self.skip_outside_shape = skip_outside_shape
-        self.pass_target_shp_attr_remapped = pass_target_shp_attr_remapped
-        self.target_shp_attr_file_name = target_shp_attr_file_name
         self.author_name = author_name
         self.license = license
         self.tolerance = tolerance
@@ -430,9 +428,10 @@ class Easymore:
         # check the source nc file
         self.check_source_nc()
         # if remap is not provided then create the remapping file
-        if self.remap_csv is None:
+        if self.remap_nc is None:
             import geopandas as gpd
             print('--CREATING-REMAPPING-FILE--')
+            self.easymore_hash = hashlib.sha256(secrets.token_hex(8).encode()).hexdigest()
             time_start = datetime.now()
             print('Started at date and time ' + str(time_start))
             # read and check the target shapefile
@@ -537,26 +536,28 @@ class Easymore:
             existing_order = np.unique(np.array(shp_int['S_1_order']))
             attr = shp_1.copy()
             print(attr)
-            attr = attr.drop(columns=['geometry'])
+            attr = attr.drop(columns=['geometry'], errors='ignore')
             attr = pd.DataFrame(attr)
             filtered_columns = [col for col in attr.columns if col.startswith('S_1_')]
             attr = attr[filtered_columns]
             attr.columns = attr.columns.str.replace('S_1_', '', regex=False)
             attr = attr[attr['order'].isin(existing_order)]
-            if not self.remapped_var_id == 'ID_t':
-                attr.drop(columns=[self.remapped_var_id], errors='ignore', inplace=True)
-                attr.rename(columns={'ID_t': self.remapped_var_id}, inplace=True)
             attr = attr.sort_values(by='order')
+            attr = attr.reset_index()
+            attr.columns = [f'{col}_attr' for col in attr.columns]
             attr = attr.to_xarray()
-            if not self.target_shp_attr_file_name is None:
-                print("the target shapefile attribute file name is provided but EASYMORE will create a new one and use it")
-                print("name of target shapefile attribute file is only used when remapping file is provided")
-            self.target_shp_attr_file_name = self.temp_dir+self.case_name+'_target_shapefile_attribute.nc'
-            if os.path.isfile(self.target_shp_attr_file_name):
-                os.remove(self.target_shp_attr_file_name)
-            attr.to_netcdf(self.target_shp_attr_file_name)
-            print(attr)
+            aatr = attr.drop('index')
+            attr = attr.rename({'index': 'ID'})
+            attr.attrs['title'] = 'Attribute file created based on shapes in target shapefile for remapping variables'
+            attr.attrs['history'] = 'Created by EASYMORE'
+            attr.attrs['easymore_hash'] = self.easymore_hash
+            self.attr_nc = self.temp_dir+self.case_name+'_attributes.nc'
+            if os.path.isfile(self.attr_nc):
+                os.remove(self.attr_nc)
+            attr.to_netcdf(self.attr_nc)
             # rename dictionary
+            shp_int = shp_int.drop(columns=['geometry'], errors='ignore')
+            shp_int = pd.DataFrame(shp_int)
             dict_rename = {'S_1_ID_t' : 'ID_t',
                            'S_1_lat_t': 'lat_t',
                            'S_1_lon_t': 'lon_t',
@@ -566,15 +567,16 @@ class Easymore:
                            'S_2_lon_s': 'lon_s',
                            'AP1N'     : 'weight'}
             shp_int = shp_int.rename(columns=dict_rename) # rename fields for remapping file
-            shp_int = pd.DataFrame(shp_int) # move to data set and save as a csv
-            shp_int.to_csv(self.temp_dir+self.case_name+'_intersected_shapefile.csv') # save the intersected files
-            # create the remap file if remap file
-            int_df = pd.read_csv (self.temp_dir+self.case_name+'_intersected_shapefile.csv')
-            lat_source = self.lat
-            lon_source = self.lon
-            int_df = self.create_remap(int_df, lat_source, lon_source)
-            int_df.to_csv(self.temp_dir+self.case_name+'_remapping.csv')
-            self.remap_csv = self.temp_dir+self.case_name+'_remapping.csv'
+            remapping = self.create_remap(shp_int, self.lat, self.lon)
+            remapping = remapping.to_xarray()
+            remapping = remapping.rename({'index': 'frequency'})
+            remapping.attrs['title'] = 'Attribute file created based on shapes in target shapefile for remapping variables'
+            remapping.attrs['history'] = 'Created by EASYMORE'
+            remapping.attrs['easymore_hash'] = self.easymore_hash
+            self.remap_nc = self.temp_dir+self.case_name+'_remapping.nc'
+            if os.path.isfile(self.remap_nc):
+                os.remove(self.remap_nc)
+            remapping.to_netcdf(self.remap_nc)
             time_end = datetime.now()
             time_diff = time_end-time_start
             print('Ended at date and time ' + str(time_end))
@@ -582,36 +584,30 @@ class Easymore:
             print('---------------------------')
         else:
             # check the remap file if provided
-            int_df = pd.read_csv(self.remap_csv)
-            self.check_easymore_remap(int_df)
-            # check the attribute of target shapefile is provided
-            if not self.target_shp_attr_file_name is None:
-                ds = xr.open_dataset(self.target_shp_attr_file_name)
-                df_attr = ds.to_dataframe()
-                if not (self.remapped_var_id in df_attr.columns):
-                    sys.exit('There is no varibale ', self.target_shp_attr_file_name, ' in attribute nc file. '+
-                             'User should recreate this file with remapped_var_id or make sure the ID is identical to'+
-                             'remap file in order and number')
-                int_df_slice = int_df[['ID_t', 'order_t']]
-                int_df_slice = int_df_slice.drop_duplicates()
-                int_df_slice = int_df_slice.sort_values(by='order_t')
-                int_df_slice = int_df_slice.reset_index(drop=True)
-                df_attr = df_attr.sort_values(by='order')
-                df_attr = df_attr.reset_index(drop=True)
-                if len(int_df) != len(df):
-                    sys.exit('The length of provided remapping and attribute files do not match, suggest to recreate '+
-                             'the remapping and attributes files again')
-                else:
-                    if not ((int_df_slice['ID_t'] == df_attr[self.remapped_var_id]).all() and \
-                            (int_df_slice['order_t'] == df_attr['order']).all()):
-                        sys.exit("ID and order are not the same in attribute file and remapping file, suggest. "+
-                                 "suggest to recreate them again")
+            self.check_easymore_remap(self.remap_nc, attr_nc_name=self.attr_nc)
         # check if the remapping file needs to be generated only
         if self.only_create_remap_csv:
+            if self.remap_nc is not None:
+                sys.exit("The remapping file is provided to EASYMORE and already exists.")
             print('The flag to create only remap file is True')
             print('The remapping file is either created or given to EASYMORE')
-            print('The remapping Located here: ', self.remap_csv)
+            print('The remapping Located here: ', self.remap_nc)
         else:
+            # prepare the remapping temporary file
+            ds_remap = xr.open_dataset(self.remap_nc)
+            remapping = ds_remap.to_dataframe()
+            self.easymore_hash = ds_remap.attrs['easymore_hash']
+            self.remap_csv_temp = self.temp_dir+self.case_name+"_remapping_file_"+self.easymore_hash+".csv"
+            remapping.to_csv(self.remap_csv_temp)
+            # # slice attribute based on ID_t and save as temporary file
+            # if self.attr_nc:
+            #     ds_attr = xr.open_dataset(self.attr_nc)
+            #     mask = ds_attr['ID_t_attr'].isin(np.unique(np.array(ds_remap['ID_t'].values)))
+            #     ds_attr_sub = ds_attr.sel(n=mask)
+            #     ds_attr_sub = ds_attr_sub.sortby('order_attr')
+            #     ds_attr_sub = ds_attr_sub.rename({'n': self.remapped_dim_id})
+            #     self.attr_nc_temp = self.temp_dir+self.case_name+"_attr_file_"+self.easymore_hash+".nc"
+            #     ds_attr_sub.to_netcdf(self.attr_nc_temp)
             # get the nc file names
             nc_names = self.get_source_nc_file_names(self.source_nc) #sorted(glob.glob(self.source_nc, recursive=True))
             num_processes = multiprocessing.cpu_count()  # Use the number of available CPU cores
@@ -742,8 +738,7 @@ class Easymore:
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
         if self.author_name is None:
-            print("no author name is provided. The author name is changed to (author name)!")
-            self.author_name = "author name"
+            print("no author name is provided.")
         if (len(self.var_names) != 1) and (len(self.format_list) == 1) and (len(self.fill_value_list) ==1):
             if (len(self.var_names) != len(self.fill_value_list)) and \
             (len(self.var_names) != len(self.format_list)) and \
@@ -754,7 +749,7 @@ class Easymore:
                 self.fill_value_list = self.fill_value_list * len(self.var_names)
             else:
                 sys.exit('number of variables and fill values and formats do not match')
-        if not (self.remap_csv is None):
+        if not (self.remap_nc is None):
             print('remap file is provided; EASYMORE will use this file and skip creation of remapping file')
         if len(self.var_names) != len(set(self.var_names)):
             sys.exit('names of variables provided from the source NetCDF file to be remapped are not unique')
@@ -1578,7 +1573,8 @@ in dimensions of the variables and latitude and longitude')
         return rows, cols
 
     def check_easymore_remap(self,
-                             remap_df):
+                             remap_nc_name,
+                             attr_nc_name = None):
         """
         @ author:                  Shervan Gharari
         @ Github:                  https://github.com/ShervanGharari/EASYMORE
@@ -1591,6 +1587,9 @@ in dimensions of the variables and latitude and longitude')
         lon_target, lat_target, ID_source, lat_source, lon_source, rows, cols, order
         """
         # check if there is EASYMORE_case in the columns
+        ds_remap = xr.open_dataset(remap_nc_name)
+        hash_ds_remap = ds_remap.attrs['easymore_hash']
+        remap_df = ds_remap.to_dataframe()
         if 'easymore_case' in remap_df.columns:
             print('EASYMORE case exists in the remap file')
         else:
@@ -1607,6 +1606,22 @@ in dimensions of the variables and latitude and longitude')
         if not set(['ID_t','lat_t','lon_t','order_t','ID_s','lat_s','lon_s','weight']) <= set(remap_df.columns):
             sys.exit('provided remapping file does not have one of the needed fields: \n'+\
                 'ID_t, lat_t, lon_t, order_t, ID_s, lat_s, lon_s, weight')
+        #
+        if attr_nc_name is not None:
+            ds_attr = xr.open_dataset(attr_nc_name)
+            hash_ds_attr = ds_attr.attrs['easymore_hash']
+            if hash_ds_remap != hash_ds_attr:
+                sys.exit('hash from the remap file and attribute files are different')
+            # check the ID_t and order
+            ID_t_attr = np.unique(np.array(ds_attr['ID_t_attr'].values)).flatten()
+            order_attr = np.unique(np.array(ds_attr['order_attr'].values)).flatten()
+            ID_t_remap = np.unique(np.array(ds_remap['ID_t'].values)).flatten()
+            order_remap = np.unique(np.array(ds_remap['order_t'].values)).flatten()
+            # check the length of attribute the remapping file should be a subset
+            if (not (set(ID_t_remap) == set(ID_t_attr))) or (not (set(order_remap) == set(order_attr))):
+                sys.exit("There are IDs or order in remapping file that are not in the attribute file"+
+                         "make sure the remapping and attribute file are generated at the same time")
+
 
     def target_nc_creation(self,
                            nc_names):
@@ -1622,7 +1637,7 @@ in dimensions of the variables and latitude and longitude')
         nc_names: list of nc file names to be remapped, or string of single names
         """
         print('------REMAPPING------')
-        remap = pd.read_csv(self.remap_csv)
+        remap = pd.read_csv(self.remap_csv_temp)
         remap = remap.apply(pd.to_numeric, errors='coerce') # convert non numeric to NaN
         # creating the target_ID_lat_lon
         target_ID_lat_lon = pd.DataFrame()
@@ -1730,14 +1745,6 @@ in dimensions of the variables and latitude and longitude')
                 lat_varid[:] = hruID_lat
                 lon_varid[:] = hruID_lon
                 hruId_varid[:] = hruID_var
-                # general attributes for NetCDF file
-                ncid.Conventions = 'CF-1.6'
-                if self.author_name:
-                    ncid.Author = 'The data were written by ' + self.author_name
-                if self.license:
-                    ncid.License = self.license
-                ncid.History = 'Created ' + time.ctime(time.time())
-                ncid.Source = 'Case: ' +self.case_name + '; remapped by script from library of Shervan Gharari (https://github.com/ShervanGharari/EASYMORE).'
                 # write variables
                 # check chunking choice
                 if self.remapped_chunk_size == None:
@@ -1764,21 +1771,54 @@ in dimensions of the variables and latitude and longitude')
                         varid.long_name = ncids.variables[self.var_names[i]].long_name
                     if 'units' in ncids.variables[self.var_names[i]].ncattrs():
                         varid.units = ncids.variables[self.var_names[i]].units
-            # merge attribute files or pass it to the model
-            if self.pass_target_shp_attr_remapped:
-                ds = xr.open_dataset(target_name)
-                ds_attr = xr.open_dataset(self.target_shp_attr_file_name)
-                ds_attr = ds_attr.swap_dims({'index': self.remapped_dim_id})
-                for var_name in ds_attr.data_vars:
-                    # Check if the variable is not already in the target dataset
-                    if var_name not in ds and var_name not in ['lat','lon','lat_t','lon_t','order','index']:
-                        # Add the variable to the target dataset
-                        ds[var_name] = ds_attr[var_name]
-                if os.path.isfile(target_name):
-                    os.remove(target_name)
-                ds.to_netcdf(target_name)
-                ds.close()
-                ds_attr.close()
+                # get the history
+                source_file = nc4.Dataset(nc_name, 'r')
+                org_hist = ''
+                org_license = ''
+                global_attributes = source_file.__dict__
+                for key in global_attributes.keys():
+                    if 'history' in key.lower():
+                        org_hist = org_hist +' '+ key + ': '+ global_attributes[key]
+                    if 'license' in key.lower():
+                        org_license = org_license +' '+ key + ': '+ global_attributes[key]
+                # time bound
+                if self.var_time_bound is not None:
+                    source_file = nc.Dataset(nc_name, 'r')
+                    time_bounds_data = source_file.variables[self.var_time_bound][:]
+                    time_bounds_var = ncid.createVariable(self.var_time_bound,\
+                                                          time_bounds_data.dtype,\
+                                                          dimensions=('time', 'bounds'))
+                    time_bounds_var[:] = time_bounds_data
+                source_file.close()
+                # general attributes for NetCDF file
+                ncid.Conventions = 'CF-1.6'
+                if self.author_name is not None:
+                    ncid.Author = 'The data were written by ' + self.author_name
+                if self.license is None:
+                    self.license = 'No license for remapping'
+                if org_license == '':
+                    org_license = 'No license from original file is detected'
+                ncid.License = self.license +'; Originla license: '+ org_license
+                ncid.History = 'Created ' + time.ctime(time.time()) + 'by EASYMORE nc_remapper; original file history: ' +\
+                                org_hist
+                ncid.easymore_hash = self.easymore_hash
+                ncid.Source = 'Remapped by EASYMORE nc_remapper from original file: '+ nc_name
+
+            # # merge attribute files or pass it to the model
+            # if self.pass_target_shp_attr_remapped:
+            #     ds = xr.open_dataset(target_name)
+            #     ds_attr = xr.open_dataset(self.target_shp_attr_file_name)
+            #     ds_attr = ds_attr.swap_dims({'index': self.remapped_dim_id})
+            #     for var_name in ds_attr.data_vars:
+            #         # Check if the variable is not already in the target dataset
+            #         if var_name not in ds and var_name not in ['lat','lon','lat_t','lon_t','order','index']:
+            #             # Add the variable to the target dataset
+            #             ds[var_name] = ds_attr[var_name]
+            #     if os.path.isfile(target_name):
+            #         os.remove(target_name)
+            #     ds.to_netcdf(target_name)
+            #     ds.close()
+            #     ds_attr.close()
             # save the remapped values in csv file
             if self.save_csv:
                 ds = xr.open_dataset(target_name)
@@ -1905,6 +1945,7 @@ in dimensions of the variables and latitude and longitude')
                 df_temp['values_w'].fillna(fill_value, inplace=True)
             weighted_value [m,:] = np.array(df_temp['values_w'])
             #m += 1
+        ds.close()
         return weighted_value
 
 
