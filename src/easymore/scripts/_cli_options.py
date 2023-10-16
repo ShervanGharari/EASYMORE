@@ -258,17 +258,6 @@ cli_options = {
         'help': 'Easymore experiment agent',
         'show_choices': False,
     },
-    ('overwrite_remapped_nc', '--overwrite', '-O'): {
-        'type': click.BOOL,
-        'required': False,
-        'default': True,
-        'show_default': True,
-        'is_flag': True,
-        'allow_from_autoenv': False,
-        'help': 'Overwrite netCDF files',
-        'show_choices': True,
-        'show_default': True,
-    },
     ('temp_dir', '--cache', '-c'): {
         'type': click.STRING,
         'required': True,
