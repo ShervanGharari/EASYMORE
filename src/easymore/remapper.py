@@ -253,7 +253,7 @@ class Easymore:
         rescaledweights: bool = True,
         skip_outside_shape: bool = False,
         author_name: str = None,
-        license: str = None,
+        license: str = 'GPLv3+',
         tolerance: float = 1e-5,
         save_csv: bool = False,
         sort_ID: bool = False,
