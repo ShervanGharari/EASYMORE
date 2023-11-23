@@ -295,7 +295,7 @@ cli_options = {
         'show_choices': False,
     },
     ('parallel', '--parallel', '-l'): {
-        'type': click.STRING,
+        'type': click.BOOL,
         'required': False,
         'is_flag': True,
         'allow_from_autoenv': True,
