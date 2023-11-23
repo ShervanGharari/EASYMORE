@@ -294,4 +294,12 @@ cli_options = {
         ' finishing another on given their submission ID',
         'show_choices': False,
     },
+    ('parallel', '--parallel', '-l'): {
+        'type': click.STRING,
+        'required': False,
+        'is_flag': True,
+        'allow_from_autoenv': True,
+        'help': 'Parallelize process',
+        'show_choices': False,
+    },
 }
