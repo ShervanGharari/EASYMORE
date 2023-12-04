@@ -587,8 +587,6 @@ class Easymore:
             self.check_easymore_remap(self.remap_nc, attr_nc_name=self.attr_nc)
         # check if the remapping file needs to be generated only
         if self.only_create_remap_csv:
-            if self.remap_nc is not None:
-                sys.exit("The remapping file is provided to EASYMORE and already exists.")
             print('The flag to create only remap file is True')
             print('The remapping file is either created or given to EASYMORE')
             print('The remapping Located here: ', self.remap_nc)
