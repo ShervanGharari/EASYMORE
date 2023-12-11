@@ -245,7 +245,7 @@ class Easymore:
         fill_value_list: List[str] = ['-9999'],
         remap_nc: str = None,
         only_create_remap_csv: bool = False,
-        parallel:bool = False,
+        parallel: bool = False,
         clip_source_shp: bool = True,
         buffer_clip_source_shp: int = 2,
         save_temp_shp: bool = True,
