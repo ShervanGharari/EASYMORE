@@ -2805,7 +2805,9 @@ to correct for lon above 180')
                show_source_flag                = True,
                cmap                            = None,
                margin                          = 0.1, #degree
+               edgecolor_source                = 'k', #black
                linewidth_source                = 1,
+               edgecolor_remapped              = 'k', #black
                linewidth_remapped              = 1,
                alpha_source                    = 1,
                alpha_remapped                  = 1,
@@ -2943,7 +2945,7 @@ to correct for lon above 180')
             # pass the values from datarame to geopandas and visuazlie
             shp_source ['value'] = df ['value']
             shp_source.plot(column='value',
-                            edgecolor='k',
+                            edgecolor=edgecolor_source,
                             linewidth=linewidth_source,
                             ax=ax,
                             cmap=cmap,
@@ -2994,7 +2996,7 @@ to correct for lon above 180')
                 # pass the values from datarame to geopandas and visuazlie
                 shp_target ['value'] = df ['value']
                 shp_target.plot(column='value',
-                                edgecolor='k',
+                                edgecolor=edgecolor_remapped,
                                 linewidth=linewidth_remapped,
                                 ax=ax,
                                 cmap=cmap,
