@@ -165,12 +165,17 @@ class Easymore:
         file given as remap_csv is created for the source_nc file that is
         passed. Failing to do so will result in failure of the code or
         wrong remapped values.
-    only_create_remap_csv : bool, defaults to `False`
+    only_create_remap_nc : bool, defaults to `False`
         If true, the nc_remapper creates the remapping file which can be
         used later for remapping of various varibales from the same source
         netcdf file over and over again (to be reused).
     parallel : bool, defaults to `False`
         if true, it will remap the source netcdf files in parallel fashion.
+        this flag should be true for parallelization outside of job. Inside
+        a job, it will be repalce by true automatiaclly.
+    numcpu : int,
+        defined number of cpus for parallel computing outside of jon. This
+        value will be override inside job with job specific number of cpus.
     clip_source_shp : bool, defaults to `True`
         The source shapefile is clipped to the domain of target shapefile
         to increase intersection speed
@@ -245,7 +250,7 @@ class Easymore:
         fill_value_list: List[str] = ['-9999'],
         remap_nc: str = None,
         attr_nc: str = None,
-        only_create_remap_csv: bool = False,
+        only_create_remap_nc: bool = False,
         parallel: bool = False,
         numcpu: int = None,
         clip_source_shp: bool = True,
@@ -297,7 +302,7 @@ class Easymore:
         self.fill_value_list = fill_value_list
         self.remap_nc = remap_nc
         self.attr_nc = attr_nc
-        self.only_create_remap_csv = only_create_remap_csv
+        self.only_create_remap_nc = only_create_remap_nc
         self.parallel = parallel
         self.numcpu = numcpu
         self.clip_source_shp = clip_source_shp
@@ -590,7 +595,7 @@ class Easymore:
             # check the remap file if provided
             self.check_easymore_remap(self.remap_nc, attr_nc_name=self.attr_nc)
         # check if the remapping file needs to be generated only
-        if self.only_create_remap_csv:
+        if self.only_create_remap_nc:
             print('The flag to create only remap file is True')
             print('The remapping file is either created or given to EASYMORE')
             print('The remapping Located here: ', self.remap_nc)
