@@ -56,6 +56,8 @@ pip install .
 7. [Extract variables for points (such as locations of stations, cities, etc) from the grided or irregular shapefiles; temperature example](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/07_GRACE_capitals.ipynb)
 8. [Parallel remapping of various NetCDF files from source to remapped on local computer](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/11a_parallel_no_job.ipynb) or [HPC](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/11b_parallel_job.py) with [SLURM scheduler](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/11b_parallel_job.slurm)
 
+## Illustrative visualization:
+
 The two figures show remapping of the gridded temperature from ERA5 data set to subbasin of South Saskatchewan River at Medicine Hat.
 
 ### Original gridded temperature field:
@@ -85,6 +87,8 @@ The two figures show remapping of the gridded temperature from ERA5 data set to 
 	pages = {101547},
 }
 ```
+
+Link to the above [publication](http://dx.doi.org/10.1016/j.softx.2023.101547).
 
 ## Publication that have used EASYMORE so far:
 
