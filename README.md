@@ -37,26 +37,6 @@ cd EASYMORE
 pip install .
 ```
 
-## How to cite:
-
-```
-@article{gharari_easymore_2023,
-	title = {{EASYMORE}: {A} {Python} package to streamline the remapping of variables for {Earth} {System} models},
-	volume = {24},
-	issn = {2352-7110},
-	shorttitle = {{EASYMORE}},
-	url = {https://www.sciencedirect.com/science/article/pii/S2352711023002431},
-	doi = {10.1016/j.softx.2023.101547},
-	urldate = {2023-11-07},
-	journal = {SoftwareX},
-	author = {Gharari, Shervan and Keshavarz, Kasra and Knoben, Wouter J. M. and Tang, Gouqiang and Clark, Martyn P.},
-	month = dec,
-	year = {2023},
-	keywords = {EASYMORE, Earth System modeling, NetCDF, Remapping, Shapefile},
-	pages = {101547},
-}
-```
-
 ## Flexibilities:
 
 1. EASYMORE allows for commbination of the remapping of NetCDF on local computer or remote high performance computer. For example, the the GIS steps of creating remapping file can be done locally on a sample file that contains few time step of the data (but all the domain). EASYMORE can then be directed to remapping file on the HPC and will skip all the needed GIS steps and directly start remapping process of bulk of the data.
@@ -85,6 +65,26 @@ The two figures show remapping of the gridded temperature from ERA5 data set to 
 ### Remapped temperature field to the subbasins:
 
 ![](https://github.com/ShervanGharari/EASYMORE/blob/main/fig/Remapped_new.png)
+
+## How to cite:
+
+```
+@article{gharari_easymore_2023,
+	title = {{EASYMORE}: {A} {Python} package to streamline the remapping of variables for {Earth} {System} models},
+	volume = {24},
+	issn = {2352-7110},
+	shorttitle = {{EASYMORE}},
+	url = {https://www.sciencedirect.com/science/article/pii/S2352711023002431},
+	doi = {10.1016/j.softx.2023.101547},
+	urldate = {2023-11-07},
+	journal = {SoftwareX},
+	author = {Gharari, Shervan and Keshavarz, Kasra and Knoben, Wouter J. M. and Tang, Gouqiang and Clark, Martyn P.},
+	month = dec,
+	year = {2023},
+	keywords = {EASYMORE, Earth System modeling, NetCDF, Remapping, Shapefile},
+	pages = {101547},
+}
+```
 
 ## Publication that have used EASYMORE so far:
 
