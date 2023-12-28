@@ -1,4 +1,3 @@
-'''
 {
     "case_name" : "ERA5_capitals_north_america",
     "temp_dir" : "./temporary/",
@@ -10,4 +9,3 @@
     "var_time" : "time",
     "output_dir" : "./output/"
 }
-'''

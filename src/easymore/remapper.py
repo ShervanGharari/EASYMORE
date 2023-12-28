@@ -244,8 +244,10 @@ class Easymore:
         format_list: List[str] = ['f8'],
         fill_value_list: List[str] = ['-9999'],
         remap_nc: str = None,
+        attr_nc: str = None,
         only_create_remap_csv: bool = False,
         parallel: bool = False,
+        numcpu: int = None,
         clip_source_shp: bool = True,
         buffer_clip_source_shp: int = 2,
         save_temp_shp: bool = True,
@@ -294,8 +296,10 @@ class Easymore:
         self.format_list = format_list
         self.fill_value_list = fill_value_list
         self.remap_nc = remap_nc
+        self.attr_nc = attr_nc
         self.only_create_remap_csv = only_create_remap_csv
         self.parallel = parallel
+        self.numcpu = numcpu
         self.clip_source_shp = clip_source_shp
         self.buffer_clip_source_shp = buffer_clip_source_shp
         self.save_temp_shp = save_temp_shp
@@ -535,7 +539,7 @@ class Easymore:
             # craete the nc file from the target shapefile, shp1, attributes
             existing_order = np.unique(np.array(shp_int['S_1_order']))
             attr = shp_1.copy()
-            print(attr)
+            #print(attr)
             attr = attr.drop(columns=['geometry'], errors='ignore')
             attr = pd.DataFrame(attr)
             filtered_columns = [col for col in attr.columns if col.startswith('S_1_')]
@@ -608,10 +612,31 @@ class Easymore:
             #     ds_attr_sub.to_netcdf(self.attr_nc_temp)
             # get the nc file names
             nc_names = self.get_source_nc_file_names(self.source_nc) #sorted(glob.glob(self.source_nc, recursive=True))
+            # set the number of CPUs for possible parallel computing
             num_processes = multiprocessing.cpu_count()  # Use the number of available CPU cores
-            num_processes = min(len(nc_names), num_processes)  # Limit the worker if number of files is smaller
+            num_processes = max (num_processes-1, 1) # reserve one cpu outside
+            if self.numcpu is not None:
+                num_processes = min (self.numcpu, num_processes)  # Limit the worker to number of cpu provided
+            num_processes = min (len(nc_names), num_processes)  # Limit the worker if number of files is smaller
+            num_processes = max (num_processes, 1) # make sure max is 1
+            # check if inside a job
+            schedulers = {
+                        "SLURM": ['SLURM_JOBID', 'SLURM_JOB_NAME', 'SLURM_NODELIST'],
+                        "PBS": ['PBS_JOBID', 'PBS_JOBNAME', 'PBS_NODEFILE'],
+                        "LSF": ['LSB_JOBID', 'LSB_JOBNAME', 'LSB_MCPU_HOSTS'],
+                        "Kubernetes": ['KUBERNETES_SERVICE_HOST', 'KUBERNETES_SERVICE_PORT'],
+                        # Add more schedulers and their respective environment variables as needed
+                    }
+            for scheduler, env_vars in schedulers.items():
+                detected_vars = [var for var in env_vars if var in os.environ]
+                if detected_vars:
+                    print(f"Running within a {scheduler} job.")
+                    print(f"{scheduler} environment variables found:", detected_vars)
+                    self.parallel = True # set the parallel flag to true in case if false
+                    num_processes = min (len(nc_names), len(os.sched_getaffinity(0))) # assume the workers on one node, refer to job example
+                    num_processes = max (num_processes, 1) # make sure max is 1
             if self.parallel and (num_processes>1):
-                print('parallel remapping for nc files on ', num_processes, ' workers')
+                print('parallel remapping for nc files on ', num_processes, ' CPUs/workers')
                 pool = multiprocessing.Pool(processes=num_processes)  # Assign the number of workers
                 # Use pool.map() to parallelize the for loop
                 pool.map(self.target_nc_creation, nc_names)
@@ -1280,8 +1305,8 @@ in dimensions of the variables and latitude and longitude')
                     "user must specify source_nc_resolution in order to create the source shapefile")
         if self.approximate_edge_grids and (self.case ==1 or self.case ==2):
             lat_expanded, lon_expanded = expand_matrix(lat, lon, resolution = self.source_nc_resolution)
-            print(lat_expanded)
-            print(lon_expanded)
+            # print(lat_expanded)
+            # print(lon_expanded)
             self.lat_expanded = lat_expanded
             self.lon_expanded = lon_expanded
 
