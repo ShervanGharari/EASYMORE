@@ -8,7 +8,6 @@
 #SBATCH --error=easymore_test_parallel_error
 
 # remove existing modules
-cd
 module reset
 module purge
 deactivate
@@ -25,6 +24,7 @@ pip install --no-index --upgrade pip
 # pip install easymore # from pypi
 # pip install --no-index easymore # install from CC wheelhouse, similar to above this can be installed locally or from pypi
 pip install git+https://github.com/ShervanGharari/EASYMORE.git@develop_2.0.0
+pip list # listing the installed packages
 
 # check if the code runs smoothly given the example on the easymore github repo
-python 11b_parallel_job.py # compare the result with repository
+python 11b_parallel_job.py

@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 # # An example of using EASYMORE with source netCDF files in regular Latitude and Longitude with missing values for a few grids and time steps
 # ## Remapping of ERA5 to subbasins of South Saskatchewan River at Medicine Hat, Alberta, Canada.
 
