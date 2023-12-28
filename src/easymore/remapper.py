@@ -156,13 +156,13 @@ class Easymore:
         is provided, it is assume that it is assigned to all the variables.
         It can be also assigned differently to each varibale for remapping
         such as `[-9999,-1,-9999]`
-    remap_csv : str
+    remap_nc : str
         Name of the remapped file. `nc_remapper` created this file before
         remapping the source to remapped netcdf file(s), however if provided
         from earlier remapping excersizes and provided, then the
         `nc_remapper` will skip creating the remapping file which can save
         time. When using this option, the user much make sure the remapping
-        file given as remap_csv is created for the source_nc file that is
+        file given as remap_nc is created for the source_nc file that is
         passed. Failing to do so will result in failure of the code or
         wrong remapped values.
     only_create_remap_nc : bool, defaults to `False`
