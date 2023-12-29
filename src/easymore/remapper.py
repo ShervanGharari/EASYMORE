@@ -555,7 +555,7 @@ class Easymore:
             attr = attr.reset_index()
             attr.columns = [f'{col}_attr' for col in attr.columns]
             attr = attr.to_xarray()
-            aatr = attr.drop('index')
+            attr = attr.drop('index')
             attr = attr.rename({'index': 'ID'})
             attr.attrs['title'] = 'Attribute file created based on shapes in target shapefile for remapping variables'
             attr.attrs['history'] = 'Created by EASYMORE'

@@ -24,7 +24,9 @@ pip install --no-index --upgrade pip
 # pip install easymore # from pypi
 # pip install --no-index easymore # install from CC wheelhouse, similar to above this can be installed locally or from pypi
 pip install git+https://github.com/ShervanGharari/EASYMORE.git@develop_2.0.0
-pip list # listing the installed packages
 
 # check if the code runs smoothly given the example on the easymore github repo
-python 11b_parallel_job.py
+#python 11b_parallel_job.py
+
+# alternative using command line and config file
+easymore conf ./data/config/11b_parallel_config.json
