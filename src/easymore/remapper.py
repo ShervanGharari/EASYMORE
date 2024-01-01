@@ -642,12 +642,21 @@ class Easymore:
                     num_processes = max (num_processes, 1) # make sure max is 1
             if self.parallel and (num_processes>1):
                 print('parallel remapping for nc files on ', num_processes, ' CPUs/workers')
-                pool = multiprocessing.Pool(processes=num_processes)  # Assign the number of workers
-                # Use pool.map() to parallelize the for loop
-                pool.map(self.target_nc_creation, nc_names)
-                # Close the pool to free up resources
-                pool.close()
-                pool.join()
+                
+                # # with multiprocessing tool
+                # pool = multiprocessing.Pool(processes=num_processes)  # Assign the number of workers
+                # # Use pool.map() to parallelize the for loop
+                # pool.map(self.target_nc_creation, nc_names)
+                # # Close the pool to free up resources
+                # pool.close()
+                # pool.join()
+
+                # with concurrent
+                import concurrent.futures
+                with concurrent.futures.ProcessPoolExecutor(max_workers=num_processes) as executor:
+                    futures = [executor.submit(self.target_nc_creation, name) for name in nc_names]
+                    concurrent.futures.wait(futures)
+                
             else:
                 self.target_nc_creation(nc_names)
 
