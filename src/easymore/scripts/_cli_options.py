@@ -217,7 +217,7 @@ cli_options = {
         'help': 'Output directory',
         'show_choices': False,
     },
-    ('only_create_remap_csv', '--remap-file-only', '-R'): {
+    ('only_create_remap_nc', '--remap-file-only', '-R'): {
         'type': click.BOOL,
         'required': False,
         'default': False,
