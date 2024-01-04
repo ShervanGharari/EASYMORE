@@ -9,6 +9,8 @@ EASYMORE is a collection of functions that allows extraction of the data from a 
 
 EASYMORE is very efficient as it uses pandas `groupby` functionality. Remapping of the entire north American domain from ERA5 with resolution of 0.25 degree to 500,000 subbasins of MERIT-Hydro watershed for 7 variables in 1.2 seconds for one time step (the time varying from device to device and depending on the source netCDF files sizes and their temporal aggregation).
 
+EASYMORE also allows parallel computing across many netCDF files as well as command line interface to easily interact with its `nc_remapper()` functionallity.
+
 ## The code can be used for the following purposes:
 
 1. Remapping the relevant forcing variables, such as precipitation or temperature and other variables for the effortless model set up. This transfer can be from Thiessen polygon or gridded data, for example, to computational units, hydrological model for example.
@@ -37,7 +39,11 @@ pip install .
 
 ## Flexibilities:
 
-1. EASYMORE allow for commbination of the remapping of NetCDF on local computer or remote high performance computer. For example, the the GIS steps of creating remapping file can be done locally on a sample file that contains few time step of the data (but all the domain). EASYMORE can then be directed to remapping file on the HPC and will skip all the needed GIS steps and directly start remapping process of bulk of the data.
+1. EASYMORE allows for commbination of the remapping of NetCDF on local computer or remote high performance computer. For example, the the GIS steps of creating remapping file can be done locally on a sample file that contains few time step of the data (but all the domain). EASYMORE can then be directed to remapping file on the HPC and will skip all the needed GIS steps and directly start remapping process of bulk of the data.
+
+2. EASYMORE allows for parallel remapping of many NetCDF files on local computer or HPC.
+
+3. Commnad line interface to easily call EASYMORE nc_remapper functionality while populating the varibales directly or from a saved config file.
 
 ## Examples:
 
@@ -48,7 +54,9 @@ pip install .
 5. [Remap variables from an irregular shapefile data from Thiessen polygons of station data to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/04_Thiessen_Polygons_SCDNA.ipynb)
 6. [Remap variables from irregular shapefile data, such as administrative boundaries for example, to irregular shapes.](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/05_irregular_shapes.ipynb)
 7. [Extract variables for points (such as locations of stations, cities, etc) from the grided or irregular shapefiles; temperature example](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/07_GRACE_capitals.ipynb)
-8. [Interpolate regular, rotated, or irregular data and model output to any resolution density of the points by reconstructing the remapping file](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/92_WRF_interpolation.ipynb)
+8. [Parallel remapping of various NetCDF files from source to remapped on local computer](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/11a_parallel_no_job.ipynb) or [HPC](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/11b_parallel_job.py) with [SLURM scheduler](https://github.com/ShervanGharari/EASYMORE/blob/main/examples/11b_parallel_job.slurm)
+
+## Illustrative visualization:
 
 The two figures show remapping of the gridded temperature from ERA5 data set to subbasin of South Saskatchewan River at Medicine Hat.
 
@@ -60,12 +68,39 @@ The two figures show remapping of the gridded temperature from ERA5 data set to 
 
 ![](https://github.com/ShervanGharari/EASYMORE/blob/main/fig/Remapped_new.png)
 
+## How to cite:
+
+```
+@article{gharari_easymore_2023,
+	title = {{EASYMORE}: {A} {Python} package to streamline the remapping of variables for {Earth} {System} models},
+	volume = {24},
+	issn = {2352-7110},
+	shorttitle = {{EASYMORE}},
+	url = {https://www.sciencedirect.com/science/article/pii/S2352711023002431},
+	doi = {10.1016/j.softx.2023.101547},
+	urldate = {2023-11-07},
+	journal = {SoftwareX},
+	author = {Gharari, Shervan and Keshavarz, Kasra and Knoben, Wouter J. M. and Tang, Gouqiang and Clark, Martyn P.},
+	month = dec,
+	year = {2023},
+	keywords = {EASYMORE, Earth System modeling, NetCDF, Remapping, Shapefile},
+	pages = {101547},
+}
+```
+
+Link to the above [publication](http://dx.doi.org/10.1016/j.softx.2023.101547).
+
 ## Publication that have used EASYMORE so far:
 
-Knoben, W. J. M., Clark, M. P., Bales, J., Bennett, A., Gharari, S., Marsh, C. B., Nijssen, B., Pietroniro, A., Spiteri, R. J., Tarboton, D. G., Wood, A. W.: Community Workflows to Advance Reproducibility in Hydrologic Modeling: Separating Model-Agnostic and Model-Specific Configuration Steps in Applications of Large-Domain Hydrologic Models, Water Resources Research, 58, e2021WR031753. https://doi.org/10.1029/2021WR031753
+Tang, G., Clark, M. P., Knoben, W. J. M., Liu, H., Gharari, S., Arnal, L., Beck, H. E., Wood, A. W., Newman, A. J., Papalexiou, S. M. The impact of meteorological forcing uncertainty on hydrological modeling: A global analysis of cryosphere basins. Water Resources Research, 59, e2022WR033767. https://doi.org/10.1029/2022WR033767, 2023.
 
-Gharari, S., Vanderkelen, I., Tefs, A., Mizukami, N., Stadnyk, T. A., Lawrence, D., Clark, M. P.: A Flexible Multi-Scale Framework to Simulate Lakes and Reservoirs in Earth System Models, Earth and Space Science Open Archive, 24, https://doi.org/10.1002/essoar.10510902.1, 2022
+Knoben, W. J. M., Clark, M. P., Bales, J., Bennett, A., Gharari, S., Marsh, C. B., Nijssen, B., Pietroniro, A., Spiteri, R. J., Tarboton, D. G., Wood, A. W.: Community Workflows to Advance Reproducibility in Hydrologic Modeling: Separating Model-Agnostic and Model-Specific Configuration Steps in Applications of Large-Domain Hydrologic Models, Water Resources Research, 58, e2021WR031753. https://doi.org/10.1029/2021WR031753, 2022.
 
-Gharari, S., Clark, M. P., Mizukami, N., Knoben, W. J. M., Wong, J. S., and Pietroniro, A.: Flexible vector-based spatial configurations in land models, Hydrol. Earth Syst. Sci., 24, 5953–5971, https://doi.org/10.5194/hess-24-5953-2020, 2020
+Gharari, S., Vanderkelen, I., Tefs, A., Mizukami, N., Stadnyk, T. A., Lawrence, D., Clark, M. P.: A Flexible Multi-Scale Framework to Simulate Lakes and Reservoirs in Earth System Models, Earth and Space Science Open Archive, 24, https://doi.org/10.1002/essoar.10510902.1, 2022.
+
+Li, Z., Gao, S., Chen, M., Gourley, J., Mizukami, N., and Hong, Y.: CREST-VEC: a framework towards more accurate and realistic flood simulation across scales, Geosci. Model Dev., 15, 6181–6196, https://doi.org/10.5194/gmd-15-6181-2022, 2022.
 
 Sheikholeslami, R., Gharari, S., Papalexiou, S. M., Clark, M. P.: VISCOUS: A Variance-Based Sensitivity Analysis Using Copulas for Efficient Identification of Dominant Hydrological Processes, Water Resources Research, https://doi.org/10.1029/2020WR028435, 2021.
+
+Gharari, S., Clark, M. P., Mizukami, N., Knoben, W. J. M., Wong, J. S., and Pietroniro, A.: Flexible vector-based spatial configurations in land models, Hydrol. Earth Syst. Sci., 24, 5953–5971, https://doi.org/10.5194/hess-24-5953-2020, 2020.
+

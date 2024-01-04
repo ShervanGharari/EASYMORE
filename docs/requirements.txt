@@ -1,0 +1,15 @@
+sphinx
+sphinx_rtd_theme
+numpy
+xarray
+pandas
+netCDF4
+datetime
+cftime
+geopandas
+shapely
+geovoronoi
+json5
+matplotlib
+rtree
+click
