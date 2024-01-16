@@ -123,13 +123,9 @@ class Utility:
         return filtered_ds
     
     
-    def sorted_subset(ds,
-                      ids,
-                      mapping = {'var_id':'ID','dim_id':'ID'},
-                      order_of_ids = None):
-        
-        
-        
+    def  subset(ds,
+                ids,
+                mapping = {'var_id':'ID','dim_id':'ID'}):
         
         # check if the ids are unique and different
         if len(np.unique(ids)) != len(ids):
@@ -138,48 +134,84 @@ class Utility:
         # get the var and ID
         var_id = mapping.get('var_id')
         dim_id = mapping.get('dim_id')
-        
-        # 
-        if order_of_ids is not None:
-            
-            # 
-            if len(ids) != len(order_of_ids):
-                raise ValueError("ids and order_of_ids must be the same length")
-            if len(np.unique(order_of_ids)) != len(order_of_ids):
-                raise ValueError("order od ids are not unique")
                 
-            # Find indices of 'ids' existing in 'var_id'
-            indices = np.where(np.in1d(ids, ds[var_id][:]))[0]  # Using 0 as a placeholder, change it based on your requirement
-    
-            # Subset 'order_of_ids' based on the indices from 'ids' found in 'X'
-            ids = np.array(ids)[indices]
-            order_of_ids = np.array(order_of_ids)[indices]
-            
-            #
-            print(ids, order_of_ids)
-        
         # find the index in var_id and rearrange the nc file on that dimension
         idx = np.where(np.in1d(ds[var_id][:], ids))[0] # remove the order ?
-        # idx = [i for i, val in enumerate(ds[var_id].values) if val in order_ids] # keep the order ?
         ds = ds.isel({dim_id:idx})
         
-        if order_of_ids is not None:
-                
-            # Set a coordinate for sorting
-            ds.coords['sorted_coord'] = xr.DataArray(order_of_ids, dims=dim_id, name='sorted_coord')
-    
-            # Sort the dataset along the specified coordinate
-            ds = ds.sortby('sorted_coord')
-    
-            # drop sorted_coord
-            ds = ds.drop_vars('sorted_coord')
+        # return ds
+        return ds
+
+    def  sort(ds,
+              mapping = {'var_id':'ID','dim_id':'ID'}): 
+        
+        # get the var and ID
+        var_id = mapping.get('var_id')
+        dim_id = mapping.get('dim_id')
+        
+        # Set a coordinate for sorting
+        ds.coords['sorted_coord'] = xr.DataArray(ds[var_id].values, dims=dim_id, name='sorted_coord')
+
+        # Sort the dataset along the specified coordinate
+        ds = ds.sortby('sorted_coord')
+
+        # drop sorted_coord
+        ds = ds.drop_vars('sorted_coord')
+        
+        # return ds
+        return ds
+
+    def  reorder_dim(ds,
+                     order,
+                     mapping = {'dim_id':'ID'}): 
+        
+        # get the var and ID
+        dim_id = mapping.get('dim_id')
+        
+        # # check if the ids are unique and different
+        # if len(order) != len(ids):
+        #     raise ValueError("ids array contains non-unique values.")
+        
+        # Set a coordinate for sorting
+        ds.coords['sorted_coord'] = xr.DataArray(order, dims=dim_id, name='sorted_coord')
+
+        # Sort the dataset along the specified coordinate
+        ds = ds.sortby('sorted_coord')
+
+        # drop sorted_coord
+        ds = ds.drop_vars('sorted_coord')
         
         # return ds
         return ds
     
+    def  reorder(ds,
+                 ordered_ids,
+                 mapping = {'var_id':'ID','dim_id':'ID'}): 
         
-    import xarray as xr
-    import numpy as np
+        # get the var and ID
+        var_id = mapping.get('var_id')
+        dim_id = mapping.get('dim_id')
+        s
+        # Find indices of elements from A in B and keep the order
+        order = [np.where(ds[var_id].values == elem)[0][0] if elem in ds[var_id].values else None for elem in ordered_ids]
+
+        # Exclude None values
+        order = [idx for idx in order if idx is not None]
+        
+        # # reorder on the dimension of var_id
+        # ds = reorder_dim(ds, order, mapping = {'dim_id':dim_id})
+        
+        # Set a coordinate for sorting
+        ds.coords['sorted_coord'] = xr.DataArray(order, dims=dim_id, name='sorted_coord')
+
+        # Sort the dataset along the specified coordinate
+        ds = ds.sortby('sorted_coord')
+
+        # drop sorted_coord
+        ds = ds.drop_vars('sorted_coord')
+        
+        # return ds
+        return ds
     
     def sum_dim_id(ds, weight=None, dims={'dim_time':'time','dim_id': 'id'}):
         """
