@@ -191,12 +191,15 @@ class Utility:
         # get the var and ID
         var_id = mapping.get('var_id')
         dim_id = mapping.get('dim_id')
-        s
+        
         # Find indices of elements from A in B and keep the order
-        order = [np.where(ds[var_id].values == elem)[0][0] if elem in ds[var_id].values else None for elem in ordered_ids]
+        # order = [np.where(ds[var_id].values == elem)[0][0] if elem in ds[var_id].values else None for elem in ordered_ids]
+        order = [np.where(ordered_ids == elem)[0][0] if elem in ordered_ids else None for elem in ds[var_id].values]
 
         # Exclude None values
         order = [idx for idx in order if idx is not None]
+        
+        print(order)
         
         # # reorder on the dimension of var_id
         # ds = reorder_dim(ds, order, mapping = {'dim_id':dim_id})
