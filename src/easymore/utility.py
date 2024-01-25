@@ -199,7 +199,7 @@ class Utility:
         # Exclude None values
         order = [idx for idx in order if idx is not None]
         
-        print(order)
+        # print(order)
         
         # # reorder on the dimension of var_id
         # ds = reorder_dim(ds, order, mapping = {'dim_id':dim_id})
