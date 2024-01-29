@@ -161,8 +161,6 @@ def submit_hpc_job(
         # making a colon delimited string out of all input IDs
         id_list = _iterable_to_delim_str(dep_ids)
 
-    print('job_conf_file is: ', job_conf_file)
-
     # Read the SLURM job submission file content using `pkgutil`
     if job_conf_file.startswith('/'):
         with open(job_conf_file, 'rb') as f:
