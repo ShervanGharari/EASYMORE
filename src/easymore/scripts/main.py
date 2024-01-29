@@ -161,8 +161,14 @@ def submit_hpc_job(
         # making a colon delimited string out of all input IDs
         id_list = _iterable_to_delim_str(dep_ids)
 
+    print('job_conf_file is: ', job_conf_file)
+
     # Read the SLURM job submission file content using `pkgutil`
-    job_str = pkgutil.get_data(__name__, job_conf_file).decode()
+    if job_conf_file.startswith('/'):
+        with open(job_conf_file, 'rb') as f:
+            job_str = f.read().decode()
+    else:
+        job_str = pkgutil.get_data(__name__, job_conf_file).decode()
 
     # Add error and output paths to the SLURM submission file
     job_err_str = f"#SBATCH --error={temp_dir}/easymore.err"
