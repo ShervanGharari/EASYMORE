@@ -26,7 +26,7 @@ import pandas as pd
 import pint_xarray
 import pint
 import warnings
-import cdo
+#import cdo
 
 
 class Utility:
