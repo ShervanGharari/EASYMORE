@@ -473,6 +473,7 @@ class Utility:
         The function merges all the input forcing files into a single NetCDF file
         using CDO and returns an xarray.Dataset.
         """
+        import cdo
         cdo_obj = cdo.Cdo()  # CDO object
         ds = cdo_obj.mergetime(input=path, returnXArray=variables)  # Merging
         return ds
