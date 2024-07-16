@@ -237,6 +237,13 @@ cli_options = {
         'show_choices': True,
         'show_default': True,
     },
+    ('remap_nc', '--remap-file', '-rf'): {
+        'type': click.STRING,
+        'required': False,
+        'is_flag': False,
+        'allow_from_autoenv': True,
+        'help': 'Path to previously generated remap file by EASYMORE',
+    },
     ('clip_source_shp', '--clip-shapefile', '-L'): {
         'type': click.BOOL,
         'required': False,
