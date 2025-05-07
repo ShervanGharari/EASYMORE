@@ -1749,6 +1749,22 @@ in dimensions of the variables and latitude and longitude')
                 time_dtype_code = 'f8'
             elif 'int' in time_dtype.lower():
                 time_dtype_code = 'i4'
+
+            # get the history
+            org_hist = ''
+            org_license = ''
+            global_attributes = ncids.__dict__
+            for key in global_attributes.keys():
+                if 'history' in key.lower():
+                    org_hist = org_hist +' '+ key + ': '+ global_attributes[key]
+                if 'license' in key.lower():
+                    org_license = org_license +' '+ key + ': '+ global_attributes[key]
+            # time bound
+            if self.var_time_bound is not None:
+                time_bounds_data = source_file.variables[self.var_time_bound][:]
+            else:
+                time_bounds_data = None
+                
             # closing
             ncids.close()
             # reporting
@@ -1810,25 +1826,11 @@ in dimensions of the variables and latitude and longitude')
                         varid.long_name = ncids.variables[self.var_names[i]].long_name
                     if 'units' in ncids.variables[self.var_names[i]].ncattrs():
                         varid.units = ncids.variables[self.var_names[i]].units
-                # get the history
-                source_file = nc4.Dataset(nc_name, 'r')
-                org_hist = ''
-                org_license = ''
-                global_attributes = source_file.__dict__
-                for key in global_attributes.keys():
-                    if 'history' in key.lower():
-                        org_hist = org_hist +' '+ key + ': '+ global_attributes[key]
-                    if 'license' in key.lower():
-                        org_license = org_license +' '+ key + ': '+ global_attributes[key]
-                # time bound
-                if self.var_time_bound is not None:
-                    source_file = nc.Dataset(nc_name, 'r')
-                    time_bounds_data = source_file.variables[self.var_time_bound][:]
+                if time_bounds_data is not None:
                     time_bounds_var = ncid.createVariable(self.var_time_bound,\
-                                                          time_bounds_data.dtype,\
-                                                          dimensions=('time', 'bounds'))
+                                                      time_bounds_data.dtype,\
+                                                      dimensions=('time', 'bounds'))
                     time_bounds_var[:] = time_bounds_data
-                source_file.close()
                 # general attributes for NetCDF file
                 ncid.Conventions = 'CF-1.6'
                 if self.author_name is not None:
