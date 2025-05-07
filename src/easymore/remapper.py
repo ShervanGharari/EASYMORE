@@ -1943,8 +1943,9 @@ in dimensions of the variables and latitude and longitude')
         #m = 0 # counter
         for m in np.arange(length_time): # loop over time
             # ds_temp = ds.sel(time=date.strftime("%Y-%m-%d %H:%M:%S"),method="nearest")
-            ds_temp = ds.isel(time=m)
-            data = np.array(ds_temp[variable_name])
+            #ds_temp = ds.isel(time=m)
+            #data = np.array(ds_temp[variable_name])
+            data = np.array(ds.isel(time=m)[variable_name])
             #data = np.squeeze(data)
             # get values from the rows and cols and pass to np data array
             if self.case ==1 or self.case ==2:
