@@ -1749,6 +1749,8 @@ in dimensions of the variables and latitude and longitude')
                 time_dtype_code = 'f8'
             elif 'int' in time_dtype.lower():
                 time_dtype_code = 'i4'
+            # closing
+            ncids.close()
             # reporting
             statement_print = 'Remapping '+nc_name+' to '+target_name+' \n'
             time_start = datetime.now()
