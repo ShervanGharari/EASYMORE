@@ -29,6 +29,7 @@ setup(
     install_requires=[
         'numpy',
         'xarray',
+        'pint-xarray',
         'pandas',
         'netCDF4',
         'datetime',
