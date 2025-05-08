@@ -1621,8 +1621,8 @@ in dimensions of the variables and latitude and longitude')
             if self.case == 3:
                 row = np.where(lat_lon_value_diff == np.min(lat_lon_value_diff))
                 col = row
-            rows [i] = row[0]
-            cols [i] = col[0]
+            rows [i] = row[0].item()
+            cols [i] = col[0].item()
         # pass to class
         return rows, cols
 
@@ -1783,9 +1783,6 @@ in dimensions of the variables and latitude and longitude')
             if self.var_time_bound is not None:
                 time_bounds_data = source_file.variables[self.var_time_bound][:]
 
-            # closing
-            ncids.close()
-
             # reporting
             statement_print = 'Remapping '+nc_name+' to '+target_name+' \n'
             time_start = datetime.now()
@@ -1864,6 +1861,9 @@ in dimensions of the variables and latitude and longitude')
                 ncid.easymore_hash = self.easymore_hash
                 ncid.Source = 'Remapped by EASYMORE nc_remapper from original file: '+ nc_name
 
+            # closing
+            ncids.close()
+
             # # merge attribute files or pass it to the model
             # if self.pass_target_shp_attr_remapped:
             #     ds = xr.open_dataset(target_name)
@@ -1930,6 +1930,7 @@ in dimensions of the variables and latitude and longitude')
             print(statement_print)
         print('---------------------')
 
+
     def __weighted_average(self,
                            nc_name,
                            length_time,
@@ -1957,21 +1958,42 @@ in dimensions of the variables and latitude and longitude')
         # rename time variable to time
         if self.var_time != 'time':
             ds = ds.rename({self.var_time:'time'})
+        # get the variable from the ds the location of time
+        var = ds[variable_name]  # Load variable
+        ds.close()
+        time_dim = var.dims.index('time')  # Get position of time dimension
+        data_all = np.array(var)  # Load all data into memory
+        length_time = data_all.shape[time_dim]  # Number of time steps
         # prepared the numpy array for ouptut
         weighted_value = np.zeros([length_time,self.number_of_target_elements])
-        #m = 0 # counter
-        for m in np.arange(length_time): # loop over time
-            # ds_temp = ds.sel(time=date.strftime("%Y-%m-%d %H:%M:%S"),method="nearest")
-            #ds_temp = ds.isel(time=m)
-            #data = np.array(ds_temp[variable_name])
-            data = np.array(ds.isel(time=m)[variable_name])
-            #data = np.squeeze(data)
-            # get values from the rows and cols and pass to np data array
-            if self.case ==1 or self.case ==2:
-                values = data [self.rows,self.cols]
-            if self.case ==3:
-                values = data [self.rows]
-            values = np.array(values)
+
+        for m in range(length_time):
+
+            if data_all.ndim == 3 and self.case in (1, 2):# 3D
+                if time_dim == 0:
+                    data = data_all[m,:,:]
+                elif time_dim == 1:
+                    data = data_all[:,m,:]
+                elif time_dim == 2:
+                    data = data_all[:,:,m]
+                else:
+                    raise ValueError("Time dimension not in the first 3 axes")
+            elif data_all.ndim == 2 and self.case == 3:# 2D
+                if time_dim == 0:
+                    data = data_all[m,:]
+                elif time_dim == 1:
+                    data = data_all[:,m]
+                else:
+                    raise ValueError("Time dimension not in the first 2 axes")
+
+            # Extract values for the specified case
+            if self.case in (1, 2):
+                values = data[self.rows, self.cols]
+            elif self.case == 3:
+                values = data[self.rows]
+            else:
+                raise ValueError("Unknown case value")
+
             # add values to data frame
             mapping_df['values'] = values
             # replace non-numeric or np.nan with NaN
@@ -2006,8 +2028,7 @@ in dimensions of the variables and latitude and longitude')
                 # df_temp['values_w'].fillna(float(fill_value), inplace=True)
                 df_temp['values_w'] = df_temp['values_w'].fillna(float(fill_value))
             weighted_value [m,:] = np.array(df_temp['values_w'])
-            #m += 1
-        ds.close()
+
         return weighted_value
 
 
