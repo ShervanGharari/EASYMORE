@@ -16,3 +16,4 @@ except Exception:
     __version__ = "999"
 
 from .remapper import Easymore
+from .utility import Utility

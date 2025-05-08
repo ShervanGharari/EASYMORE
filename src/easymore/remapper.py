@@ -448,19 +448,19 @@ class Easymore:
             target_shp_gpd = self.check_target_shp(target_shp_gpd)
             # save the standard target shapefile
             if self.save_temp_shp:
-                target_shp_gpd.to_file(self.temp_dir+self.case_name+'_target_shapefile.shp') # save
+                target_shp_gpd.to_file(self.temp_dir+self.case_name+'_target_shapefile.gpkg', driver='GPKG')
                 print('EASYMORE saved target shapefile for EASYMORE claculation as:')
-                print(self.temp_dir+self.case_name+'_target_shapefile.shp')
+                print(self.temp_dir+self.case_name+'_target_shapefile.gpkg')
             # create source shapefile
             source_shp_gpd = self.create_source_shp()
             if self.save_temp_shp:
-                source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
-                print(self.temp_dir+self.case_name+'_source_shapefile.shp')
+                source_shp_gpd.to_file(self.temp_dir+self.case_name+'_source_shapefile.gpkg', driver='GPKG')
+                print(self.temp_dir+self.case_name+'_source_shapefile.gpkg')
                 print('EASYMORE created the shapefile from the netCDF file and saved it here:')
             # intersection of the source and sink/target shapefile
             if self.save_temp_shp:
-                shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_target_shapefile.shp')
-                shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile.shp')
+                shp_1 = gpd.read_file(self.temp_dir+self.case_name+'_target_shapefile.gpkg')
+                shp_2 = gpd.read_file(self.temp_dir+self.case_name+'_source_shapefile.gpkg')
             else:
                 shp_1 = target_shp_gpd
                 shp_2 = source_shp_gpd
@@ -482,8 +482,8 @@ class Easymore:
                       'and therefore correction for longitude values -180 to 180 or 0 to 360 is not performed even if ',
                       'the correction_shp_lon flag is set to True [default is True]')
             if self.save_temp_shp:
-                shp_1.to_file(self.temp_dir+self.case_name+'_target_shapefile_corrected_frame.shp')
-                shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_corrected_frame.shp')
+                shp_1.to_file(self.temp_dir+self.case_name+'_target_shapefile_corrected_frame.gpkg', driver='GPKG')
+                shp_2.to_file(self.temp_dir+self.case_name+'_source_shapefile_corrected_frame.gpkg', driver='GPKG')
             # # clip to the region of the target shapefile to speed up the intersection
             # if self.clip_source_shp:
             #     min_lon, min_lat, max_lon, max_lat = shp_1.total_bounds
@@ -501,12 +501,12 @@ class Easymore:
                 shp_1 = shp_1.to_crs ("EPSG:6933") # project to equal area
                 shp_2 = shp_2.to_crs ("EPSG:6933") # project to equal area
                 if self.save_temp_shp:
-                    shp_1.to_file(self.temp_dir+self.case_name+'test.shp')
-                    shp_1 = gpd.read_file(self.temp_dir+self.case_name+'test.shp')
-                    shp_2.to_file(self.temp_dir+self.case_name+'test.shp')
-                    shp_2 = gpd.read_file(self.temp_dir+self.case_name+'test.shp')
+                    shp_1.to_file(self.temp_dir+self.case_name+'test.gpkg', driver='GPKG')
+                    shp_1 = gpd.read_file(self.temp_dir+self.case_name+'test.gpkg')
+                    shp_2.to_file(self.temp_dir+self.case_name+'test.gpkg', driver='GPKG')
+                    shp_2 = gpd.read_file(self.temp_dir+self.case_name+'test.gpkg')
                 # remove test files
-                removeThese = glob.glob(self.temp_dir+self.case_name+'test.*')
+                removeThese = glob.glob(self.temp_dir+self.case_name+'test.gpkg')
                 for file in removeThese:
                     os.remove(file)
             else:
@@ -518,7 +518,7 @@ class Easymore:
             shp_int = shp_int.sort_values(by=['S_1_ID_t']) # sort based on ID_t
             shp_int = shp_int.to_crs ("EPSG:4326") # project back to WGS84
             if self.save_temp_shp:
-                shp_int.to_file(self.temp_dir+self.case_name+'_intersected_shapefile.shp') # save the intersected files
+                shp_int.to_file(self.temp_dir+self.case_name+'_intersected_shapefile.gpkg', driver='GPKG') # save the intersected files
             shp_int = shp_int.drop(columns=['geometry']) # remove the geometry
             # compare shp_1 or target shapefile with intersection to see if all the shape exists in intersection
             order_values_shp_1   = np.unique(np.array(shp_1['S_1_order']))
@@ -555,7 +555,7 @@ class Easymore:
             attr = attr.reset_index()
             attr.columns = [f'{col}_attr' for col in attr.columns]
             attr = attr.to_xarray()
-            attr = attr.drop('index')
+            attr = attr.drop_vars('index')
             attr = attr.rename({'index': 'ID'})
             attr.attrs['title'] = 'Attribute file created based on shapes in target shapefile for remapping variables'
             attr.attrs['history'] = 'Created by EASYMORE'
@@ -603,6 +603,7 @@ class Easymore:
             # prepare the remapping temporary file
             ds_remap = xr.open_dataset(self.remap_nc)
             remapping = ds_remap.to_dataframe()
+            ds_remap.close()
             self.easymore_hash = ds_remap.attrs['easymore_hash']
             self.remap_csv_temp = self.temp_dir+self.case_name+"_remapping_file_"+self.easymore_hash+".csv"
             remapping.to_csv(self.remap_csv_temp)
@@ -642,7 +643,7 @@ class Easymore:
                     num_processes = max (num_processes, 1) # make sure max is 1
             if self.parallel and (num_processes>1):
                 print('parallel remapping for nc files on ', num_processes, ' CPUs/workers')
-                
+
                 # # with multiprocessing tool
                 # pool = multiprocessing.Pool(processes=num_processes)  # Assign the number of workers
                 # # Use pool.map() to parallelize the for loop
@@ -651,12 +652,21 @@ class Easymore:
                 # pool.close()
                 # pool.join()
 
-                # with concurrent
-                import concurrent.futures
-                with concurrent.futures.ProcessPoolExecutor(max_workers=num_processes) as executor:
-                    futures = [executor.submit(self.target_nc_creation, name) for name in nc_names]
-                    concurrent.futures.wait(futures)
-                
+                # Define chunking once outside
+                chunks = [nc_names[i:i + num_processes] for i in range(0, len(nc_names), num_processes)]
+                # print(chunks)
+                for chunk in chunks:
+                    import concurrent.futures
+                    with concurrent.futures.ProcessPoolExecutor(max_workers=len(chunk)) as executor:
+                        futures = [executor.submit(self.target_nc_creation, name) for name in chunk]
+                        concurrent.futures.wait(futures)
+
+                # # with concurrent
+                # import concurrent.futures
+                # with concurrent.futures.ProcessPoolExecutor(max_workers=num_processes) as executor:
+                #     futures = [executor.submit(self.target_nc_creation, name) for name in nc_names]
+                #     concurrent.futures.wait(futures)
+
             else:
                 self.target_nc_creation(nc_names)
 
@@ -713,7 +723,7 @@ class Easymore:
                 # Create the source shapefile using Voronio diagram
                 print('EASYMORE detect that source shapefile is not provided for irregulat lat lon source NetCDF')
                 print('EASYMORE will create the voronoi source shapefile based on the lat lon')
-                source_shp_gpd, source_shp_point_gpd = self.shp_from_irregular_nc (station_shp_file_name = self.temp_dir+self.case_name+'_source_shapefile_points.shp')
+                source_shp_gpd, source_shp_point_gpd = self.shp_from_irregular_nc (station_shp_file_name = self.temp_dir+self.case_name+'_source_shapefile_points.gpkg')
             else: # source shapefile is provided
                 self.check_source_nc_shp() # check the lat lon in soure shapefile and nc file
                 source_shp_gpd = gpd.read_file(self.source_shp)
@@ -949,6 +959,7 @@ class Easymore:
             if (len(lat_dim) == 1) and (len(lon_dim) == 1) and (len(var_dim) == 2): # case 3
                 if not (set(lat_dim) == set(lon_dim)):
                     flag_do_not_match = True
+            ncid.close()
             # dimension check and consistancy for variable latitude
             for nc_name in nc_names:
                 ncid = nc4.Dataset(nc_name)
@@ -963,6 +974,7 @@ class Easymore:
                 temp = np.array(ncid.variables[self.var_lat])
                 if np.sum(abs(lat_value-temp))>self.tolerance:
                     flag_do_not_match = True
+                ncid.close()
             # dimension check and consistancy for variable longitude
             for nc_name in nc_names:
                 ncid = nc4.Dataset(nc_name)
@@ -977,6 +989,7 @@ class Easymore:
                 temp = np.array(ncid.variables[self.var_lon])
                 if np.sum(abs(lon_value-temp))>self.tolerance:
                     flag_do_not_match = True
+                ncid.close()
             # dimension check consistancy for variables to be remapped
             for var_name in self.var_names:
                 # get the variable information of lat, lon and dimensions of the variable.
@@ -990,6 +1003,7 @@ class Easymore:
                         for i in np.arange(len(temp)):
                             if temp[i] != var_dim[i]:
                                 flag_do_not_match = True
+                    ncid.close()
             # check variable time and dimension time are the same name so time is coordinate
             for nc_name in nc_names:
                 ncid = nc4.Dataset(nc_name)
@@ -999,6 +1013,7 @@ class Easymore:
                 if str(temp[0]) != self.var_time:
                     sys.exit('EASYMORE expects time variable and dimension to be different, they should be the same\
                     for xarray to consider time dimension as coordinates')
+                ncid.close()
         if flag_do_not_match:
             sys.exit('EASYMORE detects that all the provided netCDF files and variables \
 has different dimensions for the variables or latitude and longitude')
@@ -1062,6 +1077,7 @@ in dimensions of the variables and latitude and longitude')
             # print
             #sys.exit('The latitude and longitude in source NetCDF files are not unique')
             print('The latitude and longitude in source NetCDF files are not unique')
+        ncid.close()
 
 
     def check_shp_crs (self, shp, check_list = ['epsg:4326', 'epsg 4326', 'epsg: 4326', \
@@ -1323,6 +1339,7 @@ in dimensions of the variables and latitude and longitude')
             # print(lon_expanded)
             self.lat_expanded = lat_expanded
             self.lon_expanded = lon_expanded
+        ncid.close()
 
     def lat_lon_SHP(self,
                     lat,
@@ -1490,51 +1507,51 @@ in dimensions of the variables and latitude and longitude')
                 shp1 = shp [shp['lon_s'] <= 180]
                 shp2 = shp [shp['lon_s'] >  180]
                 if not shp1.empty:
-                    shp1.to_file(temp_dir+case_name+'_source_shapefileA.shp')
-                    shp1 = gpd.read_file(temp_dir+case_name+'_source_shapefileA.shp')
+                    shp1.to_file(temp_dir+case_name+'_source_shapefileA.gpkg')
+                    shp1 = gpd.read_file(temp_dir+case_name+'_source_shapefileA.gpkg')
                     temp = shp1
                 if not shp2.empty:
-                    shp2.to_file(temp_dir+case_name+'_source_shapefileB.shp')
-                    shp2 = gpd.read_file(temp_dir+case_name+'_source_shapefileB.shp')
-                    shp3 = gpd.read_file(temp_dir+case_name+'_source_shapefileB.shp')
+                    shp2.to_file(temp_dir+case_name+'_source_shapefileB.gpkg')
+                    shp2 = gpd.read_file(temp_dir+case_name+'_source_shapefileB.gpkg')
+                    shp3 = gpd.read_file(temp_dir+case_name+'_source_shapefileB.gpkg')
                     # loop change the geometry
                     for index, _ in shp3.iterrows():
                         polys = shp3.geometry.iloc[index] # get the shape
                         polys = shapely.affinity.translate(polys, xoff=-360.0, yoff=0.0, zoff=0.0)
                         shp3.geometry.iloc[index] = polys
-                    shp3.to_file(temp_dir+case_name+'_source_shapefileC.shp')
-                    shp3 = gpd.read_file(temp_dir+case_name+'_source_shapefileC.shp')
+                    shp3.to_file(temp_dir+case_name+'_source_shapefileC.gpkg')
+                    shp3 = gpd.read_file(temp_dir+case_name+'_source_shapefileC.gpkg')
                     temp = gpd.GeoDataFrame( pd.concat( [shp3,shp2] , ignore_index=True  ) )
                     if not shp1.empty:
                         temp = gpd.GeoDataFrame( pd.concat( [temp,shp1] , ignore_index=True )  )
-                temp.to_file(temp_dir+case_name+'_source_shapefile_expanded.shp')
+                temp.to_file(temp_dir+case_name+'_source_shapefile_expanded.gpkg')
             # the netcdf file has values between -180 to 180
             elif min (shp['lon_s']) > -180 and max (shp['lon_s']) < 180:
                 print('EASYMORE decides the netCDF file has longtitude values of -180 to 180; creating the extended')
                 shp1 = shp [shp['lon_s'] >   0]
                 shp2 = shp [shp['lon_s'] <=  0]
                 if not shp1.empty:
-                    shp1.to_file(temp_dir+case_name+'_source_shapefileA.shp')
-                    shp1 = gpd.read_file(temp_dir+case_name+'_source_shapefileA.shp')
+                    shp1.to_file(temp_dir+case_name+'_source_shapefileA.gpkg')
+                    shp1 = gpd.read_file(temp_dir+case_name+'_source_shapefileA.gpkg')
                     temp = shp1
                 if not shp2.empty:
-                    shp2.to_file(temp_dir+case_name+'_source_shapefileB.shp')
-                    shp2 = gpd.read_file(temp_dir+case_name+'_source_shapefileB.shp')
-                    shp3 = gpd.read_file(temp_dir+case_name+'_source_shapefileB.shp')
+                    shp2.to_file(temp_dir+case_name+'_source_shapefileB.gpkg')
+                    shp2 = gpd.read_file(temp_dir+case_name+'_source_shapefileB.gpkg')
+                    shp3 = gpd.read_file(temp_dir+case_name+'_source_shapefileB.gpkg')
                     # loop change the geometry
                     for index, _ in shp3.iterrows():
                         polys = shp3.geometry.iloc[index] # get the shape
                         polys = shapely.affinity.translate(polys, xoff=+360.0, yoff=0.0, zoff=0.0)
                         shp3.geometry.iloc[index] = polys
-                    shp3.to_file(temp_dir+case_name+'_source_shapefileC.shp')
-                    shp3 = gpd.read_file(temp_dir+case_name+'_source_shapefileC.shp')
+                    shp3.to_file(temp_dir+case_name+'_source_shapefileC.gpkg')
+                    shp3 = gpd.read_file(temp_dir+case_name+'_source_shapefileC.gpkg')
                     temp = gpd.GeoDataFrame( pd.concat( [shp3,shp2] , ignore_index=True  ) )
                     if not shp1.empty:
                         temp = gpd.GeoDataFrame( pd.concat( [temp,shp1] , ignore_index=True )  )
-                temp.to_file(temp_dir+case_name+'_source_shapefile_expanded.shp')
+                temp.to_file(temp_dir+case_name+'_source_shapefile_expanded.gpkg')
             else:
                 sys.exit('EASYMORE cannot decide about the lat and lon of the shapefiles')
-        result = gpd.read_file(temp_dir+case_name+'_source_shapefile_expanded.shp')
+        result = gpd.read_file(temp_dir+case_name+'_source_shapefile_expanded.gpkg')
         return result
 
     def create_remap(   self,
@@ -1604,8 +1621,8 @@ in dimensions of the variables and latitude and longitude')
             if self.case == 3:
                 row = np.where(lat_lon_value_diff == np.min(lat_lon_value_diff))
                 col = row
-            rows [i] = row[0]
-            cols [i] = col[0]
+            rows [i] = row[0].item()
+            cols [i] = col[0].item()
         # pass to class
         return rows, cols
 
@@ -1658,6 +1675,8 @@ in dimensions of the variables and latitude and longitude')
             if (not (set(ID_t_remap) == set(ID_t_attr))) or (not (set(order_remap) == set(order_attr))):
                 sys.exit("There are IDs or order in remapping file that are not in the attribute file"+
                          "make sure the remapping and attribute file are generated at the same time")
+            ds_attr.close()
+        ds_remap.close()
 
 
     def target_nc_creation(self,
@@ -1749,6 +1768,21 @@ in dimensions of the variables and latitude and longitude')
                 time_dtype_code = 'f8'
             elif 'int' in time_dtype.lower():
                 time_dtype_code = 'i4'
+
+            # get the history
+            org_hist = ''
+            org_license = ''
+            global_attributes = ncids.__dict__
+            for key in global_attributes.keys():
+                if 'history' in key.lower():
+                    org_hist = org_hist +' '+ key + ': '+ global_attributes[key]
+                if 'license' in key.lower():
+                    org_license = org_license +' '+ key + ': '+ global_attributes[key]
+            # time bound
+            time_bounds_data = None
+            if self.var_time_bound is not None:
+                time_bounds_data = source_file.variables[self.var_time_bound][:]
+
             # reporting
             statement_print = 'Remapping '+nc_name+' to '+target_name+' \n'
             time_start = datetime.now()
@@ -1808,25 +1842,11 @@ in dimensions of the variables and latitude and longitude')
                         varid.long_name = ncids.variables[self.var_names[i]].long_name
                     if 'units' in ncids.variables[self.var_names[i]].ncattrs():
                         varid.units = ncids.variables[self.var_names[i]].units
-                # get the history
-                source_file = nc4.Dataset(nc_name, 'r')
-                org_hist = ''
-                org_license = ''
-                global_attributes = source_file.__dict__
-                for key in global_attributes.keys():
-                    if 'history' in key.lower():
-                        org_hist = org_hist +' '+ key + ': '+ global_attributes[key]
-                    if 'license' in key.lower():
-                        org_license = org_license +' '+ key + ': '+ global_attributes[key]
-                # time bound
-                if self.var_time_bound is not None:
-                    source_file = nc.Dataset(nc_name, 'r')
-                    time_bounds_data = source_file.variables[self.var_time_bound][:]
+                if time_bounds_data is not None:
                     time_bounds_var = ncid.createVariable(self.var_time_bound,\
-                                                          time_bounds_data.dtype,\
-                                                          dimensions=('time', 'bounds'))
+                                                      time_bounds_data.dtype,\
+                                                      dimensions=('time', 'bounds'))
                     time_bounds_var[:] = time_bounds_data
-                source_file.close()
                 # general attributes for NetCDF file
                 ncid.Conventions = 'CF-1.6'
                 if self.author_name is not None:
@@ -1840,6 +1860,9 @@ in dimensions of the variables and latitude and longitude')
                                 org_hist
                 ncid.easymore_hash = self.easymore_hash
                 ncid.Source = 'Remapped by EASYMORE nc_remapper from original file: '+ nc_name
+
+            # closing
+            ncids.close()
 
             # # merge attribute files or pass it to the model
             # if self.pass_target_shp_attr_remapped:
@@ -1907,6 +1930,7 @@ in dimensions of the variables and latitude and longitude')
             print(statement_print)
         print('---------------------')
 
+
     def __weighted_average(self,
                            nc_name,
                            length_time,
@@ -1934,20 +1958,42 @@ in dimensions of the variables and latitude and longitude')
         # rename time variable to time
         if self.var_time != 'time':
             ds = ds.rename({self.var_time:'time'})
+        # get the variable from the ds the location of time
+        var = ds[variable_name]  # Load variable
+        ds.close()
+        time_dim = var.dims.index('time')  # Get position of time dimension
+        data_all = np.array(var)  # Load all data into memory
+        length_time = data_all.shape[time_dim]  # Number of time steps
         # prepared the numpy array for ouptut
         weighted_value = np.zeros([length_time,self.number_of_target_elements])
-        #m = 0 # counter
-        for m in np.arange(length_time): # loop over time
-            # ds_temp = ds.sel(time=date.strftime("%Y-%m-%d %H:%M:%S"),method="nearest")
-            ds_temp = ds.isel(time=m)
-            data = np.array(ds_temp[variable_name])
-            #data = np.squeeze(data)
-            # get values from the rows and cols and pass to np data array
-            if self.case ==1 or self.case ==2:
-                values = data [self.rows,self.cols]
-            if self.case ==3:
-                values = data [self.rows]
-            values = np.array(values)
+
+        for m in range(length_time):
+
+            if data_all.ndim == 3 and self.case in (1, 2):# 3D
+                if time_dim == 0:
+                    data = data_all[m,:,:]
+                elif time_dim == 1:
+                    data = data_all[:,m,:]
+                elif time_dim == 2:
+                    data = data_all[:,:,m]
+                else:
+                    raise ValueError("Time dimension not in the first 3 axes")
+            elif data_all.ndim == 2 and self.case == 3:# 2D
+                if time_dim == 0:
+                    data = data_all[m,:]
+                elif time_dim == 1:
+                    data = data_all[:,m]
+                else:
+                    raise ValueError("Time dimension not in the first 2 axes")
+
+            # Extract values for the specified case
+            if self.case in (1, 2):
+                values = data[self.rows, self.cols]
+            elif self.case == 3:
+                values = data[self.rows]
+            else:
+                raise ValueError("Unknown case value")
+
             # add values to data frame
             mapping_df['values'] = values
             # replace non-numeric or np.nan with NaN
@@ -1979,10 +2025,10 @@ in dimensions of the variables and latitude and longitude')
                 df_temp_slice = df_temp.loc[idx].copy()
                 if not df_temp_slice.empty:
                     df_temp.loc[df_temp_slice.index,'values_w'] = np.nan
-                df_temp['values_w'].fillna(fill_value, inplace=True)
+                # df_temp['values_w'].fillna(float(fill_value), inplace=True)
+                df_temp['values_w'] = df_temp['values_w'].fillna(float(fill_value))
             weighted_value [m,:] = np.array(df_temp['values_w'])
-            #m += 1
-        ds.close()
+
         return weighted_value
 
 
@@ -2465,6 +2511,7 @@ to correct for lon above 180')
         df['AP2N'] = df['AP2'] / df.groupby('IDS2')['AP2'].transform('sum')
         #df['AP2N'] = df.groupby('IDS2')['AP2'].apply(lambda x: (x / x.sum())).reset_index(drop=True)
         result['AP2N'] = df['AP2N'].values
+        result[result.select_dtypes(include=['float64']).columns] = result.select_dtypes(include=['float64']).round(6)
         # return
         return result
 
@@ -2700,6 +2747,7 @@ to correct for lon above 180')
         voronoi = self.voronoi_diagram(points,
                                        ID_field_name = 'ID_s',
                                        voronoi_shp_file_name = voronoi_shp_file_name)
+        ncid.close()
         # return the shapefile
         return voronoi, points
 
@@ -2760,7 +2808,7 @@ to correct for lon above 180')
         minx, miny, maxx, maxy = stations_buffert.total_bounds
         bbox = box(minx, miny, maxx, maxy)
         gdf = gpd.GeoDataFrame(geometry=[bbox])
-        gdf.to_file(self.temp_dir+'test.shp')
+        gdf.to_file(self.temp_dir+'test.gpkg')
         # # create the bounding shapefile
         # parts = []
         # with shapefile.Writer(self.temp_dir+'test.shp') as w:
@@ -2777,8 +2825,8 @@ to correct for lon above 180')
         #     # update records/fields for the polygon
         #     w.record(1)
 
-        boundary = gpd.read_file(self.temp_dir+'test.shp')
-        for f in glob.glob(self.temp_dir+'test.*'):
+        boundary = gpd.read_file(self.temp_dir+'test.gpkg')
+        for f in glob.glob(self.temp_dir+'test.gpkg'):
             os.remove(f)
         # create the voroni diagram for given point shapefile
         coords = geovoronoi.points_to_coords(stations.geometry)
