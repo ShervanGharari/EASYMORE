@@ -71,11 +71,17 @@ def from_cli(**kwargs):
     job_conf = 'submit_job_conf'  # SLURM job submission file
     job_deps = 'dependency'  # for SLURM dependencies given
     var = 'var_names'  # list of variables
+    var_remapped = 'var_names_remapped'
     cache = 'temp_dir'  # temporary directory
 
     # if list of variables is given as a comma-separated values
     if ',' in kwargs[var][0]:
         kwargs[var] = kwargs[var][0].split(',')
+
+    # if list of remapped variables is given as a comma-separated values
+    if var_remapped in kwargs:
+        if ',' in kwargs[var_remapped][0]:
+            kwargs[var_remapped] = kwargs[var_remapped][0].split(',')
 
     # creating parameter dictionary for Easymore
     esmr_kwargs = {k: v for k, v in kwargs.items() if k not in
