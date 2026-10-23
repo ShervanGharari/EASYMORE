@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "easymore"
+version = "2.0.1"
+description = "geo-spatial processing of the input data for environmental and hydrological modeling"
+readme = "README.md"
+readme-content-type = "text/markdown"
+license = { text = "GPLv3" }
+authors = [
+    { name = "Shervan Gharari", email = "sh.gharari@gmail.com" }
+]
+keywords = ["remapping", "NetCDF", "shapefile", "geo-spatial processing", "environmental modeling"]
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Natural Language :: English",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
+requires-python = ">=3.6"
+dependencies = [
+    "numpy",
+    "xarray",
+    "pint-xarray",
+    "pandas",
+    "netCDF4",
+    "datetime",
+    "cftime",
+    "geopandas",
+    "shapely",
+    "geovoronoi",
+    "json5",
+    "matplotlib",
+    "rtree",
+    "click"
+]
+urls = { "Homepage" = "https://github.com/ShervanGharari/EASYMORE" }
+
+[project.scripts]
+easymore = "easymore.scripts.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

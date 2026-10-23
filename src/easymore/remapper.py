@@ -1586,24 +1586,20 @@ in dimensions of the variables and latitude and longitude')
         # save remap_df as csv for future use
         return int_df
 
-    def create_row_col_df ( self,
-                            lat_source,
-                            lon_source,
-                            lat_target_int,
-                            lon_target_int):
+    def create_row_col_df(self,
+                          lat_source,
+                          lon_source,
+                          lat_target_int,
+                          lon_target_int):
         """
-        @ author:                  Shervan Gharari
-        @ Github:                  https://github.com/ShervanGharari/EASYMORE
-        @ author's email id:
-        @ license:                 GNU-GPLv3
-        this fucntion gets the row and colomns of the source netcdf file and returns it
+        this function gets the row and columns of the source netcdf file and returns them
 
         Parameters
         ----------
         lat_source: numpy array of lat source
         lon_source: numpy array of lon source
-        lat_target_int: numpy array of lat source
-        lon_target_int: numpy array of lon source
+        lat_target_int: numpy array of lat target
+        lon_target_int: numpy array of lon target
 
         Returns
         -------
@@ -1611,19 +1607,44 @@ in dimensions of the variables and latitude and longitude')
         cols: numpy array, cols from the source file based on the target lat/lon
         """
         # create the rows and cols
-        rows = np.zeros(len(lat_target_int))
-        cols = np.zeros(len(lon_target_int))
-        # loop to find the rows and colomns
+        rows = np.zeros(len(lat_target_int), dtype=int)
+        cols = np.zeros(len(lon_target_int), dtype=int)
+
+        # loop to find the rows and columns
         for i in np.arange(len(lat_target_int)):
-            lat_lon_value_diff = abs(lat_target_int[i]-lat_source)+abs(lon_target_int[i]-lon_source)
+            lat_lon_value_diff = (
+                abs(lat_target_int[i] - lat_source)
+                + abs(lon_target_int[i] - lon_source)
+            )
+
             if self.case == 1 or self.case == 2:
+                # np.where returns a tuple of arrays (row_idx_array, col_idx_array)
                 row, col = np.where(lat_lon_value_diff == np.min(lat_lon_value_diff))
-            if self.case == 3:
+            elif self.case == 3:
                 row = np.where(lat_lon_value_diff == np.min(lat_lon_value_diff))
                 col = row
-            rows [i] = row[0].item()
-            cols [i] = col[0].item()
-        # pass to class
+            else:
+                raise ValueError(f"Unknown case {self.case} in create_row_col_df")
+
+            # DEBUG (optional)
+            # print(i)
+            # print("row:", row, "col:", col)
+            # print("------")
+
+            # Unpack scalar indices safely
+            # row is a tuple of arrays; take first array, then its first element
+            r_arr = row[0]
+            c_arr = col[0]
+
+            if r_arr.size == 0 or c_arr.size == 0:
+                raise ValueError(
+                    f"No indices found for target point {i}: "
+                    f"lat={lat_target_int[i]}, lon={lon_target_int[i]}"
+                )
+
+            rows[i] = int(r_arr[0])
+            cols[i] = int(c_arr[0])
+
         return rows, cols
 
     def check_easymore_remap(self,
